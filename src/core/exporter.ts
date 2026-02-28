@@ -6,15 +6,14 @@ export type ExportFormat = "json" | "csv" | "md";
 
 function timestampForFilename(value: string): string {
   return value
-    .replace(/[:]/g, "-")
-    .replace(/[.].+$/, "")
+    .replace(/[:.]/g, "-")
     .replace("T", "_")
     .replace(/[^0-9_-]/g, "");
 }
 
 function csvEscape(value: string): string {
   const normalized = value.replace(/\r?\n/g, " ");
-  const hardened = /^[=+\-@]/.test(normalized) ? `'${normalized}` : normalized;
+  const hardened = /^[\t\r ]*[=+\-@]/.test(normalized) ? `'${normalized}` : normalized;
   if (/[",\n]/.test(hardened)) {
     return `"${hardened.replace(/"/g, "\"\"")}"`;
   }
@@ -174,7 +173,8 @@ export async function exportBenchResults(
   await mkdir(outDir, { recursive: true });
 
   const ts = timestampForFilename(new Date().toISOString());
-  const filename = `llmeter-results-${ts}.${format}`;
+  const unique = Math.random().toString(36).slice(2, 8);
+  const filename = `llmeter-results-${ts}-${unique}.${format}`;
   const path = resolve(outDir, filename);
 
   let content: string;

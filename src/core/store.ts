@@ -21,12 +21,14 @@ async function ensureDirs(): Promise<void> {
 
 function resultFilename(result: BenchResult): string {
   const ts = result.timestamp
-    .replace(/[:]/g, "-")
-    .replace(/[.].+$/, "")
+    .replace(/[:.]/g, "-")
     .replace("T", "_")
     .replace(/[^0-9_-]/g, "");
   const model = result.model.replace(/[^a-zA-Z0-9._-]/g, "_");
-  return `${ts}_${model}.json`;
+  const hashSuffix = result.metadata.rawLogHash
+    ? result.metadata.rawLogHash.slice(0, 8)
+    : `${Date.now()}`;
+  return `${ts}_${model}_${hashSuffix}.json`;
 }
 
 export async function saveResult(result: BenchResult): Promise<string> {

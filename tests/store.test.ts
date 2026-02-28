@@ -137,5 +137,24 @@ describe("store", () => {
     const loaded = await store.loadResults();
     expect(loaded.some((r) => r.model === "mixtral:8x7b")).toBe(true);
   });
-});
 
+  it("uses unique filenames for same model and timestamp", async () => {
+    const store = await import("../src/core/store.js");
+    const first = sampleResult("qwen2.5:7b");
+    const second = {
+      ...sampleResult("qwen2.5:7b"),
+      metadata: {
+        ...sampleResult("qwen2.5:7b").metadata,
+        rawLogHash: "def456",
+      },
+    };
+
+    const firstPath = await store.saveResult(first);
+    const secondPath = await store.saveResult(second);
+
+    expect(firstPath).not.toBe(secondPath);
+
+    const loaded = await store.loadResults();
+    expect(loaded.filter((r) => r.model === "qwen2.5:7b")).toHaveLength(2);
+  });
+});

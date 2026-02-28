@@ -249,8 +249,8 @@ describe("extractChoice", () => {
     expect(extractChoice("  A  ")).toBe("A");
   });
 
-  it("extracts first standalone letter on first line", () => {
-    expect(extractChoice("A good analysis shows D")).toBe("A");
+  it("does not treat sentence article as the chosen option", () => {
+    expect(extractChoice("A good analysis shows D")).toBe("D");
   });
 
   it("extracts prefix format like 'C)'", () => {
@@ -259,6 +259,10 @@ describe("extractChoice", () => {
 
   it("prefers explicit option pattern over later letters", () => {
     expect(extractChoice("Choice: B. I considered C and D as distractors.")).toBe("B");
+  });
+
+  it("extracts choice from 'I choose option X' phrasing", () => {
+    expect(extractChoice("I choose option C for this question.")).toBe("C");
   });
 });
 

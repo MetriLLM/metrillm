@@ -149,16 +149,15 @@ export function extractChoice(text: string): string | null {
   const prefixMatch = cleaned.match(/^([A-D])[).:](?!\w)/i);
   if (prefixMatch) return prefixMatch[1].toUpperCase();
 
-  // Prefer first standalone choice on the first response line.
-  const firstLine = cleaned.split(/\r?\n/, 1)[0] ?? cleaned;
-  const firstLineMatch = firstLine.match(/\b([A-D])\b/i);
-  if (firstLineMatch) return firstLineMatch[1].toUpperCase();
+  // "I choose B", "my answer: C", "final answer D"
+  const decisionMatch = cleaned.match(
+    /\b(?:choose|chosen|pick|picked|answer|final answer)\b[\s:=\-]*(?:option|choice)?[\s:=\-]*([A-D])\b/i
+  );
+  if (decisionMatch) return decisionMatch[1].toUpperCase();
 
-  // Fallback: first standalone letter A-D in the full response.
-  const firstMatch = cleaned.match(/\b([A-D])\b/i);
-  if (firstMatch) {
-    return firstMatch[1].toUpperCase();
-  }
+  // Last standalone choice at end of response.
+  const endMatch = cleaned.match(/\b([A-D])\b[\s.!?]*$/i);
+  if (endMatch) return endMatch[1].toUpperCase();
 
   return null;
 }

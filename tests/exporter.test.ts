@@ -167,6 +167,18 @@ describe("exportBenchResults", () => {
     expect(content).toContain("'=HYPERLINK");
   });
 
+  it("neutralizes CSV formula injection with leading spaces", async () => {
+    const malicious: BenchResult = {
+      ...sampleResult(),
+      model: "   =cmd|'/C calc'!A0",
+    };
+    const dir = await makeTmpDir("llmeter-export-csv-safe-leading-");
+    const path = await exportBenchResults([malicious], "csv", dir);
+    const content = await readFile(path, "utf8");
+
+    expect(content).toContain("'   =cmd|'/C calc'!A0");
+  });
+
   it("escapes markdown pipe characters in table cells", async () => {
     const withPipes: BenchResult = {
       ...sampleResult(),

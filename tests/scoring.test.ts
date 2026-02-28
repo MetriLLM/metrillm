@@ -180,6 +180,20 @@ describe("computePerformanceScore", () => {
       deriveHardwareFitTuning(makeHardware({ cpuCores: 14, totalMemoryGB: 64 })).profile
     ).toBe("HIGH-END");
   });
+
+  it("sanitizes non-finite performance inputs", () => {
+    const score = computePerformanceScore(
+      makePerf({
+        tokensPerSecond: Number.NaN,
+        ttft: Number.NaN,
+        memoryPercent: Number.NaN,
+      })
+    );
+    expect(Number.isFinite(score.total)).toBe(true);
+    expect(score.speed).toBe(0);
+    expect(score.total).toBeGreaterThanOrEqual(0);
+    expect(score.total).toBeLessThanOrEqual(100);
+  });
 });
 
 describe("computeQualityScore", () => {
@@ -326,6 +340,19 @@ describe("computeFitness", () => {
     const fitness = computeFitness(perf, null);
     expect(fitness.disqualifiers.some((d) => d.includes("Model load time"))).toBe(true);
     expect(fitness.verdict).toBe("NOT RECOMMENDED");
+  });
+
+  it("treats invalid perf metrics as unsafe for recommendation", () => {
+    const perf = makePerf({
+      tokensPerSecond: Number.NaN,
+      ttft: Number.NaN,
+      loadTime: Number.NaN,
+      memoryPercent: Number.NaN,
+      memoryHostPercent: Number.NaN,
+    });
+    const fitness = computeFitness(perf, null);
+    expect(fitness.verdict).toBe("NOT RECOMMENDED");
+    expect(fitness.disqualifiers.length).toBeGreaterThan(0);
   });
 
   it("can disqualify on high-end profile while passing on entry profile", () => {

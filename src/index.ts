@@ -25,16 +25,23 @@ function parsePositiveIntegerOption(value: unknown, optionName: string): number 
     return null;
   }
   const parsed = Number(raw);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+    errorMsg(`Invalid ${optionName} value: ${value}. Expected a safe positive integer.`);
+    return null;
+  }
   return parsed;
-}
-
-function hasSubcommand(argv: string[]): boolean {
-  const controlArgs = new Set(["bench", "list", "menu", "--help", "-h", "--version", "-V"]);
-  return argv.some((arg) => controlArgs.has(arg));
 }
 
 function hasCiNoMenuFlag(argv: string[]): boolean {
   return argv.includes("--ci-no-menu");
+}
+
+function shouldShortCircuitCiNoMenu(argv: string[]): boolean {
+  // Only short-circuit on the exact root invocation:
+  // `llmeter --ci-no-menu`
+  // Any additional argument should still be parsed by commander
+  // so unknown flags/subcommands fail fast.
+  return argv.length === 1 && argv[0] === "--ci-no-menu";
 }
 
 program
@@ -157,10 +164,10 @@ program
   });
 
 const argv = process.argv.slice(2);
-if (hasCiNoMenuFlag(argv) && !hasSubcommand(argv)) {
+if (shouldShortCircuitCiNoMenu(argv)) {
   printBanner();
   successMsg("CI non-interactive mode: no menu opened.");
-} else if (process.argv.length <= 2) {
+} else if (argv.length === 0) {
   printBanner();
   await runInteractiveMenu();
 } else {

@@ -309,9 +309,9 @@
   },
   {
     "id": 45,
-    "question": "A factory produces items in 3 shifts. Day shift has 2% defect rate, evening shift has 3%, and night shift has 5%. Day shift produces 50% of items, evening 30%, night 20%. If a randomly chosen item is defective, which shift most likely produced it?",
+    "question": "A factory produces items in 3 shifts. Day shift has 2% defect rate, evening shift has 3%, and night shift has 6%. Day shift produces 50% of items, evening 30%, night 20%. If a randomly chosen item is defective, which shift most likely produced it?",
     "choices": ["A) Day shift", "B) Evening shift", "C) Night shift", "D) Equal probability"],
-    "answer": "A",
+    "answer": "C",
     "category": "multi-step"
   },
   {

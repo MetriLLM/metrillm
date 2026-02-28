@@ -191,8 +191,12 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
       try {
         const savedPath = await saveResult(benchResult);
         successMsg(`Result saved: ${savedPath}`);
-      } catch {
+      } catch (err) {
         // Non-fatal: don't fail the benchmark if local save fails
+        warnMsg("Could not save benchmark result locally.");
+        if (err instanceof Error) {
+          warnMsg(err.message);
+        }
       }
     } catch (err) {
       failedModels.push(modelName);
@@ -227,7 +231,15 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
         // In CI mode, don't share by default (needs explicit --share)
         decision = "skip";
       } else {
-        decision = await promptShare(result);
+        try {
+          decision = await promptShare(result);
+        } catch (err) {
+          warnMsg("Could not open share prompt; skipping upload.");
+          if (err instanceof Error) {
+            warnMsg(err.message);
+          }
+          decision = "skip";
+        }
       }
 
       if (decision === "share") {

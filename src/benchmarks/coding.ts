@@ -162,12 +162,13 @@ function parseIsolatedResult(
   if (!text) return null;
   try {
     const parsed = JSON.parse(text) as { passed?: unknown; total?: unknown };
-    if (typeof parsed.passed !== "number") return null;
-    const total =
-      typeof parsed.total === "number"
-        ? parsed.total
-        : fallbackTotal;
-    return { passed: parsed.passed, total };
+    if (typeof parsed.passed !== "number" || !Number.isFinite(parsed.passed)) return null;
+    const rawTotal = typeof parsed.total === "number" && Number.isFinite(parsed.total)
+      ? parsed.total
+      : fallbackTotal;
+    const total = Math.max(0, Math.trunc(rawTotal));
+    const passed = Math.max(0, Math.min(total, Math.trunc(parsed.passed)));
+    return { passed, total };
   } catch {
     return null;
   }
@@ -197,6 +198,11 @@ function resolveSandboxMode(): "subprocess" | "worker" {
   const raw = process.env.LLMETER_CODING_SANDBOX?.trim().toLowerCase();
   if (raw === "worker") return "worker";
   return "subprocess";
+}
+
+function allowWorkerFallback(): boolean {
+  const raw = process.env.LLMETER_CODING_ALLOW_WORKER_FALLBACK?.trim().toLowerCase();
+  return raw === "1" || raw === "true" || raw === "yes";
 }
 
 async function runTestsInSubprocess(
@@ -251,7 +257,7 @@ async function runTestsInSubprocess(
       finish(null);
     });
 
-    child.once("exit", (code) => {
+    child.once("close", (code) => {
       const parsed = parseIsolatedResult(stdout, total);
       if (parsed) {
         finish(parsed);
@@ -343,6 +349,7 @@ async function runTestsIsolated(
   code: string,
   task: CodingTask
 ): Promise<{ passed: number; total: number }> {
+  const total = task.tests.length;
   if (resolveSandboxMode() === "worker") {
     return runTestsInWorker(code, task);
   }
@@ -350,8 +357,11 @@ async function runTestsIsolated(
   const fromSubprocess = await runTestsInSubprocess(code, task);
   if (fromSubprocess) return fromSubprocess;
 
-  // Compatibility fallback for environments where subprocess execution is restricted.
-  return runTestsInWorker(code, task);
+  // Security-first default: avoid silently downgrading to a weaker isolation model.
+  if (allowWorkerFallback()) {
+    return runTestsInWorker(code, task);
+  }
+  return { passed: 0, total };
 }
 
 export async function runCodingBench(model: string): Promise<CategoryResult> {

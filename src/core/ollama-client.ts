@@ -1,20 +1,41 @@
 import { Ollama } from "ollama";
 import type { OllamaModel, OllamaRunningModel } from "../types.js";
+import { withTimeout } from "../utils.js";
 
 const client = new Ollama();
+const DEFAULT_OLLAMA_HOST = "http://127.0.0.1:11434";
+const OLLAMA_INIT_TIMEOUT_MS = 15_000;
+
+function getOllamaBaseUrl(): string {
+  const configured = process.env.OLLAMA_HOST?.trim();
+  if (!configured) return DEFAULT_OLLAMA_HOST;
+  const candidate = /^https?:\/\//i.test(configured) ? configured : `http://${configured}`;
+  try {
+    return new URL(candidate).toString();
+  } catch {
+    return DEFAULT_OLLAMA_HOST;
+  }
+}
 
 export async function getOllamaVersion(): Promise<string> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5_000);
   try {
-    const resp = await fetch("http://127.0.0.1:11434/api/version");
+    const baseUrl = getOllamaBaseUrl();
+    const url = new URL("/api/version", baseUrl);
+    const resp = await fetch(url, { signal: controller.signal });
+    if (!resp.ok) return "unknown";
     const data = (await resp.json()) as { version?: string };
     return data.version ?? "unknown";
   } catch {
     return "unknown";
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
 export async function listModels(): Promise<OllamaModel[]> {
-  const resp = await client.list();
+  const resp = await withTimeout(client.list(), OLLAMA_INIT_TIMEOUT_MS, "Ollama list models");
   return resp.models.map((m) => ({
     name: m.name,
     size: m.size,
@@ -25,7 +46,7 @@ export async function listModels(): Promise<OllamaModel[]> {
 }
 
 export async function listRunningModels(): Promise<OllamaRunningModel[]> {
-  const resp = await client.ps();
+  const resp = await withTimeout(client.ps(), OLLAMA_INIT_TIMEOUT_MS, "Ollama list running models");
   return resp.models.map((m) => ({
     name: m.name,
     size: m.size,
@@ -62,15 +83,19 @@ export async function generateStream(
   callbacks?: StreamCallbacks,
   options?: { temperature?: number; num_predict?: number }
 ): Promise<GenerateResult> {
-  const stream = await client.generate({
-    model,
-    prompt,
-    stream: true,
-    options: {
-      temperature: options?.temperature ?? 0,
-      num_predict: options?.num_predict ?? 512,
-    },
-  });
+  const stream = await withTimeout(
+    client.generate({
+      model,
+      prompt,
+      stream: true,
+      options: {
+        temperature: options?.temperature ?? 0,
+        num_predict: options?.num_predict ?? 512,
+      },
+    }),
+    OLLAMA_INIT_TIMEOUT_MS,
+    "Ollama generate initialization"
+  );
 
   let fullResponse = "";
   let result: GenerateResult | null = null;

@@ -26,6 +26,11 @@ function normalizeRawScore(value: number): number {
   return clamp(value, 0, 100);
 }
 
+function sanitizeNonNegative(value: number, fallback: number): number {
+  if (!Number.isFinite(value) || value < 0) return fallback;
+  return value;
+}
+
 export function computeFitness(
   perf: PerformanceMetrics,
   quality: QualityMetrics | null,
@@ -57,25 +62,32 @@ export function computeFitness(
       })
     : null;
 
+  const safeTokensPerSecond = sanitizeNonNegative(perf.tokensPerSecond, 0);
+  const safeTtft = sanitizeNonNegative(perf.ttft, tuning.ttft.hardMaxMs * 10);
+  const safeLoadTime = sanitizeNonNegative(perf.loadTime, tuning.loadTimeHardMaxMs * 10);
+  const hostMemoryPercent = sanitizeNonNegative(
+    perf.memoryHostPercent ?? perf.memoryPercent,
+    100
+  );
+  const modelMemoryDeltaPercent = sanitizeNonNegative(perf.memoryPercent, 100);
+
   // Disqualifiers
   const disqualifiers: string[] = [];
-  if (perf.tokensPerSecond < tuning.speed.hardMin) {
+  if (safeTokensPerSecond < tuning.speed.hardMin) {
     disqualifiers.push(
-      `Token speed too low: ${perf.tokensPerSecond.toFixed(1)} tok/s (minimum: ${tuning.speed.hardMin} tok/s for ${tuning.profile} profile)`
+      `Token speed too low: ${safeTokensPerSecond.toFixed(1)} tok/s (minimum: ${tuning.speed.hardMin} tok/s for ${tuning.profile} profile)`
     );
   }
-  if (perf.ttft > tuning.ttft.hardMaxMs) {
+  if (safeTtft > tuning.ttft.hardMaxMs) {
     disqualifiers.push(
-      `Time to first token too high: ${Math.round(perf.ttft)}ms (maximum: ${tuning.ttft.hardMaxMs}ms for ${tuning.profile} profile)`
+      `Time to first token too high: ${Math.round(safeTtft)}ms (maximum: ${tuning.ttft.hardMaxMs}ms for ${tuning.profile} profile)`
     );
   }
-  if (perf.loadTime > tuning.loadTimeHardMaxMs) {
+  if (safeLoadTime > tuning.loadTimeHardMaxMs) {
     disqualifiers.push(
-      `Model load time too high: ${Math.round(perf.loadTime)}ms (maximum: ${tuning.loadTimeHardMaxMs}ms for ${tuning.profile} profile)`
+      `Model load time too high: ${Math.round(safeLoadTime)}ms (maximum: ${tuning.loadTimeHardMaxMs}ms for ${tuning.profile} profile)`
     );
   }
-  const hostMemoryPercent = perf.memoryHostPercent ?? perf.memoryPercent;
-  const modelMemoryDeltaPercent = perf.memoryPercent;
   const hostCritical = hostMemoryPercent > 95;
   const modelDeltaCritical = modelMemoryDeltaPercent > 90;
   const modelDeltaSignificant = modelMemoryDeltaPercent >= 10;
@@ -122,11 +134,12 @@ export function computeFitness(
 
   if (
     perf.tpsStdDev !== undefined &&
-    perf.tokensPerSecond > 0 &&
-    perf.tpsStdDev / perf.tokensPerSecond > 0.3
+    Number.isFinite(perf.tpsStdDev) &&
+    safeTokensPerSecond > 0 &&
+    perf.tpsStdDev / safeTokensPerSecond > 0.3
   ) {
     warnings.push(
-      `Token speed is unstable (stddev ${perf.tpsStdDev.toFixed(1)} tok/s, mean ${perf.tokensPerSecond.toFixed(1)} tok/s) — may indicate thermal throttling or memory pressure.`
+      `Token speed is unstable (stddev ${perf.tpsStdDev.toFixed(1)} tok/s, mean ${safeTokensPerSecond.toFixed(1)} tok/s) — may indicate thermal throttling or memory pressure.`
     );
   }
 

@@ -57,6 +57,11 @@ const HIGH_END_TUNING: HardwareFitTuning = {
   loadTimeHardMaxMs: 120000,
 };
 
+function sanitizeNonNegative(value: number, fallback: number): number {
+  if (!Number.isFinite(value) || value < 0) return fallback;
+  return value;
+}
+
 export function deriveHardwareFitTuning(hardware?: HardwareInfo): HardwareFitTuning {
   if (!hardware) return BALANCED_TUNING;
 
@@ -106,11 +111,16 @@ export function computePerformanceScore(
   hardware?: HardwareInfo
 ): PerformanceScore {
   const tuning = deriveHardwareFitTuning(hardware);
-  const speed = Math.round(scoreSpeed(perf.tokensPerSecond, tuning));
-  const ttft = Math.round(scoreTTFT(perf.ttft, tuning));
+  const safeTokensPerSecond = sanitizeNonNegative(perf.tokensPerSecond, 0);
+  const safeTtft = sanitizeNonNegative(perf.ttft, tuning.ttft.hardMaxMs * 2);
   // Use host absolute memory usage when available (more representative of
   // the actual impact on the user's system) — fall back to model delta.
-  const effectiveMemPercent = perf.memoryHostPercent ?? perf.memoryPercent;
+  const effectiveMemPercent = sanitizeNonNegative(
+    perf.memoryHostPercent ?? perf.memoryPercent,
+    100
+  );
+  const speed = Math.round(scoreSpeed(safeTokensPerSecond, tuning));
+  const ttft = Math.round(scoreTTFT(safeTtft, tuning));
   const memory = Math.round(scoreMemory(effectiveMemPercent));
 
   return {
