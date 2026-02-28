@@ -5,3 +5,4 @@ dist/
 coverage/
 exports/
 supabase/.temp/
+docs_projet/
