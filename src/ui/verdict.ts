@@ -2,6 +2,33 @@ import chalk from "chalk";
 import type { FitnessResult } from "../types.js";
 import { scoreColor, type ColorFn } from "./score-color.js";
 
+const BOX_INNER = 60;
+
+// Strip ANSI escape codes to get visible string length
+function visibleLength(str: string): number {
+  // eslint-disable-next-line no-control-regex
+  return str.replace(/\x1b\[[0-9;]*m/g, "").length;
+}
+
+function wrapText(text: string, maxWidth: number): string[] {
+  if (text.length <= maxWidth) return [text];
+  const words = text.split(" ");
+  const lines: string[] = [];
+  let current = "";
+  for (const word of words) {
+    if (current.length === 0) {
+      current = word;
+    } else if (current.length + 1 + word.length <= maxWidth) {
+      current += " " + word;
+    } else {
+      lines.push(current);
+      current = word;
+    }
+  }
+  if (current.length > 0) lines.push(current);
+  return lines;
+}
+
 function progressBar(value: number, max: number, width = 26): string {
   if (max <= 0) return "░".repeat(width);
   const ratio = Math.max(0, Math.min(1, value / max));
@@ -21,13 +48,12 @@ function levelColor(level: string): ColorFn {
 }
 
 function sectionStart(title: string, borderColor: ColorFn): void {
-  const innerWidth = 58;
-  const pad = Math.max(1, innerWidth - title.length - 2);
+  const pad = Math.max(1, BOX_INNER - title.length);
   console.log(borderColor(`┌ ${title} ${"─".repeat(pad)}┐`));
 }
 
 function sectionEnd(borderColor: ColorFn): void {
-  console.log(borderColor(`└${"─".repeat(60)}┘`));
+  console.log(borderColor(`└${"─".repeat(BOX_INNER + 2)}┘`));
 }
 
 function sectionText(
@@ -35,7 +61,12 @@ function sectionText(
   borderColor: ColorFn,
   textColor: ColorFn = chalk.dim
 ): void {
-  console.log(`${borderColor("│")} ${textColor(text)}`);
+  const contentWidth = BOX_INNER;
+  const lines = text.length === 0 ? [""] : wrapText(text, contentWidth);
+  for (const line of lines) {
+    const pad = Math.max(0, contentWidth - line.length);
+    console.log(`${borderColor("│")} ${textColor(line)}${" ".repeat(pad)} ${borderColor("│")}`);
+  }
 }
 
 function scoreRow(
@@ -46,8 +77,11 @@ function scoreRow(
 ): void {
   const color = scoreColor(score);
   const meter = progressBar(score, max);
+  const content = `${label.padEnd(16)} ${color(`[${meter}] ${score.toFixed(0)}/${max}`)}`;
+  const visible = visibleLength(content);
+  const pad = Math.max(0, BOX_INNER - visible);
   console.log(
-    `${borderColor("│")} ${label.padEnd(16)} ${color(`[${meter}] ${score.toFixed(0)}/${max}`)}`
+    `${borderColor("│")} ${content}${" ".repeat(pad)} ${borderColor("│")}`
   );
 }
 

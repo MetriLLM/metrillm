@@ -137,7 +137,7 @@ describe("printVerdict", () => {
     expect(joined).toContain("A) Hardware Fit");
     expect(joined).toContain("B) Task Quality");
     expect(joined).toContain("C) Global Score");
-    expect(joined).toContain("Method: thresholds are adjusted to your host hardware profile.");
+    expect(joined).toContain("Method: thresholds are adjusted");
     expect(joined).toContain("Active profile: HIGH-END");
   });
 
