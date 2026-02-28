@@ -40,3 +40,13 @@ npm run test:e2e:smoke
 Branch protection recommendations are documented in:
 
 - `.github/branch-protection.md`
+
+## Contributing
+
+Contributions are welcome! Please read the [Contributing Guide](CONTRIBUTING.md) before submitting a pull request. All commits must include a DCO sign-off.
+
+## License
+
+This project is licensed under the [Apache License 2.0](LICENSE).
+
+See the [NOTICE](NOTICE) file for trademark information and additional attribution details.
