@@ -1,0 +1,142 @@
+[
+  {
+    "id": 1,
+    "language": "fr",
+    "prompt": "Répondez uniquement par le nom de la ville : quelle est la capitale de l'Australie ?",
+    "validation": "stringMatch",
+    "acceptedAnswers": ["Canberra"]
+  },
+  {
+    "id": 2,
+    "language": "fr",
+    "prompt": "Répondez uniquement par le nombre : combien de jours dans une année bissextile ?",
+    "validation": "numberMatch",
+    "expectedNumber": 366
+  },
+  {
+    "id": 3,
+    "language": "fr",
+    "prompt": "Répondez en français en une phrase : quel est le plus grand océan du monde ?",
+    "validation": "containsKeyword",
+    "keywords": ["Pacifique"]
+  },
+  {
+    "id": 4,
+    "language": "fr",
+    "prompt": "Répondez uniquement par le nombre : combien font 17 × 6 ?",
+    "validation": "numberMatch",
+    "expectedNumber": 102
+  },
+  {
+    "id": 5,
+    "language": "es",
+    "prompt": "Responde solo con el nombre de la ciudad: ¿cuál es la capital de Japón?",
+    "validation": "stringMatch",
+    "acceptedAnswers": ["Tokio", "Tokyo"]
+  },
+  {
+    "id": 6,
+    "language": "es",
+    "prompt": "Responde solo con el número: ¿cuántos continentes hay?",
+    "validation": "numberMatch",
+    "expectedNumber": 7
+  },
+  {
+    "id": 7,
+    "language": "es",
+    "prompt": "Responde en español en una frase: ¿cuál es el planeta más grande del sistema solar?",
+    "validation": "containsKeyword",
+    "keywords": ["Júpiter", "Jupiter"]
+  },
+  {
+    "id": 8,
+    "language": "es",
+    "prompt": "Responde solo con el número: ¿cuánto es 25 + 37?",
+    "validation": "numberMatch",
+    "expectedNumber": 62
+  },
+  {
+    "id": 9,
+    "language": "de",
+    "prompt": "Antworten Sie nur mit dem Stadtnamen: Was ist die Hauptstadt von Brasilien?",
+    "validation": "stringMatch",
+    "acceptedAnswers": ["Brasília", "Brasilia"]
+  },
+  {
+    "id": 10,
+    "language": "de",
+    "prompt": "Antworten Sie nur mit der Zahl: Wie viele Seiten hat ein Würfel?",
+    "validation": "numberMatch",
+    "expectedNumber": 6
+  },
+  {
+    "id": 11,
+    "language": "de",
+    "prompt": "Antworten Sie auf Deutsch in einem Satz: Welches ist das größte Säugetier?",
+    "validation": "containsKeyword",
+    "keywords": ["Blauwal", "Wal"]
+  },
+  {
+    "id": 12,
+    "language": "de",
+    "prompt": "Antworten Sie nur mit der Zahl: Was ist 144 geteilt durch 12?",
+    "validation": "numberMatch",
+    "expectedNumber": 12
+  },
+  {
+    "id": 13,
+    "language": "zh",
+    "prompt": "请只回答城市名：法国的首都是哪里？",
+    "validation": "stringMatch",
+    "acceptedAnswers": ["巴黎", "Paris"]
+  },
+  {
+    "id": 14,
+    "language": "zh",
+    "prompt": "请只回答数字：一年有多少个月？",
+    "validation": "numberMatch",
+    "expectedNumber": 12
+  },
+  {
+    "id": 15,
+    "language": "zh",
+    "prompt": "请用中文一句话回答：地球上最大的沙漠是什么？",
+    "validation": "containsKeyword",
+    "keywords": ["撒哈拉"]
+  },
+  {
+    "id": 16,
+    "language": "zh",
+    "prompt": "请只回答数字：7乘以8等于多少？",
+    "validation": "numberMatch",
+    "expectedNumber": 56
+  },
+  {
+    "id": 17,
+    "language": "ja",
+    "prompt": "都市名だけで答えてください：イタリアの首都はどこですか？",
+    "validation": "stringMatch",
+    "acceptedAnswers": ["ローマ", "Roma", "Rome"]
+  },
+  {
+    "id": 18,
+    "language": "ja",
+    "prompt": "数字だけで答えてください：一週間は何日ですか？",
+    "validation": "numberMatch",
+    "expectedNumber": 7
+  },
+  {
+    "id": 19,
+    "language": "ja",
+    "prompt": "日本語で一文で答えてください：世界で一番高い山は何ですか？",
+    "validation": "containsKeyword",
+    "keywords": ["エベレスト", "Everest"]
+  },
+  {
+    "id": 20,
+    "language": "ja",
+    "prompt": "数字だけで答えてください：100から37を引くと？",
+    "validation": "numberMatch",
+    "expectedNumber": 63
+  }
+]

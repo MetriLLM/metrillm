@@ -1,0 +1,352 @@
+[
+  {
+    "id": 1,
+    "question": "All W are X. No X are Y. Some Z are W. Which conclusion must be true?",
+    "choices": ["A) Some Z are Y", "B) Some Z are not Y", "C) All Z are Y", "D) No Z are X"],
+    "answer": "B",
+    "category": "logic"
+  },
+  {
+    "id": 2,
+    "question": "Find the next number: 2, 6, 12, 20, 30, ?",
+    "choices": ["A) 38", "B) 40", "C) 42", "D) 44"],
+    "answer": "C",
+    "category": "pattern"
+  },
+  {
+    "id": 3,
+    "question": "What is the smaller angle between clock hands at 3:15?",
+    "choices": ["A) 0°", "B) 7.5°", "C) 15°", "D) 22.5°"],
+    "answer": "B",
+    "category": "quantitative"
+  },
+  {
+    "id": 4,
+    "question": "Binary 101101 is what in decimal?",
+    "choices": ["A) 41", "B) 43", "C) 45", "D) 47"],
+    "answer": "C",
+    "category": "computing"
+  },
+  {
+    "id": 5,
+    "question": "If server overloaded => latency high. Latency is high. What follows?",
+    "choices": ["A) Server is definitely overloaded", "B) Server is definitely not overloaded", "C) Network is down", "D) Overload cannot be concluded"],
+    "answer": "D",
+    "category": "logic"
+  },
+  {
+    "id": 6,
+    "question": "What is the average time complexity of merge sort?",
+    "choices": ["A) O(n)", "B) O(n^2)", "C) O(n log n)", "D) O(log n)"],
+    "answer": "C",
+    "category": "computing"
+  },
+  {
+    "id": 7,
+    "question": "Probability of getting sum 9 with two fair dice?",
+    "choices": ["A) 1/6", "B) 1/8", "C) 1/9", "D) 1/12"],
+    "answer": "C",
+    "category": "probability"
+  },
+  {
+    "id": 8,
+    "question": "For XOR, when is output true?",
+    "choices": ["A) Inputs differ", "B) Inputs are both true", "C) Inputs are both false", "D) Output is never true"],
+    "answer": "A",
+    "category": "logic"
+  },
+  {
+    "id": 9,
+    "question": "Smallest integer n such that 2^n > 1000?",
+    "choices": ["A) 9", "B) 10", "C) 11", "D) 12"],
+    "answer": "B",
+    "category": "quantitative"
+  },
+  {
+    "id": 10,
+    "question": "A car travels 60 km at 30 km/h and 60 km at 60 km/h. Average speed?",
+    "choices": ["A) 36 km/h", "B) 38 km/h", "C) 40 km/h", "D) 45 km/h"],
+    "answer": "C",
+    "category": "quantitative"
+  },
+  {
+    "id": 11,
+    "question": "In a line: A before B, C after B, D before A, E after C. Who is first?",
+    "choices": ["A) A", "B) B", "C) C", "D) D"],
+    "answer": "D",
+    "category": "ordering"
+  },
+  {
+    "id": 12,
+    "question": "If 3 machines make 3 parts in 3 minutes at same rate, 100 machines make 100 parts in how many minutes?",
+    "choices": ["A) 3", "B) 10", "C) 33", "D) 100"],
+    "answer": "A",
+    "category": "quantitative"
+  },
+  {
+    "id": 13,
+    "question": "Sum of interior angles of a hexagon is:",
+    "choices": ["A) 540°", "B) 600°", "C) 720°", "D) 900°"],
+    "answer": "C",
+    "category": "geometry"
+  },
+  {
+    "id": 14,
+    "question": "Exactly one of A or B is true. A says: 'B is true.' B says: 'A is false.' Which is correct?",
+    "choices": ["A) A true, B false", "B) A false, B true", "C) Both true", "D) Both false"],
+    "answer": "B",
+    "category": "logic"
+  },
+  {
+    "id": 15,
+    "question": "Which statement about a Directed Acyclic Graph (DAG) is always true?",
+    "choices": ["A) It has at least one node with indegree 0", "B) Every node has indegree > 0", "C) It always has a cycle", "D) It must be complete"],
+    "answer": "A",
+    "category": "computing"
+  },
+  {
+    "id": 16,
+    "question": "The mean of 5 numbers is 12. Four numbers are 8, 10, 12, 14. The fifth is:",
+    "choices": ["A) 14", "B) 15", "C) 12", "D) 16"],
+    "answer": "D",
+    "category": "quantitative"
+  },
+  {
+    "id": 17,
+    "question": "How many distinct prime factors does 84 have?",
+    "choices": ["A) 2", "B) 3", "C) 4", "D) 5"],
+    "answer": "B",
+    "category": "number_theory"
+  },
+  {
+    "id": 18,
+    "question": "The contrapositive of 'If p then q' is:",
+    "choices": ["A) If q then p", "B) If not q then not p", "C) If not p then not q", "D) If p then not q"],
+    "answer": "B",
+    "category": "logic"
+  },
+  {
+    "id": 19,
+    "question": "0.125 as a simplified fraction is:",
+    "choices": ["A) 1/8", "B) 1/6", "C) 1/5", "D) 2/15"],
+    "answer": "A",
+    "category": "quantitative"
+  },
+  {
+    "id": 20,
+    "question": "Binary search is valid only when the input array is:",
+    "choices": ["A) Random", "B) Unique", "C) Sorted", "D) Small"],
+    "answer": "C",
+    "category": "computing"
+  },
+  {
+    "id": 21,
+    "question": "Alice is older than Bob. Bob is older than Cara. Dan is older than Alice. Who is oldest?",
+    "choices": ["A) Alice", "B) Bob", "C) Cara", "D) Dan"],
+    "answer": "D",
+    "category": "ordering"
+  },
+  {
+    "id": 22,
+    "question": "A tap fills a tank in 6 min, drain empties in 9 min. Both open from empty: fill time?",
+    "choices": ["A) 12 min", "B) 15 min", "C) 18 min", "D) 54 min"],
+    "answer": "C",
+    "category": "quantitative"
+  },
+  {
+    "id": 23,
+    "question": "Smallest positive integer divisible by 3, 4 and 5 is:",
+    "choices": ["A) 30", "B) 60", "C) 120", "D) 240"],
+    "answer": "B",
+    "category": "number_theory"
+  },
+  {
+    "id": 24,
+    "question": "If today is Tuesday, what day will it be in 100 days?",
+    "choices": ["A) Tuesday", "B) Wednesday", "C) Friday", "D) Thursday"],
+    "answer": "D",
+    "category": "logic"
+  },
+  {
+    "id": 25,
+    "question": "Among 100 people, 60 like A and 50 like B. Minimum that like both A and B?",
+    "choices": ["A) 10", "B) 20", "C) 30", "D) 0"],
+    "answer": "A",
+    "category": "set_theory"
+  },
+  {
+    "id": 26,
+    "question": "Which grows fastest as n becomes large?",
+    "choices": ["A) log n", "B) n", "C) n log n", "D) n^2"],
+    "answer": "D",
+    "category": "computing"
+  },
+  {
+    "id": 27,
+    "question": "Maximum value in 8-bit unsigned integer is:",
+    "choices": ["A) 127", "B) 128", "C) 255", "D) 256"],
+    "answer": "C",
+    "category": "computing"
+  },
+  {
+    "id": 28,
+    "question": "A price increases by 20% then decreases by 20%. Net change is:",
+    "choices": ["A) No change", "B) 4% decrease", "C) 4% increase", "D) 8% decrease"],
+    "answer": "B",
+    "category": "quantitative"
+  },
+  {
+    "id": 29,
+    "question": "A right triangle has legs 7 and 24. Its area is:",
+    "choices": ["A) 42", "B) 72", "C) 96", "D) 84"],
+    "answer": "D",
+    "category": "geometry"
+  },
+  {
+    "id": 30,
+    "question": "If events A and B are independent, P(A)=0.4 and P(B)=0.5, then P(A and B)=",
+    "choices": ["A) 0.1", "B) 0.2", "C) 0.4", "D) 0.9"],
+    "answer": "B",
+    "category": "probability"
+  },
+  {
+    "id": 31,
+    "question": "Premises: All squares are rectangles. Some rectangles are not squares. Which must be true?",
+    "choices": ["A) All rectangles are squares", "B) No rectangle is a square", "C) At least one rectangle is not a square", "D) Some squares are not rectangles"],
+    "answer": "C",
+    "category": "logic"
+  },
+  {
+    "id": 32,
+    "question": "x1=1 and x(n+1)=2x(n)+1. What is x4?",
+    "choices": ["A) 7", "B) 15", "C) 31", "D) 63"],
+    "answer": "B",
+    "category": "pattern"
+  },
+  {
+    "id": 33,
+    "question": "In hexadecimal, A + 5 equals decimal:",
+    "choices": ["A) 13", "B) 14", "C) 15", "D) 16"],
+    "answer": "C",
+    "category": "computing"
+  },
+  {
+    "id": 34,
+    "question": "If f is strictly increasing and f(3)=10, what can be concluded about f(5)?",
+    "choices": ["A) f(5) < 10", "B) f(5) = 10", "C) f(5) <= 10", "D) f(5) > 10"],
+    "answer": "D",
+    "category": "logic"
+  },
+  {
+    "id": 35,
+    "question": "Which sorting algorithm is not comparison-based in standard form?",
+    "choices": ["A) Merge sort", "B) Quick sort", "C) Heap sort", "D) Counting sort"],
+    "answer": "D",
+    "category": "computing"
+  },
+  {
+    "id": 36,
+    "question": "How many 4-digit PIN codes exist (digits 0-9, repetition allowed)?",
+    "choices": ["A) 10000", "B) 9000", "C) 5040", "D) 4096"],
+    "answer": "A",
+    "category": "combinatorics"
+  },
+  {
+    "id": 37,
+    "question": "70 people have cats, 45 have dogs, 30 have both. How many have at least one of cat/dog?",
+    "choices": ["A) 100", "B) 95", "C) 85", "D) 75"],
+    "answer": "C",
+    "category": "set_theory"
+  },
+  {
+    "id": 38,
+    "question": "5 workers in 5 days make 100 units. At same rate, 10 workers in 3 days make:",
+    "choices": ["A) 90", "B) 120", "C) 150", "D) 200"],
+    "answer": "B",
+    "category": "quantitative"
+  },
+  {
+    "id": 39,
+    "question": "For 1 <= x <= 3, maximum of -x^2 + 4x is:",
+    "choices": ["A) 3", "B) 3.5", "C) 4", "D) 5"],
+    "answer": "C",
+    "category": "algebra"
+  },
+  {
+    "id": 40,
+    "question": "Which expression is a tautology?",
+    "choices": ["A) p OR (NOT p)", "B) p AND (NOT p)", "C) p XOR p", "D) NOT (p OR (NOT p))"],
+    "answer": "A",
+    "category": "logic"
+  },
+  {
+    "id": 41,
+    "question": "No politicians are honest. Some honest people are kind. All kind people are respected. Which conclusion must be true?",
+    "choices": ["A) No politicians are respected", "B) Some respected people are not politicians", "C) All respected people are honest", "D) No kind people are politicians"],
+    "answer": "B",
+    "category": "logic-negation"
+  },
+  {
+    "id": 42,
+    "question": "If it is not raining, then the ground is not wet. The ground is wet. Which conclusion follows?",
+    "choices": ["A) It is raining", "B) It is not raining", "C) The ground might be dry", "D) No conclusion can be drawn"],
+    "answer": "A",
+    "category": "logic-negation"
+  },
+  {
+    "id": 43,
+    "question": "Alice is taller than Bob. Carol is shorter than David. David is shorter than Bob. Eve is taller than Alice. Who is the third tallest?",
+    "choices": ["A) Alice", "B) Bob", "C) David", "D) Carol"],
+    "answer": "A",
+    "category": "multi-step"
+  },
+  {
+    "id": 44,
+    "question": "In a tournament with 5 players (A, B, C, D, E): A beat B, B beat C, C beat D, D beat E, and E beat A. B beat D, and C beat E. A beat C. How many players have exactly 2 wins?",
+    "choices": ["A) 1", "B) 2", "C) 3", "D) 4"],
+    "answer": "C",
+    "category": "multi-step"
+  },
+  {
+    "id": 45,
+    "question": "A factory produces items in 3 shifts. Day shift has 2% defect rate, evening shift has 3%, and night shift has 5%. Day shift produces 50% of items, evening 30%, night 20%. If a randomly chosen item is defective, which shift most likely produced it?",
+    "choices": ["A) Day shift", "B) Evening shift", "C) Night shift", "D) Equal probability"],
+    "answer": "A",
+    "category": "multi-step"
+  },
+  {
+    "id": 46,
+    "question": "Hand is to glove as foot is to sock. Painter is to canvas as sculptor is to:",
+    "choices": ["A) Brush", "B) Clay", "C) Gallery", "D) Art"],
+    "answer": "B",
+    "category": "analogy"
+  },
+  {
+    "id": 47,
+    "question": "Algorithm is to computation as recipe is to cooking. Blueprint is to building as genome is to:",
+    "choices": ["A) DNA", "B) Organism", "C) Cell", "D) Evolution"],
+    "answer": "B",
+    "category": "analogy"
+  },
+  {
+    "id": 48,
+    "question": "A barber shaves all those, and only those, who do not shave themselves. Does the barber shave himself? This is known as the barber paradox. Which best describes the logical status?",
+    "choices": ["A) The barber shaves himself", "B) The barber does not shave himself", "C) The scenario is self-contradictory", "D) It depends on additional information"],
+    "answer": "C",
+    "category": "paradox"
+  },
+  {
+    "id": 49,
+    "question": "You have two coins. One is fair (50/50). The other is biased and always shows heads. You pick a coin at random and flip it — it shows heads. What is the probability you picked the fair coin?",
+    "choices": ["A) 1/4", "B) 1/3", "C) 1/2", "D) 2/3"],
+    "answer": "B",
+    "category": "probabilistic"
+  },
+  {
+    "id": 50,
+    "question": "A test for a disease is 99% accurate (both sensitivity and specificity). The disease affects 1 in 1000 people. If someone tests positive, what is the approximate probability they actually have the disease?",
+    "choices": ["A) About 9%", "B) About 50%", "C) About 91%", "D) About 99%"],
+    "answer": "A",
+    "category": "probabilistic"
+  }
+]

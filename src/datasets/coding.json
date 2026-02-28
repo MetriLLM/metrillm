@@ -1,0 +1,3439 @@
+[
+  {
+    "id": 1,
+    "description": "Write a function that groups an array of strings by their first letter. Return an object where keys are lowercase letters and values are arrays of matching strings (original case preserved).",
+    "functionName": "groupByFirstLetter",
+    "signature": "function groupByFirstLetter(words)",
+    "tests": [
+      {
+        "input": [
+          [
+            "apple",
+            "Avocado",
+            "banana",
+            "Blueberry",
+            "cherry"
+          ]
+        ],
+        "expected": {
+          "a": [
+            "apple",
+            "Avocado"
+          ],
+          "b": [
+            "banana",
+            "Blueberry"
+          ],
+          "c": [
+            "cherry"
+          ]
+        }
+      },
+      {
+        "input": [
+          []
+        ],
+        "expected": {}
+      },
+      {
+        "input": [
+          [
+            "hello"
+          ]
+        ],
+        "expected": {
+          "h": [
+            "hello"
+          ]
+        }
+      },
+      {
+        "input": [
+          [
+            "Abc",
+            "abc",
+            "ABc"
+          ]
+        ],
+        "expected": {
+          "a": [
+            "Abc",
+            "abc",
+            "ABc"
+          ]
+        }
+      },
+      {
+        "input": [
+          [
+            "x",
+            "y",
+            "z"
+          ]
+        ],
+        "expected": {
+          "x": [
+            "x"
+          ],
+          "y": [
+            "y"
+          ],
+          "z": [
+            "z"
+          ]
+        }
+      },
+      {
+        "input": [
+          [
+            "Dog",
+            "duck",
+            "Deer",
+            "cat"
+          ]
+        ],
+        "expected": {
+          "d": [
+            "Dog",
+            "duck",
+            "Deer"
+          ],
+          "c": [
+            "cat"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "description": "Write a function that implements run-length encoding. Given a string, return an array of [char, count] pairs for consecutive runs.",
+    "functionName": "runLengthEncode",
+    "signature": "function runLengthEncode(s)",
+    "tests": [
+      {
+        "input": [
+          "aaabbc"
+        ],
+        "expected": [
+          [
+            "a",
+            3
+          ],
+          [
+            "b",
+            2
+          ],
+          [
+            "c",
+            1
+          ]
+        ]
+      },
+      {
+        "input": [
+          ""
+        ],
+        "expected": []
+      },
+      {
+        "input": [
+          "a"
+        ],
+        "expected": [
+          [
+            "a",
+            1
+          ]
+        ]
+      },
+      {
+        "input": [
+          "aabba"
+        ],
+        "expected": [
+          [
+            "a",
+            2
+          ],
+          [
+            "b",
+            2
+          ],
+          [
+            "a",
+            1
+          ]
+        ]
+      },
+      {
+        "input": [
+          "xxxyz"
+        ],
+        "expected": [
+          [
+            "x",
+            3
+          ],
+          [
+            "y",
+            1
+          ],
+          [
+            "z",
+            1
+          ]
+        ]
+      },
+      {
+        "input": [
+          "abcde"
+        ],
+        "expected": [
+          [
+            "a",
+            1
+          ],
+          [
+            "b",
+            1
+          ],
+          [
+            "c",
+            1
+          ],
+          [
+            "d",
+            1
+          ],
+          [
+            "e",
+            1
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "description": "Write a function that deep flattens a nested array. E.g. [1,[2,[3,[4]]],5] => [1,2,3,4,5].",
+    "functionName": "deepFlatten",
+    "signature": "function deepFlatten(arr)",
+    "tests": [
+      {
+        "input": [
+          [
+            [
+              1,
+              [
+                2,
+                [
+                  3,
+                  [
+                    4
+                  ]
+                ]
+              ],
+              5
+            ]
+          ]
+        ],
+        "expected": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      {
+        "input": [
+          [
+            []
+          ]
+        ],
+        "expected": []
+      },
+      {
+        "input": [
+          [
+            [
+              1,
+              2,
+              3
+            ]
+          ]
+        ],
+        "expected": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "input": [
+          [
+            [
+              [
+                [
+                  [
+                    1
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ],
+        "expected": [
+          1
+        ]
+      },
+      {
+        "input": [
+          [
+            [
+              1,
+              [],
+              2,
+              [
+                3,
+                []
+              ]
+            ]
+          ]
+        ],
+        "expected": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "input": [
+          [
+            [
+              "a",
+              [
+                "b",
+                [
+                  "c"
+                ]
+              ]
+            ]
+          ]
+        ],
+        "expected": [
+          "a",
+          "b",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": 4,
+    "description": "Write a function that returns all permutations of a string. Return sorted array of unique permutations.",
+    "functionName": "permutations",
+    "signature": "function permutations(s)",
+    "tests": [
+      {
+        "input": [
+          "ab"
+        ],
+        "expected": [
+          "ab",
+          "ba"
+        ]
+      },
+      {
+        "input": [
+          "a"
+        ],
+        "expected": [
+          "a"
+        ]
+      },
+      {
+        "input": [
+          "abc"
+        ],
+        "expected": [
+          "abc",
+          "acb",
+          "bac",
+          "bca",
+          "cab",
+          "cba"
+        ]
+      },
+      {
+        "input": [
+          ""
+        ],
+        "expected": [
+          ""
+        ]
+      },
+      {
+        "input": [
+          "aa"
+        ],
+        "expected": [
+          "aa"
+        ]
+      },
+      {
+        "input": [
+          "aba"
+        ],
+        "expected": [
+          "aab",
+          "aba",
+          "baa"
+        ]
+      }
+    ]
+  },
+  {
+    "id": 5,
+    "description": "Write a function that converts a Roman numeral string to an integer. Handle values I(1), V(5), X(10), L(50), C(100), D(500), M(1000) with subtractive notation.",
+    "functionName": "romanToInt",
+    "signature": "function romanToInt(s)",
+    "tests": [
+      {
+        "input": [
+          "III"
+        ],
+        "expected": 3
+      },
+      {
+        "input": [
+          "IV"
+        ],
+        "expected": 4
+      },
+      {
+        "input": [
+          "IX"
+        ],
+        "expected": 9
+      },
+      {
+        "input": [
+          "MCMXCIV"
+        ],
+        "expected": 1994
+      },
+      {
+        "input": [
+          "XLII"
+        ],
+        "expected": 42
+      },
+      {
+        "input": [
+          "DCCCXC"
+        ],
+        "expected": 890
+      }
+    ]
+  },
+  {
+    "id": 6,
+    "description": "Write a function that finds the first non-repeating character in a string and returns its index. Return -1 if none.",
+    "functionName": "firstUniqCharIndex",
+    "signature": "function firstUniqCharIndex(s)",
+    "tests": [
+      {
+        "input": [
+          "leetcode"
+        ],
+        "expected": 0
+      },
+      {
+        "input": [
+          "loveleetcode"
+        ],
+        "expected": 2
+      },
+      {
+        "input": [
+          "aabb"
+        ],
+        "expected": -1
+      },
+      {
+        "input": [
+          ""
+        ],
+        "expected": -1
+      },
+      {
+        "input": [
+          "a"
+        ],
+        "expected": 0
+      },
+      {
+        "input": [
+          "abacabad"
+        ],
+        "expected": 3
+      }
+    ]
+  },
+  {
+    "id": 7,
+    "description": "Write a function that removes duplicate values from an array, preserving order.",
+    "functionName": "removeDuplicates",
+    "signature": "function removeDuplicates(arr)",
+    "tests": [
+      {
+        "input": [
+          [
+            1,
+            2,
+            2,
+            3,
+            3,
+            3
+          ]
+        ],
+        "expected": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "input": [
+          [
+            "a",
+            "b",
+            "a"
+          ]
+        ],
+        "expected": [
+          "a",
+          "b"
+        ]
+      },
+      {
+        "input": [
+          []
+        ],
+        "expected": []
+      },
+      {
+        "input": [
+          [
+            1,
+            1,
+            1
+          ]
+        ],
+        "expected": [
+          1
+        ]
+      },
+      {
+        "input": [
+          [
+            true,
+            false,
+            true,
+            true
+          ]
+        ],
+        "expected": [
+          true,
+          false
+        ]
+      },
+      {
+        "input": [
+          [
+            1,
+            "1",
+            1,
+            "1"
+          ]
+        ],
+        "expected": [
+          1,
+          "1"
+        ]
+      }
+    ]
+  },
+  {
+    "id": 8,
+    "description": "Write a function that counts the number of vowels (a, e, i, o, u) in a string (case-insensitive).",
+    "functionName": "countVowels",
+    "signature": "function countVowels(str)",
+    "tests": [
+      {
+        "input": [
+          "hello"
+        ],
+        "expected": 2
+      },
+      {
+        "input": [
+          "AEIOU"
+        ],
+        "expected": 5
+      },
+      {
+        "input": [
+          "xyz"
+        ],
+        "expected": 0
+      },
+      {
+        "input": [
+          ""
+        ],
+        "expected": 0
+      },
+      {
+        "input": [
+          "The quick brown fox"
+        ],
+        "expected": 5
+      },
+      {
+        "input": [
+          "rhythms"
+        ],
+        "expected": 0
+      }
+    ]
+  },
+  {
+    "id": 9,
+    "description": "Write a function that flattens a nested array one level deep.",
+    "functionName": "flatten",
+    "signature": "function flatten(arr)",
+    "tests": [
+      {
+        "input": [
+          [
+            [
+              1,
+              2
+            ],
+            [
+              3,
+              4
+            ]
+          ]
+        ],
+        "expected": [
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "input": [
+          [
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ]
+          ]
+        ],
+        "expected": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "input": [
+          []
+        ],
+        "expected": []
+      },
+      {
+        "input": [
+          [
+            [
+              1,
+              [
+                2,
+                3
+              ]
+            ]
+          ]
+        ],
+        "expected": [
+          1,
+          [
+            2,
+            3
+          ]
+        ]
+      },
+      {
+        "input": [
+          [
+            [
+              1,
+              2
+            ],
+            [],
+            [
+              3
+            ]
+          ]
+        ],
+        "expected": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "input": [
+          [
+            [
+              "a"
+            ],
+            [
+              "b",
+              "c"
+            ]
+          ]
+        ],
+        "expected": [
+          "a",
+          "b",
+          "c"
+        ]
+      }
+    ]
+  },
+  {
+    "id": 10,
+    "description": "Write a function that converts a string to title case (first letter of each word capitalized).",
+    "functionName": "toTitleCase",
+    "signature": "function toTitleCase(str)",
+    "tests": [
+      {
+        "input": [
+          "hello world"
+        ],
+        "expected": "Hello World"
+      },
+      {
+        "input": [
+          "javaScript is fun"
+        ],
+        "expected": "Javascript Is Fun"
+      },
+      {
+        "input": [
+          ""
+        ],
+        "expected": ""
+      },
+      {
+        "input": [
+          "a"
+        ],
+        "expected": "A"
+      },
+      {
+        "input": [
+          "hello   WORLD"
+        ],
+        "expected": "Hello   World"
+      },
+      {
+        "input": [
+          "mIXed cAsE tExt"
+        ],
+        "expected": "Mixed Case Text"
+      }
+    ]
+  },
+  {
+    "id": 11,
+    "description": "Write a function that checks if a number is prime.",
+    "functionName": "isPrime",
+    "signature": "function isPrime(n)",
+    "tests": [
+      {
+        "input": [
+          2
+        ],
+        "expected": true
+      },
+      {
+        "input": [
+          17
+        ],
+        "expected": true
+      },
+      {
+        "input": [
+          1
+        ],
+        "expected": false
+      },
+      {
+        "input": [
+          4
+        ],
+        "expected": false
+      },
+      {
+        "input": [
+          0
+        ],
+        "expected": false
+      },
+      {
+        "input": [
+          97
+        ],
+        "expected": true
+      }
+    ]
+  },
+  {
+    "id": 12,
+    "description": "Write a function that returns the unique intersection of two arrays (common elements), sorted in ascending order for numbers and lexicographical order for strings.",
+    "functionName": "intersection",
+    "signature": "function intersection(a, b)",
+    "tests": [
+      {
+        "input": [
+          [
+            1,
+            2,
+            3
+          ],
+          [
+            2,
+            3,
+            4
+          ]
+        ],
+        "expected": [
+          2,
+          3
+        ]
+      },
+      {
+        "input": [
+          [
+            1,
+            2
+          ],
+          [
+            3,
+            4
+          ]
+        ],
+        "expected": []
+      },
+      {
+        "input": [
+          [],
+          [
+            1,
+            2
+          ]
+        ],
+        "expected": []
+      },
+      {
+        "input": [
+          [
+            1,
+            1,
+            2
+          ],
+          [
+            1,
+            2,
+            2
+          ]
+        ],
+        "expected": [
+          1,
+          2
+        ]
+      },
+      {
+        "input": [
+          [
+            "a",
+            "b",
+            "c"
+          ],
+          [
+            "b",
+            "d",
+            "a"
+          ]
+        ],
+        "expected": [
+          "a",
+          "b"
+        ]
+      },
+      {
+        "input": [
+          [
+            1,
+            2,
+            3
+          ],
+          [
+            3,
+            3,
+            3
+          ]
+        ],
+        "expected": [
+          3
+        ]
+      }
+    ]
+  },
+  {
+    "id": 13,
+    "description": "Write a function that groups an array of objects by a given key.",
+    "functionName": "groupBy",
+    "signature": "function groupBy(arr, key)",
+    "tests": [
+      {
+        "input": [
+          [
+            {
+              "name": "Alice",
+              "age": 30
+            },
+            {
+              "name": "Bob",
+              "age": 30
+            },
+            {
+              "name": "Charlie",
+              "age": 25
+            }
+          ],
+          "age"
+        ],
+        "expected": {
+          "25": [
+            {
+              "name": "Charlie",
+              "age": 25
+            }
+          ],
+          "30": [
+            {
+              "name": "Alice",
+              "age": 30
+            },
+            {
+              "name": "Bob",
+              "age": 30
+            }
+          ]
+        }
+      },
+      {
+        "input": [
+          [],
+          "key"
+        ],
+        "expected": {}
+      },
+      {
+        "input": [
+          [
+            {
+              "t": "x",
+              "v": 1
+            },
+            {
+              "t": "y",
+              "v": 2
+            },
+            {
+              "t": "x",
+              "v": 3
+            }
+          ],
+          "t"
+        ],
+        "expected": {
+          "x": [
+            {
+              "t": "x",
+              "v": 1
+            },
+            {
+              "t": "x",
+              "v": 3
+            }
+          ],
+          "y": [
+            {
+              "t": "y",
+              "v": 2
+            }
+          ]
+        }
+      },
+      {
+        "input": [
+          [
+            {
+              "name": "a"
+            },
+            {
+              "name": "b",
+              "age": 20
+            }
+          ],
+          "age"
+        ],
+        "expected": {
+          "20": [
+            {
+              "name": "b",
+              "age": 20
+            }
+          ],
+          "undefined": [
+            {
+              "name": "a"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": 14,
+    "description": "Write a function that converts a number to its Roman numeral string representation (1-3999).",
+    "functionName": "toRoman",
+    "signature": "function toRoman(num)",
+    "tests": [
+      {
+        "input": [
+          1
+        ],
+        "expected": "I"
+      },
+      {
+        "input": [
+          4
+        ],
+        "expected": "IV"
+      },
+      {
+        "input": [
+          9
+        ],
+        "expected": "IX"
+      },
+      {
+        "input": [
+          2024
+        ],
+        "expected": "MMXXIV"
+      },
+      {
+        "input": [
+          58
+        ],
+        "expected": "LVIII"
+      },
+      {
+        "input": [
+          3999
+        ],
+        "expected": "MMMCMXCIX"
+      }
+    ]
+  },
+  {
+    "id": 15,
+    "description": "Write a function that implements binary search on a sorted array. Return the index if found, -1 otherwise.",
+    "functionName": "binarySearch",
+    "signature": "function binarySearch(arr, target)",
+    "tests": [
+      {
+        "input": [
+          [
+            1,
+            3,
+            5,
+            7,
+            9
+          ],
+          5
+        ],
+        "expected": 2
+      },
+      {
+        "input": [
+          [
+            1,
+            3,
+            5,
+            7,
+            9
+          ],
+          4
+        ],
+        "expected": -1
+      },
+      {
+        "input": [
+          [],
+          1
+        ],
+        "expected": -1
+      },
+      {
+        "input": [
+          [
+            1
+          ],
+          1
+        ],
+        "expected": 0
+      },
+      {
+        "input": [
+          [
+            1,
+            3,
+            5,
+            7,
+            9
+          ],
+          1
+        ],
+        "expected": 0
+      },
+      {
+        "input": [
+          [
+            1,
+            3,
+            5,
+            7,
+            9
+          ],
+          9
+        ],
+        "expected": 4
+      }
+    ]
+  },
+  {
+    "id": 16,
+    "description": "Write a function that returns the longest common prefix among an array of strings.",
+    "functionName": "longestCommonPrefix",
+    "signature": "function longestCommonPrefix(words)",
+    "tests": [
+      {
+        "input": [
+          [
+            "flower",
+            "flow",
+            "flight"
+          ]
+        ],
+        "expected": "fl"
+      },
+      {
+        "input": [
+          [
+            "dog",
+            "racecar",
+            "car"
+          ]
+        ],
+        "expected": ""
+      },
+      {
+        "input": [
+          [
+            "interspecies",
+            "interstellar",
+            "interstate"
+          ]
+        ],
+        "expected": "inters"
+      },
+      {
+        "input": [
+          [
+            "single"
+          ]
+        ],
+        "expected": "single"
+      },
+      {
+        "input": [
+          [
+            "",
+            "b"
+          ]
+        ],
+        "expected": ""
+      },
+      {
+        "input": [
+          [
+            "throne",
+            "throne"
+          ]
+        ],
+        "expected": "throne"
+      }
+    ]
+  },
+  {
+    "id": 17,
+    "description": "Write a function that validates a bracket string containing (), [], and {}.",
+    "functionName": "isValidBrackets",
+    "signature": "function isValidBrackets(s)",
+    "tests": [
+      {
+        "input": [
+          "()[]{}"
+        ],
+        "expected": true
+      },
+      {
+        "input": [
+          "(]"
+        ],
+        "expected": false
+      },
+      {
+        "input": [
+          "([{}])"
+        ],
+        "expected": true
+      },
+      {
+        "input": [
+          "((("
+        ],
+        "expected": false
+      },
+      {
+        "input": [
+          "{[()]}[]"
+        ],
+        "expected": true
+      },
+      {
+        "input": [
+          "([)]"
+        ],
+        "expected": false
+      }
+    ]
+  },
+  {
+    "id": 18,
+    "description": "Write a function that merges overlapping or touching intervals and returns them sorted by start.",
+    "functionName": "mergeIntervals",
+    "signature": "function mergeIntervals(intervals)",
+    "tests": [
+      {
+        "input": [
+          [
+            [
+              1,
+              3
+            ],
+            [
+              2,
+              6
+            ],
+            [
+              8,
+              10
+            ],
+            [
+              15,
+              18
+            ]
+          ]
+        ],
+        "expected": [
+          [
+            1,
+            6
+          ],
+          [
+            8,
+            10
+          ],
+          [
+            15,
+            18
+          ]
+        ]
+      },
+      {
+        "input": [
+          [
+            [
+              1,
+              4
+            ],
+            [
+              4,
+              5
+            ]
+          ]
+        ],
+        "expected": [
+          [
+            1,
+            5
+          ]
+        ]
+      },
+      {
+        "input": [
+          [
+            [
+              5,
+              7
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              3,
+              4
+            ]
+          ]
+        ],
+        "expected": [
+          [
+            1,
+            2
+          ],
+          [
+            3,
+            4
+          ],
+          [
+            5,
+            7
+          ]
+        ]
+      },
+      {
+        "input": [
+          [
+            [
+              1,
+              10
+            ],
+            [
+              2,
+              3
+            ],
+            [
+              4,
+              8
+            ]
+          ]
+        ],
+        "expected": [
+          [
+            1,
+            10
+          ]
+        ]
+      },
+      {
+        "input": [
+          [
+            [
+              1,
+              2
+            ]
+          ]
+        ],
+        "expected": [
+          [
+            1,
+            2
+          ]
+        ]
+      },
+      {
+        "input": [
+          [
+            [
+              2,
+              3
+            ],
+            [
+              3,
+              3
+            ],
+            [
+              5,
+              7
+            ],
+            [
+              6,
+              8
+            ]
+          ]
+        ],
+        "expected": [
+          [
+            2,
+            3
+          ],
+          [
+            5,
+            8
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "id": 19,
+    "description": "Write a function that returns the top-k frequent numbers, sorted by frequency desc then value asc for ties.",
+    "functionName": "topKFrequent",
+    "signature": "function topKFrequent(nums, k)",
+    "tests": [
+      {
+        "input": [
+          [
+            1,
+            1,
+            1,
+            2,
+            2,
+            3
+          ],
+          2
+        ],
+        "expected": [
+          1,
+          2
+        ]
+      },
+      {
+        "input": [
+          [
+            4,
+            4,
+            1,
+            1,
+            2,
+            2
+          ],
+          2
+        ],
+        "expected": [
+          1,
+          2
+        ]
+      },
+      {
+        "input": [
+          [
+            5
+          ],
+          1
+        ],
+        "expected": [
+          5
+        ]
+      },
+      {
+        "input": [
+          [
+            1,
+            2,
+            3,
+            4
+          ],
+          3
+        ],
+        "expected": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "input": [
+          [
+            3,
+            0,
+            1,
+            0
+          ],
+          1
+        ],
+        "expected": [
+          0
+        ]
+      },
+      {
+        "input": [
+          [
+            2,
+            2,
+            2,
+            1,
+            1,
+            3,
+            3
+          ],
+          2
+        ],
+        "expected": [
+          2,
+          1
+        ]
+      }
+    ]
+  },
+  {
+    "id": 20,
+    "description": "Write a function that returns the minimum number of coins needed to make a target amount, or -1 if impossible.",
+    "functionName": "coinChangeMin",
+    "signature": "function coinChangeMin(coins, amount)",
+    "tests": [
+      {
+        "input": [
+          [
+            1,
+            2,
+            5
+          ],
+          11
+        ],
+        "expected": 3
+      },
+      {
+        "input": [
+          [
+            2
+          ],
+          3
+        ],
+        "expected": -1
+      },
+      {
+        "input": [
+          [
+            1
+          ],
+          0
+        ],
+        "expected": 0
+      },
+      {
+        "input": [
+          [
+            1,
+            3,
+            4
+          ],
+          6
+        ],
+        "expected": 2
+      },
+      {
+        "input": [
+          [
+            2,
+            5,
+            10,
+            1
+          ],
+          27
+        ],
+        "expected": 4
+      },
+      {
+        "input": [
+          [
+            186,
+            419,
+            83,
+            408
+          ],
+          6249
+        ],
+        "expected": 20
+      }
+    ]
+  },
+  {
+    "id": 21,
+    "description": "Write a function that computes the Levenshtein edit distance between two strings.",
+    "functionName": "editDistance",
+    "signature": "function editDistance(a, b)",
+    "tests": [
+      {
+        "input": [
+          "horse",
+          "ros"
+        ],
+        "expected": 3
+      },
+      {
+        "input": [
+          "intention",
+          "execution"
+        ],
+        "expected": 5
+      },
+      {
+        "input": [
+          "",
+          ""
+        ],
+        "expected": 0
+      },
+      {
+        "input": [
+          "abc",
+          ""
+        ],
+        "expected": 3
+      },
+      {
+        "input": [
+          "kitten",
+          "sitting"
+        ],
+        "expected": 3
+      },
+      {
+        "input": [
+          "flaw",
+          "lawn"
+        ],
+        "expected": 2
+      }
+    ]
+  },
+  {
+    "id": 22,
+    "description": "Write a function that normalizes a Unix path (., .., repeated slashes) into canonical form.",
+    "functionName": "simplifyPath",
+    "signature": "function simplifyPath(path)",
+    "tests": [
+      {
+        "input": [
+          "/home/"
+        ],
+        "expected": "/home"
+      },
+      {
+        "input": [
+          "/../"
+        ],
+        "expected": "/"
+      },
+      {
+        "input": [
+          "/home//foo/"
+        ],
+        "expected": "/home/foo"
+      },
+      {
+        "input": [
+          "/a/./b/../../c/"
+        ],
+        "expected": "/c"
+      },
+      {
+        "input": [
+          "/a/../../b/../c//.//"
+        ],
+        "expected": "/c"
+      },
+      {
+        "input": [
+          "/a//b////c/d//././/.."
+        ],
+        "expected": "/a/b/c"
+      }
+    ]
+  },
+  {
+    "id": 23,
+    "description": "Write a function that returns all elements of a matrix in spiral order.",
+    "functionName": "spiralOrder",
+    "signature": "function spiralOrder(matrix)",
+    "tests": [
+      {
+        "input": [
+          [
+            [
+              1,
+              2,
+              3
+            ],
+            [
+              4,
+              5,
+              6
+            ],
+            [
+              7,
+              8,
+              9
+            ]
+          ]
+        ],
+        "expected": [
+          1,
+          2,
+          3,
+          6,
+          9,
+          8,
+          7,
+          4,
+          5
+        ]
+      },
+      {
+        "input": [
+          [
+            [
+              1,
+              2,
+              3,
+              4
+            ]
+          ]
+        ],
+        "expected": [
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      {
+        "input": [
+          [
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ]
+          ]
+        ],
+        "expected": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "input": [
+          [
+            [
+              1,
+              2
+            ],
+            [
+              3,
+              4
+            ],
+            [
+              5,
+              6
+            ]
+          ]
+        ],
+        "expected": [
+          1,
+          2,
+          4,
+          6,
+          5,
+          3
+        ]
+      },
+      {
+        "input": [
+          [
+            [
+              1
+            ]
+          ]
+        ],
+        "expected": [
+          1
+        ]
+      },
+      {
+        "input": [
+          [
+            [
+              1,
+              2
+            ],
+            [
+              3,
+              4
+            ]
+          ]
+        ],
+        "expected": [
+          1,
+          2,
+          4,
+          3
+        ]
+      }
+    ]
+  },
+  {
+    "id": 24,
+    "description": "Write a function that returns the length of the longest strictly increasing subsequence.",
+    "functionName": "longestIncreasingSubsequence",
+    "signature": "function longestIncreasingSubsequence(nums)",
+    "tests": [
+      {
+        "input": [
+          [
+            10,
+            9,
+            2,
+            5,
+            3,
+            7,
+            101,
+            18
+          ]
+        ],
+        "expected": 4
+      },
+      {
+        "input": [
+          [
+            0,
+            1,
+            0,
+            3,
+            2,
+            3
+          ]
+        ],
+        "expected": 4
+      },
+      {
+        "input": [
+          [
+            7,
+            7,
+            7,
+            7,
+            7
+          ]
+        ],
+        "expected": 1
+      },
+      {
+        "input": [
+          [
+            4,
+            10,
+            4,
+            3,
+            8,
+            9
+          ]
+        ],
+        "expected": 3
+      },
+      {
+        "input": [
+          [
+            1,
+            3,
+            6,
+            7,
+            9,
+            4,
+            10,
+            5,
+            6
+          ]
+        ],
+        "expected": 6
+      },
+      {
+        "input": [
+          []
+        ],
+        "expected": 0
+      }
+    ]
+  },
+  {
+    "id": 25,
+    "description": "Write a function that evaluates an expression in Reverse Polish Notation (RPN).",
+    "functionName": "evalRPN",
+    "signature": "function evalRPN(tokens)",
+    "tests": [
+      {
+        "input": [
+          [
+            "2",
+            "1",
+            "+",
+            "3",
+            "*"
+          ]
+        ],
+        "expected": 9
+      },
+      {
+        "input": [
+          [
+            "4",
+            "13",
+            "5",
+            "/",
+            "+"
+          ]
+        ],
+        "expected": 6
+      },
+      {
+        "input": [
+          [
+            "10",
+            "6",
+            "9",
+            "3",
+            "+",
+            "-11",
+            "*",
+            "/",
+            "*",
+            "17",
+            "+",
+            "5",
+            "+"
+          ]
+        ],
+        "expected": 22
+      },
+      {
+        "input": [
+          [
+            "3",
+            "-4",
+            "+"
+          ]
+        ],
+        "expected": -1
+      },
+      {
+        "input": [
+          [
+            "5",
+            "1",
+            "2",
+            "+",
+            "4",
+            "*",
+            "+",
+            "3",
+            "-"
+          ]
+        ],
+        "expected": 14
+      },
+      {
+        "input": [
+          [
+            "7",
+            "3",
+            "/"
+          ]
+        ],
+        "expected": 2
+      }
+    ]
+  },
+  {
+    "id": 26,
+    "description": "Write a function that finds the shortest path length in an unweighted graph represented as an adjacency list (object). Return -1 if no path exists.",
+    "functionName": "shortestPath",
+    "signature": "function shortestPath(graph, start, end)",
+    "tests": [
+      {
+        "input": [
+          {
+            "A": [
+              "B",
+              "C"
+            ],
+            "B": [
+              "A",
+              "D"
+            ],
+            "C": [
+              "A",
+              "D"
+            ],
+            "D": [
+              "B",
+              "C"
+            ]
+          },
+          "A",
+          "D"
+        ],
+        "expected": 2
+      },
+      {
+        "input": [
+          {
+            "A": [
+              "B"
+            ],
+            "B": [
+              "A"
+            ],
+            "C": [
+              "D"
+            ],
+            "D": [
+              "C"
+            ]
+          },
+          "A",
+          "D"
+        ],
+        "expected": -1
+      },
+      {
+        "input": [
+          {
+            "A": [
+              "B"
+            ],
+            "B": [
+              "C"
+            ],
+            "C": [
+              "D"
+            ],
+            "D": []
+          },
+          "A",
+          "D"
+        ],
+        "expected": 3
+      },
+      {
+        "input": [
+          {
+            "A": [
+              "A"
+            ]
+          },
+          "A",
+          "A"
+        ],
+        "expected": 0
+      },
+      {
+        "input": [
+          {
+            "A": [
+              "B",
+              "C"
+            ],
+            "B": [
+              "D"
+            ],
+            "C": [
+              "D"
+            ],
+            "D": []
+          },
+          "A",
+          "D"
+        ],
+        "expected": 2
+      },
+      {
+        "input": [
+          {
+            "X": [
+              "Y"
+            ],
+            "Y": [
+              "Z"
+            ],
+            "Z": []
+          },
+          "X",
+          "Z"
+        ],
+        "expected": 2
+      }
+    ]
+  },
+  {
+    "id": 27,
+    "description": "Write a function that detects if a directed graph (adjacency list object) contains a cycle. Return true if cycle exists, false otherwise.",
+    "functionName": "hasCycle",
+    "signature": "function hasCycle(graph)",
+    "tests": [
+      {
+        "input": [
+          {
+            "A": [
+              "B"
+            ],
+            "B": [
+              "C"
+            ],
+            "C": [
+              "A"
+            ]
+          }
+        ],
+        "expected": true
+      },
+      {
+        "input": [
+          {
+            "A": [
+              "B"
+            ],
+            "B": [
+              "C"
+            ],
+            "C": []
+          }
+        ],
+        "expected": false
+      },
+      {
+        "input": [
+          {
+            "A": [
+              "B",
+              "C"
+            ],
+            "B": [
+              "D"
+            ],
+            "C": [
+              "D"
+            ],
+            "D": []
+          }
+        ],
+        "expected": false
+      },
+      {
+        "input": [
+          {
+            "A": [
+              "B"
+            ],
+            "B": [
+              "C"
+            ],
+            "C": [
+              "D"
+            ],
+            "D": [
+              "B"
+            ]
+          }
+        ],
+        "expected": true
+      },
+      {
+        "input": [
+          {
+            "A": []
+          }
+        ],
+        "expected": false
+      },
+      {
+        "input": [
+          {
+            "A": [
+              "A"
+            ]
+          }
+        ],
+        "expected": true
+      }
+    ]
+  },
+  {
+    "id": 28,
+    "description": "Write a function that validates whether a binary tree (given as nested object {val, left, right} or null) is a valid binary search tree.",
+    "functionName": "isValidBST",
+    "signature": "function isValidBST(root)",
+    "tests": [
+      {
+        "input": [
+          {
+            "val": 2,
+            "left": {
+              "val": 1,
+              "left": null,
+              "right": null
+            },
+            "right": {
+              "val": 3,
+              "left": null,
+              "right": null
+            }
+          }
+        ],
+        "expected": true
+      },
+      {
+        "input": [
+          {
+            "val": 5,
+            "left": {
+              "val": 1,
+              "left": null,
+              "right": null
+            },
+            "right": {
+              "val": 4,
+              "left": {
+                "val": 3,
+                "left": null,
+                "right": null
+              },
+              "right": {
+                "val": 6,
+                "left": null,
+                "right": null
+              }
+            }
+          }
+        ],
+        "expected": false
+      },
+      {
+        "input": [
+          null
+        ],
+        "expected": true
+      },
+      {
+        "input": [
+          {
+            "val": 1,
+            "left": null,
+            "right": null
+          }
+        ],
+        "expected": true
+      },
+      {
+        "input": [
+          {
+            "val": 5,
+            "left": {
+              "val": 4,
+              "left": {
+                "val": 3,
+                "left": null,
+                "right": null
+              },
+              "right": null
+            },
+            "right": {
+              "val": 6,
+              "left": null,
+              "right": {
+                "val": 7,
+                "left": null,
+                "right": null
+              }
+            }
+          }
+        ],
+        "expected": true
+      },
+      {
+        "input": [
+          {
+            "val": 3,
+            "left": {
+              "val": 1,
+              "left": null,
+              "right": {
+                "val": 4,
+                "left": null,
+                "right": null
+              }
+            },
+            "right": {
+              "val": 5,
+              "left": null,
+              "right": null
+            }
+          }
+        ],
+        "expected": false
+      }
+    ]
+  },
+  {
+    "id": 29,
+    "description": "Write a function that checks if a partially filled 9x9 Sudoku board (2D array, 0 for empty) is valid. Only check filled cells for row, column, and 3x3 box conflicts.",
+    "functionName": "isValidSudoku",
+    "signature": "function isValidSudoku(board)",
+    "tests": [
+      {
+        "input": [
+          [
+            [
+              5,
+              3,
+              0,
+              0,
+              7,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              6,
+              0,
+              0,
+              1,
+              9,
+              5,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              9,
+              8,
+              0,
+              0,
+              0,
+              0,
+              6,
+              0
+            ],
+            [
+              8,
+              0,
+              0,
+              0,
+              6,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              4,
+              0,
+              0,
+              8,
+              0,
+              3,
+              0,
+              0,
+              1
+            ],
+            [
+              7,
+              0,
+              0,
+              0,
+              2,
+              0,
+              0,
+              0,
+              6
+            ],
+            [
+              0,
+              6,
+              0,
+              0,
+              0,
+              0,
+              2,
+              8,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              4,
+              1,
+              9,
+              0,
+              0,
+              5
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              8,
+              0,
+              0,
+              7,
+              9
+            ]
+          ]
+        ],
+        "expected": true
+      },
+      {
+        "input": [
+          [
+            [
+              5,
+              3,
+              0,
+              0,
+              7,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              6,
+              0,
+              0,
+              1,
+              9,
+              5,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              9,
+              8,
+              0,
+              0,
+              0,
+              0,
+              6,
+              0
+            ],
+            [
+              8,
+              0,
+              0,
+              0,
+              6,
+              0,
+              0,
+              0,
+              3
+            ],
+            [
+              4,
+              0,
+              0,
+              8,
+              0,
+              3,
+              0,
+              0,
+              1
+            ],
+            [
+              7,
+              0,
+              0,
+              0,
+              2,
+              0,
+              0,
+              0,
+              6
+            ],
+            [
+              0,
+              6,
+              0,
+              0,
+              0,
+              0,
+              2,
+              8,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              4,
+              1,
+              9,
+              0,
+              0,
+              5
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              8,
+              0,
+              0,
+              7,
+              5
+            ]
+          ]
+        ],
+        "expected": false
+      },
+      {
+        "input": [
+          [
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          ]
+        ],
+        "expected": true
+      },
+      {
+        "input": [
+          [
+            [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          ]
+        ],
+        "expected": false
+      },
+      {
+        "input": [
+          [
+            [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          ]
+        ],
+        "expected": true
+      },
+      {
+        "input": [
+          [
+            [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          ]
+        ],
+        "expected": true
+      }
+    ]
+  },
+  {
+    "id": 30,
+    "description": "Write a function that returns the maximum sum of a contiguous subarray of size k.",
+    "functionName": "maxSubarraySum",
+    "signature": "function maxSubarraySum(arr, k)",
+    "tests": [
+      {
+        "input": [
+          [
+            1,
+            4,
+            2,
+            10,
+            23,
+            3,
+            1,
+            0,
+            20
+          ],
+          4
+        ],
+        "expected": 39
+      },
+      {
+        "input": [
+          [
+            2,
+            3
+          ],
+          3
+        ],
+        "expected": -1
+      },
+      {
+        "input": [
+          [
+            100,
+            200,
+            300,
+            400
+          ],
+          2
+        ],
+        "expected": 700
+      },
+      {
+        "input": [
+          [
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          1
+        ],
+        "expected": 1
+      },
+      {
+        "input": [
+          [
+            -1,
+            -2,
+            -3,
+            -4
+          ],
+          2
+        ],
+        "expected": -3
+      },
+      {
+        "input": [
+          [
+            5
+          ],
+          1
+        ],
+        "expected": 5
+      }
+    ]
+  },
+  {
+    "id": 31,
+    "description": "Write a function that implements a simple Trie and returns all words matching a given prefix. The function takes an array of words and a prefix, and returns matching words sorted alphabetically.",
+    "functionName": "autocomplete",
+    "signature": "function autocomplete(words, prefix)",
+    "tests": [
+      {
+        "input": [
+          [
+            "apple",
+            "app",
+            "application",
+            "banana",
+            "band"
+          ],
+          "app"
+        ],
+        "expected": [
+          "app",
+          "apple",
+          "application"
+        ]
+      },
+      {
+        "input": [
+          [
+            "hello",
+            "help",
+            "hero",
+            "hex"
+          ],
+          "he"
+        ],
+        "expected": [
+          "hello",
+          "help",
+          "hero",
+          "hex"
+        ]
+      },
+      {
+        "input": [
+          [
+            "cat",
+            "car",
+            "card"
+          ],
+          "car"
+        ],
+        "expected": [
+          "car",
+          "card"
+        ]
+      },
+      {
+        "input": [
+          [
+            "dog",
+            "cat",
+            "bird"
+          ],
+          "z"
+        ],
+        "expected": []
+      },
+      {
+        "input": [
+          [
+            "test"
+          ],
+          "test"
+        ],
+        "expected": [
+          "test"
+        ]
+      },
+      {
+        "input": [
+          [
+            "abc",
+            "abd",
+            "abe",
+            "xyz"
+          ],
+          "ab"
+        ],
+        "expected": [
+          "abc",
+          "abd",
+          "abe"
+        ]
+      }
+    ]
+  },
+  {
+    "id": 32,
+    "description": "Write a function that merges k sorted arrays into one sorted array.",
+    "functionName": "mergeKSorted",
+    "signature": "function mergeKSorted(arrays)",
+    "tests": [
+      {
+        "input": [
+          [
+            [
+              1,
+              4,
+              7
+            ],
+            [
+              2,
+              5,
+              8
+            ],
+            [
+              3,
+              6,
+              9
+            ]
+          ]
+        ],
+        "expected": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ]
+      },
+      {
+        "input": [
+          [
+            [
+              1,
+              2,
+              3
+            ]
+          ]
+        ],
+        "expected": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "input": [
+          [
+            [
+              5
+            ],
+            [
+              1
+            ],
+            [
+              3
+            ]
+          ]
+        ],
+        "expected": [
+          1,
+          3,
+          5
+        ]
+      },
+      {
+        "input": [
+          [
+            [],
+            [
+              1,
+              2
+            ],
+            []
+          ]
+        ],
+        "expected": [
+          1,
+          2
+        ]
+      },
+      {
+        "input": [
+          [
+            [
+              1,
+              1,
+              1
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              1
+            ]
+          ]
+        ],
+        "expected": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "input": [
+          [
+            [
+              10,
+              20
+            ],
+            [
+              5,
+              15,
+              25
+            ],
+            [
+              1,
+              30
+            ]
+          ]
+        ],
+        "expected": [
+          1,
+          5,
+          10,
+          15,
+          20,
+          25,
+          30
+        ]
+      }
+    ]
+  },
+  {
+    "id": 33,
+    "description": "Write a function that returns the length of the longest common subsequence of two strings.",
+    "functionName": "longestCommonSubsequence",
+    "signature": "function longestCommonSubsequence(s1, s2)",
+    "tests": [
+      {
+        "input": [
+          "abcde",
+          "ace"
+        ],
+        "expected": 3
+      },
+      {
+        "input": [
+          "abc",
+          "abc"
+        ],
+        "expected": 3
+      },
+      {
+        "input": [
+          "abc",
+          "def"
+        ],
+        "expected": 0
+      },
+      {
+        "input": [
+          "",
+          "abc"
+        ],
+        "expected": 0
+      },
+      {
+        "input": [
+          "abcba",
+          "abcbcba"
+        ],
+        "expected": 5
+      },
+      {
+        "input": [
+          "AGGTAB",
+          "GXTXAYB"
+        ],
+        "expected": 4
+      }
+    ]
+  },
+  {
+    "id": 34,
+    "description": "Write a function that evaluates a simple mathematical expression string containing non-negative integers, +, -, *, / (integer division), and spaces. Respect operator precedence.",
+    "functionName": "calculate",
+    "signature": "function calculate(expression)",
+    "tests": [
+      {
+        "input": [
+          "3+2*2"
+        ],
+        "expected": 7
+      },
+      {
+        "input": [
+          " 3/2 "
+        ],
+        "expected": 1
+      },
+      {
+        "input": [
+          " 3+5 / 2 "
+        ],
+        "expected": 5
+      },
+      {
+        "input": [
+          "14-3/2"
+        ],
+        "expected": 13
+      },
+      {
+        "input": [
+          "0+0"
+        ],
+        "expected": 0
+      },
+      {
+        "input": [
+          "42"
+        ],
+        "expected": 42
+      }
+    ]
+  },
+  {
+    "id": 35,
+    "description": "Write a function that implements simplified regex matching supporting '.' (any single char) and '*' (zero or more of the preceding element). Return true if the pattern matches the entire string.",
+    "functionName": "isMatch",
+    "signature": "function isMatch(s, p)",
+    "tests": [
+      {
+        "input": [
+          "aa",
+          "a"
+        ],
+        "expected": false
+      },
+      {
+        "input": [
+          "aa",
+          "a*"
+        ],
+        "expected": true
+      },
+      {
+        "input": [
+          "ab",
+          ".*"
+        ],
+        "expected": true
+      },
+      {
+        "input": [
+          "aab",
+          "c*a*b"
+        ],
+        "expected": true
+      },
+      {
+        "input": [
+          "mississippi",
+          "mis*is*p*."
+        ],
+        "expected": false
+      },
+      {
+        "input": [
+          "",
+          ".*"
+        ],
+        "expected": true
+      }
+    ]
+  }
+]

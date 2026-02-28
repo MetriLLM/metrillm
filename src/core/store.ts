@@ -1,0 +1,77 @@
+import { mkdir, writeFile, readFile, readdir } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import type { BenchResult } from "../types.js";
+
+const BASE_DIR = join(homedir(), ".llmeter");
+const RESULTS_DIR = join(BASE_DIR, "results");
+const CONFIG_PATH = join(BASE_DIR, "config.json");
+
+export interface LLMeterConfig {
+  autoShare: boolean | "ask"; // true = always share, false = never, "ask" = prompt
+}
+
+const DEFAULT_CONFIG: LLMeterConfig = {
+  autoShare: "ask",
+};
+
+async function ensureDirs(): Promise<void> {
+  await mkdir(RESULTS_DIR, { recursive: true });
+}
+
+function resultFilename(result: BenchResult): string {
+  const ts = result.timestamp
+    .replace(/[:]/g, "-")
+    .replace(/[.].+$/, "")
+    .replace("T", "_")
+    .replace(/[^0-9_-]/g, "");
+  const model = result.model.replace(/[^a-zA-Z0-9._-]/g, "_");
+  return `${ts}_${model}.json`;
+}
+
+export async function saveResult(result: BenchResult): Promise<string> {
+  await ensureDirs();
+  const filename = resultFilename(result);
+  const filepath = join(RESULTS_DIR, filename);
+  await writeFile(filepath, JSON.stringify(result, null, 2), "utf8");
+  return filepath;
+}
+
+export async function loadResults(): Promise<BenchResult[]> {
+  await ensureDirs();
+  try {
+    const files = await readdir(RESULTS_DIR);
+    const jsonFiles = files.filter((f) => f.endsWith(".json")).sort();
+    const results: BenchResult[] = [];
+    for (const file of jsonFiles) {
+      try {
+        const content = await readFile(join(RESULTS_DIR, file), "utf8");
+        results.push(JSON.parse(content) as BenchResult);
+      } catch {
+        // Skip malformed files
+      }
+    }
+    return results;
+  } catch {
+    return [];
+  }
+}
+
+export async function loadConfig(): Promise<LLMeterConfig> {
+  try {
+    const content = await readFile(CONFIG_PATH, "utf8");
+    const parsed = JSON.parse(content) as Partial<LLMeterConfig>;
+    return { ...DEFAULT_CONFIG, ...parsed };
+  } catch {
+    return { ...DEFAULT_CONFIG };
+  }
+}
+
+export async function saveConfig(config: LLMeterConfig): Promise<void> {
+  await ensureDirs();
+  await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2), "utf8");
+}
+
+export function getResultsDir(): string {
+  return RESULTS_DIR;
+}

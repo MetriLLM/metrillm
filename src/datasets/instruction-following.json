@@ -1,0 +1,142 @@
+[
+  {
+    "id": 1,
+    "category": "format",
+    "prompt": "List exactly 3 benefits of exercise. Use a numbered list (1. 2. 3.).",
+    "validation": "numberedList",
+    "params": { "expectedCount": 3 }
+  },
+  {
+    "id": 2,
+    "category": "format",
+    "prompt": "Explain what a CPU does in exactly one sentence.",
+    "validation": "sentenceCount",
+    "params": { "expectedCount": 1 }
+  },
+  {
+    "id": 3,
+    "category": "format",
+    "prompt": "Name 5 European countries, separated by commas, nothing else.",
+    "validation": "commaSeparated",
+    "params": { "expectedCount": 5 }
+  },
+  {
+    "id": 4,
+    "category": "format",
+    "prompt": "Give a one-word answer: what color is the sky on a clear day?",
+    "validation": "wordCount",
+    "params": { "expectedCount": 1 }
+  },
+  {
+    "id": 5,
+    "category": "format",
+    "prompt": "Write exactly 2 paragraphs about the internet.",
+    "validation": "paragraphCount",
+    "params": { "expectedCount": 2 }
+  },
+  {
+    "id": 6,
+    "category": "negative",
+    "prompt": "Explain what a computer does without using the words 'machine', 'device', or 'computer'.",
+    "validation": "forbiddenWords",
+    "params": { "forbidden": ["machine", "device", "computer"] }
+  },
+  {
+    "id": 7,
+    "category": "negative",
+    "prompt": "Describe the ocean without using the letter 'e'.",
+    "validation": "forbiddenLetters",
+    "params": { "forbidden": ["e"] }
+  },
+  {
+    "id": 8,
+    "category": "negative",
+    "prompt": "Tell me about France without mentioning Paris.",
+    "validation": "forbiddenWords",
+    "params": { "forbidden": ["Paris", "paris"] }
+  },
+  {
+    "id": 9,
+    "category": "negative",
+    "prompt": "Explain addition without using any digits (0-9).",
+    "validation": "forbiddenPattern",
+    "params": { "pattern": "[0-9]" }
+  },
+  {
+    "id": 10,
+    "category": "negative",
+    "prompt": "Describe a cat without using the words 'pet', 'animal', or 'fur'.",
+    "validation": "forbiddenWords",
+    "params": { "forbidden": ["pet", "animal", "fur"] }
+  },
+  {
+    "id": 11,
+    "category": "structural",
+    "prompt": "First list 2 pros, then 2 cons of remote work. Label them clearly with 'Pros:' and 'Cons:'.",
+    "validation": "prosConsStructure",
+    "params": { "prosCount": 2, "consCount": 2 }
+  },
+  {
+    "id": 12,
+    "category": "structural",
+    "prompt": "Start your response with the word 'Indeed' and end with the word 'Goodbye'.",
+    "validation": "startEnd",
+    "params": { "start": "Indeed", "end": "Goodbye" }
+  },
+  {
+    "id": 13,
+    "category": "structural",
+    "prompt": "Respond to this question using only questions: What is the meaning of life?",
+    "validation": "allQuestions",
+    "params": {}
+  },
+  {
+    "id": 14,
+    "category": "structural",
+    "prompt": "Reply in the format 'ANSWER: <value>' — What is 7 times 8?",
+    "validation": "answerFormat",
+    "params": { "expectedValue": "56" }
+  },
+  {
+    "id": 15,
+    "category": "structural",
+    "prompt": "Write your answer as a bullet list with exactly 4 items, each starting with a dash (-).",
+    "validation": "dashList",
+    "params": { "expectedCount": 4 }
+  },
+  {
+    "id": 16,
+    "category": "content",
+    "prompt": "Name a fruit that starts with 'B' and has more than 5 letters.",
+    "validation": "fruitStartLength",
+    "params": { "startLetter": "B", "minLength": 6 }
+  },
+  {
+    "id": 17,
+    "category": "content",
+    "prompt": "Give me a 4-letter English word that rhymes with 'light'.",
+    "validation": "wordLength",
+    "params": { "expectedLength": 4 }
+  },
+  {
+    "id": 18,
+    "category": "content",
+    "prompt": "Write a sentence that contains exactly 8 words.",
+    "validation": "wordCount",
+    "params": { "expectedCount": 8 }
+  },
+  {
+    "id": 19,
+    "category": "content",
+    "prompt": "List 3 programming languages created before the year 2000.",
+    "validation": "listCount",
+    "params": { "expectedCount": 3 }
+  },
+  {
+    "id": 20,
+    "category": "content",
+    "prompt": "Name the 3 largest planets in our solar system in order from largest to smallest.",
+    "validation": "planetOrder",
+    "params": {}
+  }
+]

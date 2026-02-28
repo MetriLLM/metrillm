@@ -1,0 +1,265 @@
+[
+  {
+    "id": 1,
+    "question": "Compute 18 * (25 - 7).",
+    "answer": 324
+  },
+  {
+    "id": 2,
+    "question": "Compute (3/4) + (5/6). Return decimal.",
+    "answer": 1.5833333333,
+    "tolerance": 0.001
+  },
+  {
+    "id": 3,
+    "question": "Simple interest: principal 1200, rate 5% per year, time 3 years. Interest amount?",
+    "answer": 180
+  },
+  {
+    "id": 4,
+    "question": "After a 10% increase on 500, what is the new amount?",
+    "answer": 550
+  },
+  {
+    "id": 5,
+    "question": "Solve for x: 2x - 7 = 5x + 8.",
+    "answer": -5
+  },
+  {
+    "id": 6,
+    "question": "Area of a trapezoid with bases 10 and 16, height 7.",
+    "answer": 91
+  },
+  {
+    "id": 7,
+    "question": "Weighted average: score 80 at 40% and score 92 at 60%.",
+    "answer": 87.2,
+    "tolerance": 0.001
+  },
+  {
+    "id": 8,
+    "question": "How many distinct permutations of the letters in LEVEL?",
+    "answer": 30
+  },
+  {
+    "id": 9,
+    "question": "Probability of drawing an Ace from a standard 52-card deck. Return decimal.",
+    "answer": 0.0769230769,
+    "tolerance": 0.001
+  },
+  {
+    "id": 10,
+    "question": "For x^2 - 5x + 6 = 0, what is the sum of roots?",
+    "answer": 5
+  },
+  {
+    "id": 11,
+    "question": "Distance between points (2,3) and (10,15). Return decimal.",
+    "answer": 14.4222051019,
+    "tolerance": 0.001
+  },
+  {
+    "id": 12,
+    "question": "Convert 72 km/h to m/s.",
+    "answer": 20
+  },
+  {
+    "id": 13,
+    "question": "If f(x)=x^2-4x+1, compute f(-3).",
+    "answer": 22
+  },
+  {
+    "id": 14,
+    "question": "15 workers finish a job in 12 days. At same rate, how many days for 20 workers?",
+    "answer": 9
+  },
+  {
+    "id": 15,
+    "question": "Sum the geometric series: 3 + 6 + 12 + 24 + 48.",
+    "answer": 93
+  },
+  {
+    "id": 16,
+    "question": "Find the median of [4, 9, 1, 7, 3, 8, 5].",
+    "answer": 5
+  },
+  {
+    "id": 17,
+    "question": "Solve system: x+y=13 and x-y=5. Return x*y.",
+    "answer": 36
+  },
+  {
+    "id": 18,
+    "question": "Volume of cylinder with radius 3 and height 10. Use pi=3.14.",
+    "answer": 282.6,
+    "tolerance": 0.001
+  },
+  {
+    "id": 19,
+    "question": "Price rises from 80 to 92. Percent increase?",
+    "answer": 15
+  },
+  {
+    "id": 20,
+    "question": "Compute 7 choose 2.",
+    "answer": 21
+  },
+  {
+    "id": 21,
+    "question": "Arithmetic sequence with first term 5 and difference 3. Find the 20th term.",
+    "answer": 62
+  },
+  {
+    "id": 22,
+    "question": "Compute log10(100000).",
+    "answer": 5
+  },
+  {
+    "id": 23,
+    "question": "Each of two independent machines fails with probability 0.02. Probability both fail?",
+    "answer": 0.0004,
+    "tolerance": 0.0001
+  },
+  {
+    "id": 24,
+    "question": "In a triangle, two angles are 35 and 65 degrees. Third angle?",
+    "answer": 80
+  },
+  {
+    "id": 25,
+    "question": "Simplify (2^5 * 2^3) / 2^4.",
+    "answer": 16
+  },
+  {
+    "id": 26,
+    "question": "A car worth 30000 depreciates by 20%, then by 10%. Final value?",
+    "answer": 21600
+  },
+  {
+    "id": 27,
+    "question": "A 30-liter solution is 20% salt. How many liters of pure water to add to make it 15% salt?",
+    "answer": 10
+  },
+  {
+    "id": 28,
+    "question": "Volume of rectangular prism 8 x 5 x 3.",
+    "answer": 120
+  },
+  {
+    "id": 29,
+    "question": "Solve |2x-7|=9. Return the product of both solutions.",
+    "answer": -8
+  },
+  {
+    "id": 30,
+    "question": "Least common multiple of 18 and 24.",
+    "answer": 72
+  },
+  {
+    "id": 31,
+    "question": "Average speed for 150 km in 2.5 hours (km/h).",
+    "answer": 60
+  },
+  {
+    "id": 32,
+    "question": "Given P(A)=0.7, P(B)=0.5, P(A and B)=0.4, compute P(A or B).",
+    "answer": 0.8,
+    "tolerance": 0.001
+  },
+  {
+    "id": 33,
+    "question": "Compound annually: 1000 at 8% for 3 years. Final amount?",
+    "answer": 1259.712,
+    "tolerance": 0.01
+  },
+  {
+    "id": 34,
+    "question": "Convert binary 110011 to decimal.",
+    "answer": 51
+  },
+  {
+    "id": 35,
+    "question": "Solve for x: 5/(x-1) = 1/2.",
+    "answer": 11
+  },
+  {
+    "id": 36,
+    "question": "Sequence 1,4,9,16,... Find the 15th term.",
+    "answer": 225
+  },
+  {
+    "id": 37,
+    "question": "If 40% of a number is 56, what is the number?",
+    "answer": 140
+  },
+  {
+    "id": 38,
+    "question": "Area of a sector with radius 10 and angle 72 degrees. Use pi=3.14.",
+    "answer": 62.8,
+    "tolerance": 0.01
+  },
+  {
+    "id": 39,
+    "question": "Population 50000 grows by 2% yearly for 2 years. New population?",
+    "answer": 52020
+  },
+  {
+    "id": 40,
+    "question": "Harmonic mean of 4 and 6.",
+    "answer": 4.8,
+    "tolerance": 0.001
+  },
+  {
+    "id": 41,
+    "question": "A store offers a 20% discount, then an additional 15% off the discounted price. What is the total percentage discount from the original price?",
+    "answer": 32,
+    "tolerance": 0.01
+  },
+  {
+    "id": 42,
+    "question": "A train travels 120 km at 60 km/h, then 180 km at 90 km/h. What is the average speed for the entire journey in km/h?",
+    "answer": 75,
+    "tolerance": 0.01
+  },
+  {
+    "id": 43,
+    "question": "Compute the determinant of the 2x2 matrix [[3, 7], [1, 5]].",
+    "answer": 8
+  },
+  {
+    "id": 44,
+    "question": "What is the sum of the first 100 positive integers?",
+    "answer": 5050
+  },
+  {
+    "id": 45,
+    "question": "What is the 10th term of the geometric sequence that starts with 2 and has common ratio 3?",
+    "answer": 39366
+  },
+  {
+    "id": 46,
+    "question": "A bag contains 5 red, 3 blue, and 2 green balls. If one ball is drawn, what is the probability it is NOT red? Express as a decimal.",
+    "answer": 0.5,
+    "tolerance": 0.001
+  },
+  {
+    "id": 47,
+    "question": "What is 17 mod 5?",
+    "answer": 2
+  },
+  {
+    "id": 48,
+    "question": "A factory produces 200 units/day at $5 each. Fixed cost is $300/day. Revenue is $8/unit. What is the daily profit?",
+    "answer": 300
+  },
+  {
+    "id": 49,
+    "question": "What is the derivative of f(x) = 3x^2 + 2x - 1 evaluated at x = 4?",
+    "answer": 26
+  },
+  {
+    "id": 50,
+    "question": "What is the integral of 2x from x = 0 to x = 5?",
+    "answer": 25
+  }
+]

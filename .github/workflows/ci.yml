@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  schedule:
+    - cron: "30 3 * * *"
+  workflow_dispatch:
+    inputs:
+      run_ollama_smoke:
+        description: "Run Ollama smoke benchmark (manual only)"
+        required: false
+        default: false
+        type: boolean
+      ollama_model:
+        description: "Model tag for smoke run"
+        required: false
+        default: "tinyllama:latest"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verify (Node 20)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck + coverage + build
+        run: npm run ci:verify
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit dependencies
+        run: npm run security:audit
+
+  ollama-smoke:
+    name: Ollama Smoke
+    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_ollama_smoke) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Ollama
+        run: curl -fsSL https://ollama.com/install.sh | sh
+
+      - name: Start Ollama service
+        run: |
+          nohup ollama serve >/tmp/ollama.log 2>&1 &
+          for i in $(seq 1 30); do
+            if ollama list >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Ollama service did not start"
+          cat /tmp/ollama.log || true
+          exit 1
+
+      - name: Pull smoke model
+        env:
+          OLLAMA_MODEL: ${{ github.event_name == 'schedule' && 'tinyllama:latest' || inputs.ollama_model }}
+        run: ollama pull "$OLLAMA_MODEL"
+
+      - name: Run strict smoke benchmark
+        env:
+          OLLAMA_SMOKE_STRICT: "1"
+          OLLAMA_SMOKE_MODEL: ${{ github.event_name == 'schedule' && 'tinyllama:latest' || inputs.ollama_model }}
+        run: npm run test:e2e:smoke:strict

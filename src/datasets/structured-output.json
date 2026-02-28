@@ -1,0 +1,107 @@
+[
+  {
+    "id": 1,
+    "category": "json-validity",
+    "prompt": "Output a JSON object with keys: name (string), age (number), city (string). Use realistic values. Output ONLY the JSON, no explanation.",
+    "validation": "jsonKeys",
+    "params": { "keys": ["name", "age", "city"], "types": { "name": "string", "age": "number", "city": "string" } }
+  },
+  {
+    "id": 2,
+    "category": "json-validity",
+    "prompt": "Generate a JSON array of exactly 3 objects, each with 'id' (number) and 'label' (string). Output ONLY the JSON.",
+    "validation": "jsonArray",
+    "params": { "length": 3, "keys": ["id", "label"], "types": { "id": "number", "label": "string" } }
+  },
+  {
+    "id": 3,
+    "category": "json-validity",
+    "prompt": "Create a JSON object representing a book with: title (string), author (string), year (number), genres (array of strings). Output ONLY the JSON.",
+    "validation": "jsonKeys",
+    "params": { "keys": ["title", "author", "year", "genres"], "types": { "title": "string", "author": "string", "year": "number", "genres": "array" } }
+  },
+  {
+    "id": 4,
+    "category": "json-validity",
+    "prompt": "Output a nested JSON: {\"user\": {\"name\": string, \"email\": string}, \"preferences\": {\"theme\": string, \"language\": string}}. Output ONLY the JSON.",
+    "validation": "jsonNested",
+    "params": { "path1": ["user", "name"], "path2": ["user", "email"], "path3": ["preferences", "theme"], "path4": ["preferences", "language"] }
+  },
+  {
+    "id": 5,
+    "category": "json-validity",
+    "prompt": "Generate a JSON array of exactly 5 numbers between 1 and 100. Output ONLY the JSON array.",
+    "validation": "jsonNumberArray",
+    "params": { "length": 5, "min": 1, "max": 100 }
+  },
+  {
+    "id": 6,
+    "category": "schema-compliance",
+    "prompt": "Generate a valid JSON matching this TypeScript type: {success: boolean, data: {items: string[]}, count: number}. Output ONLY the JSON.",
+    "validation": "jsonSchema",
+    "params": { "schema": { "success": "boolean", "data": "object", "count": "number" }, "nestedKey": "data", "nestedSchema": { "items": "array" } }
+  },
+  {
+    "id": 7,
+    "category": "schema-compliance",
+    "prompt": "Output a JSON tool call: {\"function\": string, \"arguments\": object}. Call a function named 'get_weather' with argument 'city' set to 'London'. Output ONLY the JSON.",
+    "validation": "jsonToolCall",
+    "params": { "functionName": "get_weather", "argKey": "city", "argValue": "London" }
+  },
+  {
+    "id": 8,
+    "category": "schema-compliance",
+    "prompt": "Create a JSON response for an API: {\"status\": 200, \"message\": string, \"data\": null}. Output ONLY the JSON.",
+    "validation": "jsonApiResponse",
+    "params": { "status": 200 }
+  },
+  {
+    "id": 9,
+    "category": "schema-compliance",
+    "prompt": "Generate a JSON array where each object has keys 'key' (string) and 'value' (number), with exactly 4 items. Output ONLY the JSON.",
+    "validation": "jsonArray",
+    "params": { "length": 4, "keys": ["key", "value"], "types": { "key": "string", "value": "number" } }
+  },
+  {
+    "id": 10,
+    "category": "schema-compliance",
+    "prompt": "Output a JSON matching: {\"type\": \"event\", \"name\": string, \"date\": string (YYYY-MM-DD format), \"attendees\": number}. Output ONLY the JSON.",
+    "validation": "jsonEvent",
+    "params": {}
+  },
+  {
+    "id": 11,
+    "category": "structured-text",
+    "prompt": "Output exactly 3 lines in the format 'KEY: VALUE' for name, role, and experience. Output ONLY the 3 lines.",
+    "validation": "keyValueLines",
+    "params": { "expectedCount": 3, "expectedKeys": ["name", "role", "experience"] }
+  },
+  {
+    "id": 12,
+    "category": "structured-text",
+    "prompt": "Generate a CSV with header 'name,email,age' and exactly 2 data rows. Output ONLY the CSV.",
+    "validation": "csvFormat",
+    "params": { "headerColumns": 3, "dataRows": 2 }
+  },
+  {
+    "id": 13,
+    "category": "structured-text",
+    "prompt": "Output a Markdown table with 2 columns (Language, Year) and 3 rows of programming languages. Output ONLY the table.",
+    "validation": "markdownTable",
+    "params": { "columns": 2, "dataRows": 3 }
+  },
+  {
+    "id": 14,
+    "category": "structured-text",
+    "prompt": "Write a numbered list where each item follows the format: 'N. TERM — definition'. Write exactly 3 items. Output ONLY the list.",
+    "validation": "numberedDefinitions",
+    "params": { "expectedCount": 3 }
+  },
+  {
+    "id": 15,
+    "category": "structured-text",
+    "prompt": "Output a valid HTML unordered list (<ul>) with exactly 3 list items (<li>). Output ONLY the HTML.",
+    "validation": "htmlList",
+    "params": { "expectedCount": 3 }
+  }
+]

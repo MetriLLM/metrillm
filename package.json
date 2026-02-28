@@ -1,0 +1,60 @@
+{
+  "name": "llmeter",
+  "version": "0.1.0",
+  "description": "Benchmark your local LLM models — speed, quality & hardware fitness verdict",
+  "type": "module",
+  "bin": {
+    "llmeter": "./dist/index.mjs"
+  },
+  "main": "./dist/index.mjs",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
+    "test:e2e:smoke": "tsx scripts/e2e-smoke.ts",
+    "test:e2e:smoke:strict": "OLLAMA_SMOKE_STRICT=1 tsx scripts/e2e-smoke.ts",
+    "ci:verify": "npm run typecheck && npm run test:coverage && npm run build",
+    "security:audit": "npm audit --audit-level=moderate"
+  },
+  "keywords": [
+    "llm",
+    "benchmark",
+    "ollama",
+    "local",
+    "ai",
+    "cli"
+  ],
+  "author": "The Blue House, Cyril Guilleminot",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://github.com/MetriLLM/metrillm",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MetriLLM/metrillm.git"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.98.0",
+    "chalk": "^5.3.0",
+    "cli-table3": "^0.6.5",
+    "commander": "^12.1.0",
+    "ollama": "^0.5.12",
+    "ora": "^8.1.1",
+    "systeminformation": "^5.23.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@vitest/coverage-v8": "^4.0.18",
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^4.0.18"
+  }
+}
