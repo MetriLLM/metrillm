@@ -1,8 +1,8 @@
 import chalk from "chalk";
 import Table from "cli-table3";
-import { listModels, listRunningModels } from "../core/ollama-client.js";
+import { listModels, listRunningModels } from "../core/runtime.js";
 import { formatBytes } from "../utils.js";
-import { createSpinner, errorMsg } from "../ui/progress.js";
+import { createSpinner, errorMsg, warnMsg } from "../ui/progress.js";
 import type { OllamaModel, OllamaRunningModel } from "../types.js";
 
 export interface ListOptions {
@@ -12,6 +12,7 @@ export interface ListOptions {
 export interface ListOutcome {
   models: OllamaModel[];
   running: OllamaRunningModel[];
+  reachable: boolean;
 }
 
 export async function listCommand(options: ListOptions = {}): Promise<ListOutcome> {
@@ -20,16 +21,22 @@ export async function listCommand(options: ListOptions = {}): Promise<ListOutcom
   spinner.start();
 
   try {
-    const [models, running] = await Promise.all([
-      listModels(),
-      listRunningModels(),
-    ]);
+    const models = await listModels();
+    let running: OllamaRunningModel[] = [];
+    try {
+      running = await listRunningModels();
+    } catch (err) {
+      warnMsg("Could not query running model status; showing all models as idle.");
+      if (err instanceof Error) {
+        warnMsg(err.message);
+      }
+    }
 
     spinner.succeed(`Found ${models.length} model(s)`);
 
     if (models.length === 0) {
       console.log(chalk.yellow("\nNo models found. Pull one with: ollama pull <model>"));
-      return { models, running };
+      return { models, running, reachable: true };
     }
 
     const runningNames = new Set(running.map((r) => r.name));
@@ -58,7 +65,7 @@ export async function listCommand(options: ListOptions = {}): Promise<ListOutcom
     }
 
     console.log(table.toString());
-    return { models, running };
+    return { models, running, reachable: true };
   } catch (err) {
     spinner.fail("Failed to connect to Ollama");
     errorMsg(
@@ -68,6 +75,6 @@ export async function listCommand(options: ListOptions = {}): Promise<ListOutcom
       errorMsg(err.message);
     }
     if (shouldSetExitCode) process.exitCode = 1;
-    return { models: [], running: [] };
+    return { models: [], running: [], reachable: false };
   }
 }

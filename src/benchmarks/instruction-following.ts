@@ -1,4 +1,4 @@
-import { abortOngoingRequests, generate } from "../core/ollama-client.js";
+import { abortOngoingRequests, generate } from "../core/runtime.js";
 import type { CategoryResult, QuestionResult } from "../types.js";
 import { stripThinkTags, toBenchmarkFailureLabel, withTimeout } from "../utils.js";
 import { createSpinner } from "../ui/progress.js";

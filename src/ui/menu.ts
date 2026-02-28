@@ -1,6 +1,5 @@
 import chalk from "chalk";
 import * as readline from "node:readline";
-import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import { benchCommand } from "../commands/bench.js";
 import { listCommand } from "../commands/list.js";
@@ -74,14 +73,37 @@ function renderMenu<T>(
 }
 
 async function promptText(prompt: string): Promise<string | null> {
-  const rl = createInterface({ input, output });
-  try {
-    return await rl.question(prompt);
-  } catch {
+  if (!input.readable || input.readableEnded) {
     return null;
-  } finally {
-    rl.close();
   }
+
+  const rl = readline.createInterface({ input, output });
+  return new Promise((resolve) => {
+    let settled = false;
+
+    const finish = (value: string | null) => {
+      if (settled) return;
+      settled = true;
+      input.off("end", onEnd);
+      rl.off("close", onClose);
+      try {
+        rl.close();
+      } catch {
+        // ignore close errors
+      }
+      resolve(value);
+    };
+
+    const onEnd = () => finish(null);
+    const onClose = () => finish(null);
+
+    input.once("end", onEnd);
+    rl.once("close", onClose);
+
+    rl.question(prompt, (answer) => {
+      finish(answer);
+    });
+  });
 }
 
 async function selectWithArrows<T>(
@@ -506,6 +528,10 @@ export async function runInteractiveMenu(): Promise<void> {
 
     if (mainChoice === "bench-one") {
       const listing = await listCommand({ setExitCode: false });
+      if (!listing.reachable) {
+        await waitForContinue("Cannot reach Ollama. Press Enter to return...");
+        continue;
+      }
       if (listing.models.length === 0) {
         await waitForContinue("No model available. Press Enter to return...");
         continue;

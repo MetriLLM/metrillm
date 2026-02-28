@@ -13,6 +13,7 @@ const {
   listRunningModelsMock,
   spinner,
   errorMsgMock,
+  warnMsgMock,
 } = vi.hoisted(() => ({
   listModelsMock: vi.fn(),
   listRunningModelsMock: vi.fn(),
@@ -22,6 +23,7 @@ const {
     fail: vi.fn(),
   },
   errorMsgMock: vi.fn(),
+  warnMsgMock: vi.fn(),
 }));
 
 vi.mock("../src/core/ollama-client.js", () => ({
@@ -32,6 +34,7 @@ vi.mock("../src/core/ollama-client.js", () => ({
 vi.mock("../src/ui/progress.js", () => ({
   createSpinner: () => spinner,
   errorMsg: errorMsgMock,
+  warnMsg: warnMsgMock,
 }));
 
 import { listCommand } from "../src/commands/list.js";
@@ -60,6 +63,7 @@ describe("listCommand", () => {
     const out = await listCommand({ setExitCode: false });
     expect(out.models).toHaveLength(1);
     expect(out.running).toHaveLength(1);
+    expect(out.reachable).toBe(true);
     expect(spinner.start).toHaveBeenCalledTimes(1);
     expect(spinner.succeed).toHaveBeenCalledTimes(1);
     expect(spinner.fail).not.toHaveBeenCalled();
@@ -69,7 +73,27 @@ describe("listCommand", () => {
     const out = await listCommand({ setExitCode: false });
     expect(out.models).toEqual([]);
     expect(out.running).toEqual([]);
+    expect(out.reachable).toBe(true);
     expect(spinner.succeed).toHaveBeenCalledWith("Found 0 model(s)");
+  });
+
+  it("keeps model listing when running status lookup fails", async () => {
+    listModelsMock.mockResolvedValueOnce([
+      {
+        name: "llama3.1:8b",
+        size: 13_000_000_000,
+        parameterSize: "8B",
+        quantization: "Q4_0",
+        family: "llama",
+      },
+    ]);
+    listRunningModelsMock.mockRejectedValueOnce(new Error("ps failed"));
+
+    const out = await listCommand({ setExitCode: false });
+    expect(out.models).toHaveLength(1);
+    expect(out.running).toEqual([]);
+    expect(out.reachable).toBe(true);
+    expect(spinner.fail).not.toHaveBeenCalled();
   });
 
   it("returns empty output on connection failure and sets exitCode", async () => {
@@ -80,6 +104,7 @@ describe("listCommand", () => {
     const out = await listCommand();
     expect(out.models).toEqual([]);
     expect(out.running).toEqual([]);
+    expect(out.reachable).toBe(false);
     expect(spinner.fail).toHaveBeenCalledWith("Failed to connect to Ollama");
     expect(errorMsgMock).toHaveBeenCalled();
     expect(process.exitCode).toBe(1);

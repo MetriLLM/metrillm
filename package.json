@@ -47,6 +47,7 @@
     "commander": "^12.1.0",
     "ollama": "^0.5.12",
     "ora": "^8.1.1",
+    "posthog-node": "^5.26.0",
     "systeminformation": "^5.23.5"
   },
   "devDependencies": {

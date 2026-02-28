@@ -1,4 +1,4 @@
-import { abortOngoingRequests, generateStream, listRunningModels } from "../core/ollama-client.js";
+import { abortOngoingRequests, generateStream, listRunningModels } from "../core/runtime.js";
 import { getMemoryUsage } from "../core/hardware.js";
 import type { PerformanceMetrics } from "../types.js";
 import { avg, stddev, withTimeout } from "../utils.js";

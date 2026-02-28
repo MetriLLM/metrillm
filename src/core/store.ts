@@ -9,6 +9,7 @@ const CONFIG_PATH = join(BASE_DIR, "config.json");
 
 export interface LLMeterConfig {
   autoShare: boolean | "ask"; // true = always share, false = never, "ask" = prompt
+  telemetry?: boolean;        // true = opt-in, false = opt-out, undefined = not yet decided
 }
 
 const DEFAULT_CONFIG: LLMeterConfig = {

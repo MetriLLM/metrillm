@@ -1,4 +1,4 @@
-import { abortOngoingRequests, generate } from "../core/ollama-client.js";
+import { abortOngoingRequests, generate } from "../core/runtime.js";
 import type { CategoryResult, QuestionResult } from "../types.js";
 import { stripThinkTags, toBenchmarkFailureLabel, withTimeout } from "../utils.js";
 import { createSpinner } from "../ui/progress.js";
@@ -27,88 +27,18 @@ function tryParseJson(text: string): JsonParseResult {
   }
 }
 
-function parseFirstJsonCandidate(source: string): JsonParseResult {
-  const trimmed = source.trim();
-  if (trimmed.length === 0) return { ok: false, value: null };
+function safeParse(text: string): unknown | null {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+
+  const fencedOnly = trimmed.match(/^```(?:json|javascript|js|typescript|ts)?\s*([\s\S]*?)\s*```$/i);
+  if (fencedOnly) {
+    const parsed = tryParseJson((fencedOnly[1] ?? "").trim());
+    return parsed.ok ? parsed.value : null;
+  }
 
   const direct = tryParseJson(trimmed);
-  if (direct.ok) return direct;
-
-  // Single-pass scan: find balanced JSON object/array segments in O(n).
-  let inString = false;
-  let escaped = false;
-  let startIndex = -1;
-  const stack: string[] = [];
-
-  for (let i = 0; i < source.length; i++) {
-    const ch = source[i];
-
-    if (inString) {
-      if (escaped) {
-        escaped = false;
-        continue;
-      }
-      if (ch === "\\") {
-        escaped = true;
-        continue;
-      }
-      if (ch === "\"") {
-        inString = false;
-      }
-      continue;
-    }
-
-    if (ch === "\"") {
-      inString = true;
-      continue;
-    }
-
-    if (startIndex === -1) {
-      if (ch === "{" || ch === "[") {
-        startIndex = i;
-        stack.push(ch);
-      }
-      continue;
-    }
-
-    if (ch === "{" || ch === "[") {
-      stack.push(ch);
-      continue;
-    }
-
-    if (ch === "}" || ch === "]") {
-      const open = stack.pop();
-      if (!open) {
-        startIndex = -1;
-        continue;
-      }
-      if ((open === "{" && ch !== "}") || (open === "[" && ch !== "]")) {
-        startIndex = -1;
-        stack.length = 0;
-        continue;
-      }
-      if (stack.length === 0 && startIndex >= 0) {
-        const candidate = source.slice(startIndex, i + 1).trim();
-        const parsed = tryParseJson(candidate);
-        if (parsed.ok) return parsed;
-        startIndex = -1;
-      }
-    }
-  }
-
-  return { ok: false, value: null };
-}
-
-function safeParse(text: string): unknown | null {
-  const fencedBlocks = text.matchAll(/```(?:json|javascript|js|typescript|ts)?\s*([\s\S]*?)```/gi);
-  for (const match of fencedBlocks) {
-    const parsed = parseFirstJsonCandidate(match[1] ?? "");
-    if (parsed.ok) return parsed.value;
-  }
-
-  const parsed = parseFirstJsonCandidate(text);
-  if (parsed.ok) return parsed.value;
-  return null;
+  return direct.ok ? direct.value : null;
 }
 
 function hasKeys(obj: unknown, keys: string[]): boolean {

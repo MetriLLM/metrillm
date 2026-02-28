@@ -5,6 +5,7 @@ import { listCommand } from "./commands/list.js";
 import { runInteractiveMenu } from "./ui/menu.js";
 import { exportBenchResults, type ExportFormat } from "./core/exporter.js";
 import { errorMsg, successMsg } from "./ui/progress.js";
+import { canUseInteractiveMenu } from "./cli-interactive.js";
 
 // Graceful shutdown on Ctrl+C
 process.on("SIGINT", () => {
@@ -50,8 +51,9 @@ program
     "Benchmark local LLMs for hardware fit and task quality, then compute a global verdict"
   )
   .version("0.1.0")
-  .hook("preAction", () => {
-    printBanner();
+  .hook("preAction", (_thisCommand, actionCommand) => {
+    // Skip banner in JSON mode
+    if (!actionCommand.opts()?.json) printBanner();
   });
 
 program.option(
@@ -70,8 +72,11 @@ program
   .option("--perf-strict", "Fail immediately if any performance prompt fails")
   .option("--share", "Share results on the public leaderboard (no prompt)")
   .option("--no-share", "Skip the share prompt entirely")
+  .option("--json", "Output results as JSON to stdout (no UI)")
   .option("--export <format>", "Export results: json | csv | md")
   .option("--out <dir>", "Export output directory (default: exports)")
+  .option("--telemetry", "Enable anonymous usage telemetry")
+  .option("--no-telemetry", "Disable anonymous usage telemetry")
   .action(async (opts) => {
     let exportFormat: ExportFormat | null = null;
     if (opts.export) {
@@ -116,6 +121,12 @@ program
         ? opts.share
         : undefined;
 
+    // Handle telemetry opt-in/out persistence
+    if (typeof opts.telemetry === "boolean") {
+      const { saveTelemetryConsent } = await import("./core/telemetry.js");
+      await saveTelemetryConsent(opts.telemetry);
+    }
+
     const outcome = await benchCommand({
       model: opts.model,
       perfOnly: opts.perfOnly,
@@ -125,9 +136,10 @@ program
       perfStrict: Boolean(opts.perfStrict),
       share: shareOption,
       ciNoMenu: hasCiNoMenuFlag(process.argv.slice(2)),
+      json: Boolean(opts.json),
     });
 
-    if (exportFormat) {
+    if (exportFormat && !opts.json) {
       if (outcome.results.length === 0) {
         errorMsg("No benchmark results to export.");
         process.exitCode = 1;
@@ -169,7 +181,12 @@ if (shouldShortCircuitCiNoMenu(argv)) {
   successMsg("CI non-interactive mode: no menu opened.");
 } else if (argv.length === 0) {
   printBanner();
-  await runInteractiveMenu();
+  if (!canUseInteractiveMenu(process.stdin.isTTY, process.stdout.isTTY)) {
+    errorMsg("No interactive terminal detected. Use `llmeter --ci-no-menu` or a subcommand.");
+    process.exitCode = 1;
+  } else {
+    await runInteractiveMenu();
+  }
 } else {
   await program.parseAsync();
 }

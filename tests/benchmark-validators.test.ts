@@ -153,14 +153,14 @@ describe("structured-output validator", () => {
     },
   };
 
-  it("extracts first parseable JSON from prose without greedy truncation", () => {
+  it("rejects prose-wrapped JSON when strict JSON-only output is required", () => {
     const response = [
       "Sure, here is the object:",
       "{\"name\":\"Alice\",\"age\":31,\"city\":\"Lyon\"}",
       "Extra notes with braces {not json}.",
     ].join("\n");
 
-    expect(validateStructuredOutputResponse(response, jsonKeysQuestion)).toBe(true);
+    expect(validateStructuredOutputResponse(response, jsonKeysQuestion)).toBe(false);
   });
 
   it("rejects csv output with extra rows when exact row count is required", () => {
@@ -348,6 +348,93 @@ describe("structured-output validator", () => {
     };
     const bad = '{"status":200,"message":"ok","data":{"x":1}}';
     expect(validateStructuredOutputResponse(bad, q)).toBe(false);
+  });
+
+  it("rejects jsonSchema when nested object is missing", () => {
+    const q: SOQuestion = {
+      id: 23,
+      category: "json-validity",
+      prompt: "",
+      validation: "jsonSchema",
+      params: {
+        schema: { success: "boolean", data: "object" },
+        nestedKey: "data",
+        nestedSchema: { items: "array" },
+      },
+    };
+    const bad = '{"success":true}';
+    expect(validateStructuredOutputResponse(bad, q)).toBe(false);
+  });
+
+  it("accepts jsonToolCall using name/params aliases", () => {
+    const q: SOQuestion = {
+      id: 24,
+      category: "json-validity",
+      prompt: "",
+      validation: "jsonToolCall",
+      params: { functionName: "search_docs", argKey: "query", argValue: "latency" },
+    };
+    const ok = '{"name":"search_docs","params":{"query":"LATENCY"}}';
+    expect(validateStructuredOutputResponse(ok, q)).toBe(true);
+  });
+
+  it("rejects jsonEvent when date format is invalid", () => {
+    const q: SOQuestion = {
+      id: 25,
+      category: "json-validity",
+      prompt: "",
+      validation: "jsonEvent",
+      params: {},
+    };
+    const bad = '{"type":"event","name":"X","date":"01-01-2026","attendees":10}';
+    expect(validateStructuredOutputResponse(bad, q)).toBe(false);
+  });
+
+  it("accepts keyValueLines without expectedKeys when count matches", () => {
+    const q: SOQuestion = {
+      id: 26,
+      category: "structured-text",
+      prompt: "",
+      validation: "keyValueLines",
+      params: { expectedCount: 2 },
+    };
+    const ok = "Team: Alpha\nLead: Alice";
+    expect(validateStructuredOutputResponse(ok, q)).toBe(true);
+  });
+
+  it("rejects csvFormat when header has empty cell", () => {
+    const q: SOQuestion = {
+      id: 27,
+      category: "structured-text",
+      prompt: "",
+      validation: "csvFormat",
+      params: { headerColumns: 3, dataRows: 1 },
+    };
+    const bad = "name,,age\nAlice,Paris,30";
+    expect(validateStructuredOutputResponse(bad, q)).toBe(false);
+  });
+
+  it("rejects markdownTable when a data cell is empty", () => {
+    const q: SOQuestion = {
+      id: 28,
+      category: "structured-text",
+      prompt: "",
+      validation: "markdownTable",
+      params: { columns: 2, dataRows: 1 },
+    };
+    const bad = "| Name | City |\n|---|---|\n| Alice | |";
+    expect(validateStructuredOutputResponse(bad, q)).toBe(false);
+  });
+
+  it("returns false for unknown structured-output validation type", () => {
+    const q = {
+      id: 29,
+      category: "unknown",
+      prompt: "",
+      validation: "doesNotExist",
+      params: {},
+    } as unknown as SOQuestion;
+    expect(validateStructuredOutputResponse("{}", q)).toBe(false);
   });
 
   it("rejects keyValueLines with unexpected keys or extra non-kv lines", () => {

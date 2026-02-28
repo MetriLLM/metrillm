@@ -1,4 +1,4 @@
-import { abortOngoingRequests, generate } from "../core/ollama-client.js";
+import { abortOngoingRequests, generate } from "../core/runtime.js";
 import type { CategoryResult, CodingTask, QuestionResult } from "../types.js";
 import { extractCodeBlock, stripThinkTags, toBenchmarkFailureLabel, withTimeout } from "../utils.js";
 import { createSpinner } from "../ui/progress.js";
@@ -37,6 +37,8 @@ function deepEqual(a: unknown, b: unknown): boolean {
 const SANDBOX_TIMEOUT_MS = 5_000;
 const ISOLATED_WALL_TIMEOUT_MIN_MS = 8_000;
 const ISOLATED_WALL_TIMEOUT_MAX_MS = 60_000;
+const MAX_SANDBOX_STDOUT_BYTES = 64 * 1024;
+const MAX_SANDBOX_STDERR_BYTES = 64 * 1024;
 
 function runTestsInSandbox(
   code: string,
@@ -48,7 +50,20 @@ function runTestsInSandbox(
   const total = task.tests.length;
 
   try {
-    const sandbox = Object.create(null) as vm.Context;
+    const noop = () => {};
+    const sandbox = Object.create(null) as vm.Context & {
+      console?: Record<string, () => void>;
+      __testFn?: unknown;
+    };
+    // Prevent untrusted snippets from spamming stdout/stderr in the isolated runner.
+    sandbox.console = Object.freeze({
+      log: noop,
+      info: noop,
+      warn: noop,
+      error: noop,
+      debug: noop,
+      trace: noop,
+    });
     const context = vmModule.createContext(sandbox, {
       codeGeneration: {
         strings: false,
@@ -230,6 +245,8 @@ async function runTestsInSubprocess(
     let settled = false;
     let stdout = "";
     let stderr = "";
+    let stdoutBytes = 0;
+    let stderrBytes = 0;
     const finish = (result: { passed: number; total: number } | null) => {
       if (settled) return;
       settled = true;
@@ -239,11 +256,23 @@ async function runTestsInSubprocess(
 
     child.stdout.setEncoding("utf8");
     child.stdout.on("data", (chunk) => {
+      stdoutBytes += Buffer.byteLength(chunk, "utf8");
+      if (stdoutBytes > MAX_SANDBOX_STDOUT_BYTES) {
+        child.kill("SIGKILL");
+        finish(null);
+        return;
+      }
       stdout += chunk;
     });
 
     child.stderr.setEncoding("utf8");
     child.stderr.on("data", (chunk) => {
+      stderrBytes += Buffer.byteLength(chunk, "utf8");
+      if (stderrBytes > MAX_SANDBOX_STDERR_BYTES) {
+        child.kill("SIGKILL");
+        finish(null);
+        return;
+      }
       stderr += chunk;
     });
 
@@ -263,10 +292,7 @@ async function runTestsInSubprocess(
         finish(parsed);
         return;
       }
-      if (code === 0 && !stderr.trim()) {
-        finish({ passed: 0, total });
-        return;
-      }
+      // Unparseable/missing payload is an infra failure, not a model failure.
       finish(null);
     });
 
@@ -354,14 +380,20 @@ async function runTestsIsolated(
     return runTestsInWorker(code, task);
   }
 
-  const fromSubprocess = await runTestsInSubprocess(code, task);
-  if (fromSubprocess) return fromSubprocess;
+  const firstAttempt = await runTestsInSubprocess(code, task);
+  if (firstAttempt) return firstAttempt;
+
+  // Retry once to reduce random infra flakiness (process bootstrap noise).
+  const secondAttempt = await runTestsInSubprocess(code, task);
+  if (secondAttempt) return secondAttempt;
 
   // Security-first default: avoid silently downgrading to a weaker isolation model.
   if (allowWorkerFallback()) {
     return runTestsInWorker(code, task);
   }
-  return { passed: 0, total };
+  throw new Error(
+    "Coding sandbox infrastructure failure (set LLMETER_CODING_ALLOW_WORKER_FALLBACK=true to allow worker fallback)"
+  );
 }
 
 export async function runCodingBench(model: string): Promise<CategoryResult> {
@@ -424,7 +456,9 @@ Reply with ONLY the function code, no explanation.`;
   spinner.succeed(`Coding: ${tasksPassed}/${tasks.length} tasks fully passed`);
 
   return {
-    score: tasks.length > 0 ? (tasksPassed / tasks.length) * 100 : 0,
+    // Score by test-case pass ratio for finer-grained ranking, while keeping
+    // task-level pass count in `correct/total` for readability.
+    score: totalTests > 0 ? (totalPassed / totalTests) * 100 : 0,
     correct: tasksPassed,
     total: tasks.length,
     details,

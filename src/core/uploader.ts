@@ -1,15 +1,22 @@
 import { createClient } from "@supabase/supabase-js";
 import type { BenchResult } from "../types.js";
 
-const SUPABASE_URL = "https://YOUR_SUPABASE_PROJECT.supabase.co";
+const SUPABASE_URL =
+  process.env.LLMETER_SUPABASE_URL ?? "https://YOUR_SUPABASE_PROJECT.supabase.co";
 const SUPABASE_ANON_KEY =
+  process.env.LLMETER_SUPABASE_ANON_KEY ??
   "YOUR_SUPABASE_ANON_KEY";
+const PUBLIC_RESULT_BASE_URL =
+  process.env.LLMETER_PUBLIC_RESULT_BASE_URL ?? "https://metrillm.dev";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export interface UploadResult {
   id: string;
   url: string;
+  rankGlobalPct: number | null;   // e.g. 15 = top 15%
+  rankCpuPct: number | null;      // e.g. 8 = top 8% on same CPU
+  totalCount: number;
 }
 
 export async function uploadBenchResult(result: BenchResult): Promise<UploadResult> {
@@ -52,7 +59,52 @@ export async function uploadBenchResult(result: BenchResult): Promise<UploadResu
   }
 
   const id = data.id as string;
-  const url = `https://metrillm.dev/result/${id}`;
+  const url = `${PUBLIC_RESULT_BASE_URL.replace(/\/+$/, "")}/result/${id}`;
 
-  return { id, url };
+  const rank = await getRank(result.fitness.globalScore, result.hardware.cpu);
+  return { id, url, ...rank };
+}
+
+async function getRank(
+  globalScore: number | null,
+  cpu: string
+): Promise<{ rankGlobalPct: number | null; rankCpuPct: number | null; totalCount: number }> {
+  if (globalScore == null) {
+    return { rankGlobalPct: null, rankCpuPct: null, totalCount: 0 };
+  }
+
+  try {
+    // Global rank
+    const { count: totalCount } = await supabase
+      .from("benchmarks")
+      .select("*", { count: "exact", head: true });
+
+    const { count: betterCount } = await supabase
+      .from("benchmarks")
+      .select("*", { count: "exact", head: true })
+      .gt("global_score", globalScore);
+
+    // CPU-specific rank
+    const { count: cpuTotal } = await supabase
+      .from("benchmarks")
+      .select("*", { count: "exact", head: true })
+      .eq("cpu", cpu);
+
+    const { count: cpuBetter } = await supabase
+      .from("benchmarks")
+      .select("*", { count: "exact", head: true })
+      .eq("cpu", cpu)
+      .gt("global_score", globalScore);
+
+    const total = totalCount ?? 0;
+    const rankGlobalPct =
+      total > 0 ? Math.max(1, Math.round(((betterCount ?? 0) + 1) / total * 100)) : null;
+    const cpuTotalN = cpuTotal ?? 0;
+    const rankCpuPct =
+      cpuTotalN > 0 ? Math.max(1, Math.round(((cpuBetter ?? 0) + 1) / cpuTotalN * 100)) : null;
+
+    return { rankGlobalPct, rankCpuPct, totalCount: total };
+  } catch {
+    return { rankGlobalPct: null, rankCpuPct: null, totalCount: 0 };
+  }
 }
