@@ -4,7 +4,7 @@ import type {
   PerformanceMetrics,
   PerformanceScore,
 } from "../types.js";
-import { clamp, lerp } from "../utils.js";
+import { clamp, lerp, sanitizeNonNegative } from "../utils.js";
 
 // Anchor points for continuous interpolation.
 // Low end: ~4 cores, ~8 GB.  High end: ~24+ cores, ~96+ GB.
@@ -19,11 +19,6 @@ const TUNING_HIGH = {
   ttft:    { excellentMs: 500,  goodMs: 1200, marginalMs: 2800, hardMaxMs: 10000 },
   loadTimeHardMaxMs: 90000,
 };
-
-function sanitizeNonNegative(value: number, fallback: number): number {
-  if (!Number.isFinite(value) || value < 0) return fallback;
-  return value;
-}
 
 function lerpNum(t: number, low: number, high: number): number {
   return low + t * (high - low);

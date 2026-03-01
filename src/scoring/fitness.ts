@@ -12,7 +12,7 @@ import {
   deriveHardwareFitTuning,
 } from "./performance-scorer.js";
 import { computeQualityScore, effectiveScore, RESPONSE_TIME_LIMITS_MS } from "./quality-scorer.js";
-import { clamp } from "../utils.js";
+import { clamp, sanitizeNonNegative } from "../utils.js";
 
 function getCategoryLevel(rawScore: number): CategoryLevel {
   if (rawScore >= 75) return "Strong";
@@ -24,11 +24,6 @@ function getCategoryLevel(rawScore: number): CategoryLevel {
 function normalizeRawScore(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return clamp(value, 0, 100);
-}
-
-function sanitizeNonNegative(value: number, fallback: number): number {
-  if (!Number.isFinite(value) || value < 0) return fallback;
-  return value;
 }
 
 export function computeFitness(

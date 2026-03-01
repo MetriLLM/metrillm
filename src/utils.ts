@@ -1,5 +1,5 @@
 import vm from "node:vm";
-import { exec } from "node:child_process";
+import { execFile } from "node:child_process";
 
 export function openUrl(url: string): void {
   const cmd =
@@ -8,7 +8,7 @@ export function openUrl(url: string): void {
       : process.platform === "win32"
         ? "start"
         : "xdg-open";
-  exec(`${cmd} ${url}`);
+  execFile(cmd, [url]);
 }
 
 export function avg(nums: number[]): number {
@@ -46,6 +46,11 @@ export function formatDuration(ms: number): string {
 export function clamp(value: number, min: number, max: number): number {
   if (Number.isNaN(value)) return min;
   return Math.min(Math.max(value, min), max);
+}
+
+export function sanitizeNonNegative(value: number, fallback: number): number {
+  if (!Number.isFinite(value) || value < 0) return fallback;
+  return value;
 }
 
 export function lerp(value: number, inMin: number, inMax: number, outMin: number, outMax: number): number {

@@ -81,8 +81,12 @@ export function validateInstructionFollowingResponse(response: string, q: IFQues
     }
 
     case "forbiddenPattern": {
-      const pattern = new RegExp(p.pattern as string);
-      return !pattern.test(text);
+      try {
+        const pattern = new RegExp(p.pattern as string);
+        return !pattern.test(text);
+      } catch {
+        return false;
+      }
     }
 
     case "prosConsStructure": {

@@ -268,13 +268,10 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
 
         // Upload immediately after each model (when --share is enabled and quality was run)
         if (!options.perfOnly && !silent && options.share === true) {
-          const uploadPayload: BenchResult = benchResult;
-          const submitterEmail: string | undefined = undefined;
-
           const uploadSpinner = createSpinner("Uploading result...");
           uploadSpinner.start();
           try {
-            const uploaded = await uploadBenchResult(uploadPayload, { submitterEmail });
+            const uploaded = await uploadBenchResult(benchResult);
             uploadSpinner.succeed(`Shared! ${uploaded.url}`);
             if (uploaded.rankGlobalPct != null) {
               const parts: string[] = [`Top ${uploaded.rankGlobalPct}% globally`];

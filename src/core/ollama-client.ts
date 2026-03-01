@@ -5,6 +5,7 @@ import { withTimeout } from "../utils.js";
 const client = new Ollama();
 const DEFAULT_OLLAMA_HOST = "http://127.0.0.1:11434";
 const OLLAMA_INIT_TIMEOUT_MS = 15_000;
+const STREAM_STALL_TIMEOUT_MS = 30_000;
 
 function getOllamaBaseUrl(): string {
   const configured = process.env.OLLAMA_HOST?.trim();
@@ -111,27 +112,42 @@ export async function generateStream(
   let fullThinking = "";
   let result: GenerateResult | null = null;
 
-  for await (const chunk of stream) {
-    const chunkAny = chunk as unknown as Record<string, unknown>;
-    if (chunkAny.thinking) {
-      fullThinking += String(chunkAny.thinking);
+  // Stall detection: abort if no chunk arrives within STREAM_STALL_TIMEOUT_MS
+  let stallTimer: ReturnType<typeof setTimeout> | null = null;
+  const resetStallTimer = () => {
+    if (stallTimer) clearTimeout(stallTimer);
+    stallTimer = setTimeout(() => {
+      client.abort();
+    }, STREAM_STALL_TIMEOUT_MS);
+  };
+
+  try {
+    resetStallTimer();
+    for await (const chunk of stream) {
+      resetStallTimer();
+      const chunkAny = chunk as unknown as Record<string, unknown>;
+      if (chunkAny.thinking) {
+        fullThinking += String(chunkAny.thinking);
+      }
+      if (chunk.response) {
+        fullResponse += chunk.response;
+        callbacks?.onToken?.(chunk.response);
+      }
+      if (chunk.done) {
+        result = {
+          response: fullResponse,
+          ...(fullThinking ? { thinking: fullThinking } : {}),
+          totalDuration: chunk.total_duration ?? 0,
+          loadDuration: chunk.load_duration ?? 0,
+          promptEvalCount: chunk.prompt_eval_count ?? 0,
+          promptEvalDuration: chunk.prompt_eval_duration ?? 0,
+          evalCount: chunk.eval_count ?? 0,
+          evalDuration: chunk.eval_duration ?? 0,
+        };
+      }
     }
-    if (chunk.response) {
-      fullResponse += chunk.response;
-      callbacks?.onToken?.(chunk.response);
-    }
-    if (chunk.done) {
-      result = {
-        response: fullResponse,
-        ...(fullThinking ? { thinking: fullThinking } : {}),
-        totalDuration: chunk.total_duration ?? 0,
-        loadDuration: chunk.load_duration ?? 0,
-        promptEvalCount: chunk.prompt_eval_count ?? 0,
-        promptEvalDuration: chunk.prompt_eval_duration ?? 0,
-        evalCount: chunk.eval_count ?? 0,
-        evalDuration: chunk.eval_duration ?? 0,
-      };
-    }
+  } finally {
+    if (stallTimer) clearTimeout(stallTimer);
   }
 
   if (!result) {

@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { BenchResult } from "../types.js";
 
 const SUPABASE_URL_PLACEHOLDER = "https://YOUR_SUPABASE_PROJECT.supabase.co";
@@ -56,7 +56,7 @@ export async function uploadBenchResult(
 ): Promise<UploadResult> {
   const config = resolveUploaderConfig();
   assertUploaderConfig(config);
-  const supabase: any = createClient(config.supabaseUrl, config.supabaseAnonKey);
+  const supabase = createClient(config.supabaseUrl, config.supabaseAnonKey);
 
   const row = {
     model: result.model,
@@ -119,7 +119,7 @@ export async function uploadBenchResult(
 }
 
 async function upsertLeadBestEffort(
-  supabase: any,
+  supabase: SupabaseClient,
   email: string | undefined,
   nickname: string | null,
   emailHash: string | null
@@ -149,7 +149,7 @@ async function upsertLeadBestEffort(
 }
 
 async function getRank(
-  supabase: any,
+  supabase: SupabaseClient,
   globalScore: number | null,
   cpu: string
 ): Promise<{ rankGlobalPct: number | null; rankCpuPct: number | null; totalCount: number }> {
@@ -158,27 +158,17 @@ async function getRank(
   }
 
   try {
-    // Global rank
-    const { count: totalCount } = await supabase
-      .from("benchmarks")
-      .select("*", { count: "exact", head: true });
-
-    const { count: betterCount } = await supabase
-      .from("benchmarks")
-      .select("*", { count: "exact", head: true })
-      .gt("global_score", globalScore);
-
-    // CPU-specific rank
-    const { count: cpuTotal } = await supabase
-      .from("benchmarks")
-      .select("*", { count: "exact", head: true })
-      .eq("cpu", cpu);
-
-    const { count: cpuBetter } = await supabase
-      .from("benchmarks")
-      .select("*", { count: "exact", head: true })
-      .eq("cpu", cpu)
-      .gt("global_score", globalScore);
+    const [
+      { count: totalCount },
+      { count: betterCount },
+      { count: cpuTotal },
+      { count: cpuBetter },
+    ] = await Promise.all([
+      supabase.from("benchmarks").select("*", { count: "exact", head: true }),
+      supabase.from("benchmarks").select("*", { count: "exact", head: true }).gt("global_score", globalScore),
+      supabase.from("benchmarks").select("*", { count: "exact", head: true }).eq("cpu", cpu),
+      supabase.from("benchmarks").select("*", { count: "exact", head: true }).eq("cpu", cpu).gt("global_score", globalScore),
+    ]);
 
     const total = totalCount ?? 0;
     const rankGlobalPct =
