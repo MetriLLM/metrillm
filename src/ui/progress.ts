@@ -42,6 +42,11 @@ const FUN_PHRASES = [
   "Aligning the model with your expectations...",
   "Running a vibe check on the weights...",
   "Interpolating between hope and reality...",
+  "Insert disk 2 and press left mouse button...",
+  "Guru Meditation imminent — stay calm...",
+  "Running LLM on an Amiga 500 would be faster... maybe...",
+  "Asking Kickstart ROM for a second opinion...",
+  "Swapping chip RAM for more tokens...",
 ];
 
 const ROTATION_INTERVAL_MS = 3500;

@@ -6,6 +6,7 @@ import { runInteractiveMenu } from "./ui/menu.js";
 import { exportBenchResults, type ExportFormat } from "./core/exporter.js";
 import { errorMsg, successMsg } from "./ui/progress.js";
 import { canUseInteractiveMenu } from "./cli-interactive.js";
+import { printGuruMeditationSync } from "./ui/guru-meditation.js";
 
 // Graceful shutdown on Ctrl+C
 process.on("SIGINT", () => {
@@ -13,7 +14,7 @@ process.on("SIGINT", () => {
   if (process.stdout.isTTY) {
     process.stdout.write("\x1B[?25h");
   }
-  console.log("\n\nInterrupted by user.");
+  printGuruMeditationSync();
   process.exit(130);
 });
 

@@ -4,8 +4,12 @@ import { stdin as input, stdout as output } from "node:process";
 import { benchCommand } from "../commands/bench.js";
 import { listCommand } from "../commands/list.js";
 import { exportBenchResults, type ExportFormat } from "../core/exporter.js";
+import { loadConfig, saveConfig, type LLMeterConfig } from "../core/store.js";
+import { saveTelemetryConsent } from "../core/telemetry.js";
 import type { BenchResult } from "../types.js";
 import { errorMsg, successMsg, warnMsg } from "./progress.js";
+import { printGuruMeditation } from "./guru-meditation.js";
+import { promptAndSaveSubmitterProfile } from "./submitter-prompt.js";
 
 interface MenuOption<T> {
   label: string;
@@ -505,7 +509,7 @@ export async function runInteractiveMenu(): Promise<void> {
 
     if (mainChoice === null || mainChoice === "exit") {
       restoreTerminalForExit();
-      console.log(chalk.dim("\nGoodbye.\n"));
+      await printGuruMeditation();
       break;
     }
 
@@ -611,7 +615,7 @@ export async function runInteractiveMenu(): Promise<void> {
         }
         if (action === "quit") {
           restoreTerminalForExit();
-          console.log(chalk.dim("\nGoodbye.\n"));
+          await printGuruMeditation();
           return;
         }
         break;
@@ -676,7 +680,7 @@ export async function runInteractiveMenu(): Promise<void> {
         }
         if (action === "quit") {
           restoreTerminalForExit();
-          console.log(chalk.dim("\nGoodbye.\n"));
+          await printGuruMeditation();
           return;
         }
         break;
