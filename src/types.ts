@@ -15,6 +15,8 @@ export interface HardwareInfo {
   gpuVramMB: number | null;
   os: string;
   arch: string;
+  powerMode?: "low-power" | "balanced" | "performance" | "unknown";
+  cpuCurrentSpeedGHz?: number | null;
 }
 
 // ── Ollama model ─────────────────────────────────────────
@@ -45,6 +47,7 @@ export interface PerformanceMetrics {
   memoryHostUsedGB?: number; // host absolute RAM used after benchmark (GB)
   memoryHostPercent?: number; // host absolute RAM usage after benchmark (%)
   tpsStdDev?: number; // standard deviation of per-prompt tok/s values
+  thinkingTokensEstimate?: number; // estimated thinking tokens (whitespace split)
 }
 
 // ── Quality metrics ──────────────────────────────────────
@@ -178,6 +181,7 @@ export interface ModelInfo {
   parameterSize?: string;  // e.g. "8B"
   quantization?: string;   // e.g. "Q4_0"
   family?: string;         // e.g. "llama"
+  thinkingDetected?: boolean;
 }
 
 export interface SubmitterIdentity {

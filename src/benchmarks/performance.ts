@@ -1,7 +1,7 @@
 import { abortOngoingRequests, generateStream, listRunningModels } from "../core/runtime.js";
 import { getMemoryUsage } from "../core/hardware.js";
 import type { PerformanceMetrics } from "../types.js";
-import { avg, stddev, withTimeout } from "../utils.js";
+import { avg, stddev, withTimeout, hasThinkingContent, estimateTokenCount } from "../utils.js";
 import { createSpinner, subStep } from "../ui/progress.js";
 
 const WARMUP_PROMPT = "Say hello in one word.";
@@ -13,6 +13,11 @@ const BENCH_PROMPTS = [
   "Write a detailed step-by-step explanation of how a compiler transforms source code into machine code, covering lexing, parsing, semantic analysis, optimization, and code generation.",
   "Implement a function in pseudocode that checks whether a given string of parentheses, brackets, and braces is balanced. Explain the time and space complexity.",
 ];
+
+export interface PerformanceBenchResult {
+  metrics: PerformanceMetrics;
+  thinkingDetected: boolean;
+}
 
 export interface PerformanceBenchOptions {
   warmupTimeoutMs?: number;
@@ -27,7 +32,7 @@ const DEFAULT_PROMPT_TIMEOUT_MS = 60_000;
 export async function runPerformanceBench(
   model: string,
   options: PerformanceBenchOptions = {}
-): Promise<PerformanceMetrics> {
+): Promise<PerformanceBenchResult> {
   const spinner = createSpinner("Warming up model...");
   spinner.start();
 
@@ -65,6 +70,8 @@ export async function runPerformanceBench(
     let totalEvalDurationNs = 0;
     let successfulPrompts = 0;
     let failedPrompts = 0;
+    let thinkingDetected = false;
+    let totalThinkingTokens = 0;
 
     for (let i = 0; i < BENCH_PROMPTS.length; i++) {
       spinner.start(`Running performance test ${i + 1}/${BENCH_PROMPTS.length}...`);
@@ -101,6 +108,13 @@ export async function runPerformanceBench(
         // TTFT
         if (firstTokenTime !== null) {
           ttftValues.push(firstTokenTime);
+        }
+
+        // Detect thinking content
+        if (hasThinkingContent(result.response, result.thinking)) {
+          thinkingDetected = true;
+          const thinkingText = result.thinking || "";
+          totalThinkingTokens += estimateTokenCount(thinkingText);
         }
 
         totalPromptTokens += result.promptEvalCount;
@@ -152,20 +166,24 @@ export async function runPerformanceBench(
     const ttft = ttftValues.length > 0 ? avg(ttftValues) : -1;
 
     return {
-      tokensPerSecond:
-        totalEvalDurationNs > 0
-          ? totalEvalCount / (totalEvalDurationNs / 1e9)
-          : avg(tpsValues),
-      ttft: ttft >= 0 ? ttft : 30_000, // Fallback: 30s if no TTFT measured
-      loadTime,
-      totalTokens: totalPromptTokens + totalCompletionTokens,
-      promptTokens: totalPromptTokens,
-      completionTokens: totalCompletionTokens,
-      memoryUsedGB: +memoryUsedGB.toFixed(1),
-      memoryPercent: +memoryPercent.toFixed(1),
-      memoryHostUsedGB: memAfter.usedGB,
-      memoryHostPercent: memAfter.percent,
-      tpsStdDev: tpsValues.length >= 2 ? stddev(tpsValues) : undefined,
+      metrics: {
+        tokensPerSecond:
+          totalEvalDurationNs > 0
+            ? totalEvalCount / (totalEvalDurationNs / 1e9)
+            : avg(tpsValues),
+        ttft: ttft >= 0 ? ttft : 30_000, // Fallback: 30s if no TTFT measured
+        loadTime,
+        totalTokens: totalPromptTokens + totalCompletionTokens,
+        promptTokens: totalPromptTokens,
+        completionTokens: totalCompletionTokens,
+        memoryUsedGB: +memoryUsedGB.toFixed(1),
+        memoryPercent: +memoryPercent.toFixed(1),
+        memoryHostUsedGB: memAfter.usedGB,
+        memoryHostPercent: memAfter.percent,
+        tpsStdDev: tpsValues.length >= 2 ? stddev(tpsValues) : undefined,
+        ...(totalThinkingTokens > 0 ? { thinkingTokensEstimate: totalThinkingTokens } : {}),
+      },
+      thinkingDetected,
     };
   } catch (err) {
     if (spinner.isSpinning) {

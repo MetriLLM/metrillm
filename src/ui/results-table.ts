@@ -63,6 +63,16 @@ export function printHardwareTable(hw: HardwareInfo): void {
     ? `${hw.gpu} (${hw.gpuCores} cores)`
     : hw.gpu;
 
+  const powerModeColor =
+    hw.powerMode === "low-power"
+      ? chalk.red
+      : hw.powerMode === "performance"
+        ? chalk.green
+        : hw.powerMode === "balanced"
+          ? chalk.yellow
+          : chalk.dim;
+  const powerModeLabel = hw.powerMode ?? "unknown";
+
   table.push(
     ["CPU", cpuLine],
     ["Cores", coresDetail],
@@ -70,8 +80,18 @@ export function printHardwareTable(hw: HardwareInfo): void {
     ["Swap", swapLine],
     ["GPU", gpuLine],
     ["OS", hw.os],
-    ["Arch", hw.arch]
+    ["Arch", hw.arch],
+    ["Power Mode", powerModeColor(powerModeLabel)]
   );
+
+  if (hw.cpuCurrentSpeedGHz != null) {
+    const freqRatio =
+      hw.cpuFreqGHz && hw.cpuFreqGHz > 0
+        ? ` (${((hw.cpuCurrentSpeedGHz / hw.cpuFreqGHz) * 100).toFixed(0)}% of nominal)`
+        : "";
+    table.push(["CPU Current Freq", `${hw.cpuCurrentSpeedGHz.toFixed(1)} GHz${freqRatio}`]);
+  }
+
   console.log(table.toString());
 }
 
@@ -122,6 +142,14 @@ export function printPerformanceTable(perf: PerformanceMetrics): void {
         : chalk.dim("n/a (host metric unavailable)"),
     ],
   );
+
+  if (perf.thinkingTokensEstimate && perf.thinkingTokensEstimate > 0) {
+    table.push([
+      chalk.magenta("Thinking Tokens (est.)"),
+      chalk.magenta(`~${perf.thinkingTokensEstimate} tokens`),
+    ]);
+  }
+
   console.log(table.toString());
 }
 
@@ -190,6 +218,7 @@ export function printSummaryTable(results: BenchResult[]): void {
       chalk.bold("Quality"),
       chalk.bold("Global"),
       chalk.bold("DQ"),
+      chalk.bold("Flags"),
       chalk.bold("Verdict"),
     ],
     style: { head: [], border: [] },
@@ -204,6 +233,10 @@ export function printSummaryTable(results: BenchResult[]): void {
           : r.fitness.verdict === "MARGINAL"
             ? chalk.yellow.bold
             : chalk.red.bold;
+
+    const flags: string[] = [];
+    if (r.hardware.powerMode === "low-power") flags.push(chalk.red("ECO"));
+    if (r.modelInfo?.thinkingDetected) flags.push(chalk.magenta("THINK"));
 
     table.push([
       r.model,
@@ -227,6 +260,7 @@ export function printSummaryTable(results: BenchResult[]): void {
           )
         : "—",
       String(r.fitness.disqualifiers.length),
+      flags.length > 0 ? flags.join(" ") : "—",
       vColor(r.fitness.verdict),
     ]);
   }

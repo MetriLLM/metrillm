@@ -14,6 +14,8 @@ type PlanItem = "ok" | "fail";
 let generatePlan: PlanItem[] = [];
 let memoryPlan: Array<{ usedGB: number; percent: number }> = [];
 
+let thinkingPlan: Array<string | undefined> = [];
+
 vi.mock("../src/core/ollama-client.js", () => ({
   abortOngoingRequests: vi.fn(),
   listRunningModels: vi.fn(async () => []),
@@ -23,7 +25,10 @@ vi.mock("../src/core/ollama-client.js", () => ({
       throw new Error("mock stream failure");
     }
     streamOpts?.onToken?.();
+    const thinking = thinkingPlan.shift();
     return {
+      response: "test response",
+      ...(thinking ? { thinking } : {}),
       loadDuration: 2_000_000_000, // ns
       evalDuration: 1_000_000_000, // ns
       evalCount: 100,
@@ -56,6 +61,7 @@ import { runPerformanceBench } from "../src/benchmarks/performance.js";
 describe("runPerformanceBench", () => {
   beforeEach(() => {
     generatePlan = [];
+    thinkingPlan = [];
     memoryPlan = [
       { usedGB: 10, percent: 40 },
       { usedGB: 13, percent: 47 },
@@ -66,15 +72,16 @@ describe("runPerformanceBench", () => {
     // warmup + 5 prompts
     generatePlan = ["ok", "ok", "fail", "ok", "ok", "ok"];
 
-    const perf = await runPerformanceBench("test-model", {
+    const result = await runPerformanceBench("test-model", {
       failOnPromptError: false,
       minSuccessfulPrompts: 3,
     });
 
-    expect(perf.tokensPerSecond).toBeGreaterThan(0);
-    expect(perf.promptTokens).toBe(4 * 50);
-    expect(perf.completionTokens).toBe(4 * 100);
-    expect(perf.memoryHostPercent).toBe(47);
+    expect(result.metrics.tokensPerSecond).toBeGreaterThan(0);
+    expect(result.metrics.promptTokens).toBe(4 * 50);
+    expect(result.metrics.completionTokens).toBe(4 * 100);
+    expect(result.metrics.memoryHostPercent).toBe(47);
+    expect(result.thinkingDetected).toBe(false);
   });
 
   it("fails when successful prompts are below minimum threshold", async () => {
@@ -96,5 +103,39 @@ describe("runPerformanceBench", () => {
         failOnPromptError: true,
       })
     ).rejects.toThrow(/mock stream failure/i);
+  });
+
+  it("detects thinking content when model returns thinking field", async () => {
+    // warmup + 5 prompts — thinking on prompts 1 and 3
+    generatePlan = ["ok", "ok", "ok", "ok", "ok", "ok"];
+    thinkingPlan = [
+      undefined, // warmup
+      "Let me think about recursion step by step", // prompt 1
+      undefined, // prompt 2
+      "I need to compare TCP and UDP carefully", // prompt 3
+      undefined, // prompt 4
+      undefined, // prompt 5
+    ];
+
+    const result = await runPerformanceBench("test-model", {
+      failOnPromptError: false,
+      minSuccessfulPrompts: 3,
+    });
+
+    expect(result.thinkingDetected).toBe(true);
+    expect(result.metrics.thinkingTokensEstimate).toBeGreaterThan(0);
+  });
+
+  it("does not flag thinking when no thinking content present", async () => {
+    generatePlan = ["ok", "ok", "ok", "ok", "ok", "ok"];
+    thinkingPlan = [];
+
+    const result = await runPerformanceBench("test-model", {
+      failOnPromptError: false,
+      minSuccessfulPrompts: 3,
+    });
+
+    expect(result.thinkingDetected).toBe(false);
+    expect(result.metrics.thinkingTokensEstimate).toBeUndefined();
   });
 });

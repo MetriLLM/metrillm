@@ -75,6 +75,8 @@ function makeHardware(overrides: Partial<HardwareInfo> = {}): HardwareInfo {
     gpuVramMB: null,
     os: "TestOS",
     arch: "arm64",
+    powerMode: "balanced",
+    cpuCurrentSpeedGHz: 3.0,
     ...overrides,
   };
 }
@@ -413,7 +415,36 @@ describe("computeFitness", () => {
     const perf = makePerf({ tokensPerSecond: 80, ttft: 300, memoryPercent: 20 });
     const fitness = computeFitness(perf, null);
     expect(fitness.interpretation).not.toContain("Warning:");
-    expect(fitness.warnings).toHaveLength(0);
+    // No power mode warnings when balanced
+    expect(fitness.warnings.some((w) => w.includes("low-power"))).toBe(false);
+  });
+
+  it("adds warning when system is in low-power mode", () => {
+    const perf = makePerf({ tokensPerSecond: 80, ttft: 300, memoryPercent: 20 });
+    const hw = makeHardware({ powerMode: "low-power" });
+    const fitness = computeFitness(perf, null, hw);
+    expect(fitness.warnings.some((w) => w.includes("low-power mode"))).toBe(true);
+  });
+
+  it("does not add low-power warning when power mode is balanced", () => {
+    const perf = makePerf({ tokensPerSecond: 80, ttft: 300, memoryPercent: 20 });
+    const hw = makeHardware({ powerMode: "balanced" });
+    const fitness = computeFitness(perf, null, hw);
+    expect(fitness.warnings.some((w) => w.includes("low-power"))).toBe(false);
+  });
+
+  it("adds CPU throttle warning when current speed < 80% of nominal", () => {
+    const perf = makePerf({ tokensPerSecond: 80, ttft: 300, memoryPercent: 20 });
+    const hw = makeHardware({ cpuFreqGHz: 3.0, cpuCurrentSpeedGHz: 2.0 });
+    const fitness = computeFitness(perf, null, hw);
+    expect(fitness.warnings.some((w) => w.includes("CPU appears throttled"))).toBe(true);
+  });
+
+  it("does not add CPU throttle warning when speed >= 80% of nominal", () => {
+    const perf = makePerf({ tokensPerSecond: 80, ttft: 300, memoryPercent: 20 });
+    const hw = makeHardware({ cpuFreqGHz: 3.0, cpuCurrentSpeedGHz: 2.8 });
+    const fitness = computeFitness(perf, null, hw);
+    expect(fitness.warnings.some((w) => w.includes("CPU appears throttled"))).toBe(false);
   });
 
   it("uses memoryHostPercent for memory score when available", () => {

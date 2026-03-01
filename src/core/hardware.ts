@@ -1,14 +1,81 @@
 import si from "systeminformation";
 import type { HardwareInfo } from "../types.js";
 import os from "node:os";
+import { exec as execCb } from "node:child_process";
+import { readFile } from "node:fs/promises";
+
+type PowerMode = "low-power" | "balanced" | "performance" | "unknown";
+
+function execCommand(cmd: string, timeoutMs = 3000): Promise<string> {
+  return new Promise((resolve) => {
+    const child = execCb(cmd, { timeout: timeoutMs }, (err, stdout) => {
+      if (err) return resolve("");
+      resolve(stdout.trim());
+    });
+    child.on("error", () => resolve(""));
+  });
+}
+
+async function detectPowerModeMacOS(): Promise<PowerMode> {
+  const output = await execCommand("pmset -g");
+  if (!output) return "unknown";
+  const match = output.match(/lowpowermode\s+(\d)/i);
+  if (match) return match[1] === "1" ? "low-power" : "balanced";
+  return "balanced";
+}
+
+async function detectPowerModeLinux(): Promise<PowerMode> {
+  try {
+    const governor = await readFile(
+      "/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor",
+      "utf-8"
+    );
+    const g = governor.trim().toLowerCase();
+    if (g === "powersave") return "low-power";
+    if (g === "performance") return "performance";
+    return "balanced";
+  } catch {
+    return "unknown";
+  }
+}
+
+async function detectPowerModeWindows(): Promise<PowerMode> {
+  const output = await execCommand("powercfg /getactivescheme");
+  if (!output) return "unknown";
+  const match = output.match(/\(([^)]+)\)/);
+  if (!match) return "unknown";
+  const name = match[1].toLowerCase();
+  if (name.includes("power saver") || name.includes("économie")) return "low-power";
+  if (name.includes("high performance") || name.includes("performances")) return "performance";
+  return "balanced";
+}
+
+async function detectPowerMode(): Promise<PowerMode> {
+  try {
+    switch (process.platform) {
+      case "darwin":
+        return await detectPowerModeMacOS();
+      case "linux":
+        return await detectPowerModeLinux();
+      case "win32":
+        return await detectPowerModeWindows();
+      default:
+        return "unknown";
+    }
+  } catch {
+    return "unknown";
+  }
+}
 
 export async function getHardwareInfo(): Promise<HardwareInfo> {
-  const [cpu, mem, graphics, osInfo, memLayout] = await Promise.all([
+  const [cpu, mem, graphics, osInfo, memLayout, powerMode, cpuSpeed] = await Promise.all([
     si.cpu(),
     si.mem(),
     si.graphics(),
     si.osInfo(),
     si.memLayout(),
+    detectPowerMode(),
+    si.cpuCurrentSpeed().catch(() => null),
   ]);
 
   const gpuController = graphics.controllers[0];
@@ -38,6 +105,8 @@ export async function getHardwareInfo(): Promise<HardwareInfo> {
     gpuVramMB: gpuController?.vram ?? null,
     os: `${osInfo.distro} ${osInfo.release}`,
     arch: os.arch(),
+    powerMode,
+    cpuCurrentSpeedGHz: cpuSpeed?.avg ?? null,
   };
 }
 

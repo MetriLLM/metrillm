@@ -149,6 +149,24 @@ export function computeFitness(
     );
   }
 
+  if (hardware?.powerMode === "low-power") {
+    warnings.push(
+      "System was in low-power mode during this benchmark."
+    );
+  }
+
+  if (
+    hardware?.cpuCurrentSpeedGHz != null &&
+    hardware?.cpuFreqGHz != null &&
+    hardware.cpuFreqGHz > 0 &&
+    hardware.cpuCurrentSpeedGHz / hardware.cpuFreqGHz < 0.8
+  ) {
+    const ratio = ((hardware.cpuCurrentSpeedGHz / hardware.cpuFreqGHz) * 100).toFixed(0);
+    warnings.push(
+      `CPU appears throttled (${hardware.cpuCurrentSpeedGHz.toFixed(1)} GHz current vs ${hardware.cpuFreqGHz.toFixed(1)} GHz nominal, ${ratio}%).`
+    );
+  }
+
   return {
     verdict,
     globalScore,

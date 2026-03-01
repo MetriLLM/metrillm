@@ -56,6 +56,7 @@ export async function listRunningModels(): Promise<OllamaRunningModel[]> {
 
 export interface GenerateResult {
   response: string;
+  thinking?: string;
   totalDuration: number; // ns
   loadDuration: number; // ns
   promptEvalCount: number;
@@ -107,9 +108,14 @@ export async function generateStream(
   );
 
   let fullResponse = "";
+  let fullThinking = "";
   let result: GenerateResult | null = null;
 
   for await (const chunk of stream) {
+    const chunkAny = chunk as unknown as Record<string, unknown>;
+    if (chunkAny.thinking) {
+      fullThinking += String(chunkAny.thinking);
+    }
     if (chunk.response) {
       fullResponse += chunk.response;
       callbacks?.onToken?.(chunk.response);
@@ -117,6 +123,7 @@ export async function generateStream(
     if (chunk.done) {
       result = {
         response: fullResponse,
+        ...(fullThinking ? { thinking: fullThinking } : {}),
         totalDuration: chunk.total_duration ?? 0,
         loadDuration: chunk.load_duration ?? 0,
         promptEvalCount: chunk.prompt_eval_count ?? 0,

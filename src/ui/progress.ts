@@ -120,6 +120,10 @@ export function successMsg(text: string): void {
   console.log(chalk.green(`  ✓ ${text}`));
 }
 
+export function infoMsg(text: string): void {
+  console.log(chalk.cyan(`  ℹ ${text}`));
+}
+
 export function warnMsg(text: string): void {
   console.log(chalk.yellow(`  ⚠ ${text}`));
 }

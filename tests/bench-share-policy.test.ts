@@ -164,15 +164,18 @@ describe("bench share policy", () => {
       arch: "arm64",
     });
     runPerformanceBenchMock.mockResolvedValue({
-      tokensPerSecond: 40,
-      ttft: 900,
-      loadTime: 1500,
-      totalTokens: 500,
-      promptTokens: 100,
-      completionTokens: 400,
-      memoryUsedGB: 10,
-      memoryPercent: 31,
-      memoryHostPercent: 60,
+      metrics: {
+        tokensPerSecond: 40,
+        ttft: 900,
+        loadTime: 1500,
+        totalTokens: 500,
+        promptTokens: 100,
+        completionTokens: 400,
+        memoryUsedGB: 10,
+        memoryPercent: 31,
+        memoryHostPercent: 60,
+      },
+      thinkingDetected: false,
     });
     const category = { score: 80, correct: 8, total: 10, details: [] };
     runReasoningBenchMock.mockResolvedValue(category);

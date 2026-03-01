@@ -22,6 +22,8 @@ import {
   extractChoice,
   extractCodeBlock,
   stripThinkTags,
+  hasThinkingContent,
+  estimateTokenCount,
 } from "../src/utils.js";
 
 describe("avg", () => {
@@ -387,6 +389,50 @@ describe("withTimeout", () => {
     ).rejects.toThrow(/slow op timed out/);
 
     expect(called).toBe(true);
+  });
+});
+
+describe("hasThinkingContent", () => {
+  it("returns true when thinkingField is provided", () => {
+    expect(hasThinkingContent("normal response", "some thinking")).toBe(true);
+  });
+
+  it("returns true when response contains <think> tags", () => {
+    expect(hasThinkingContent("<think>reasoning here</think>\nAnswer")).toBe(true);
+  });
+
+  it("returns true when response contains <thinking> tags", () => {
+    expect(hasThinkingContent("<thinking>reasoning</thinking>\nAnswer")).toBe(true);
+  });
+
+  it("returns false for normal response without thinking", () => {
+    expect(hasThinkingContent("Just a normal answer")).toBe(false);
+  });
+
+  it("returns false when thinkingField is empty string", () => {
+    expect(hasThinkingContent("normal response", "")).toBe(false);
+  });
+
+  it("returns false when thinkingField is whitespace only", () => {
+    expect(hasThinkingContent("normal response", "   ")).toBe(false);
+  });
+});
+
+describe("estimateTokenCount", () => {
+  it("counts words split by whitespace", () => {
+    expect(estimateTokenCount("one two three four")).toBe(4);
+  });
+
+  it("returns 0 for empty string", () => {
+    expect(estimateTokenCount("")).toBe(0);
+  });
+
+  it("handles multiple spaces and newlines", () => {
+    expect(estimateTokenCount("  hello  world\n  foo  ")).toBe(3);
+  });
+
+  it("handles single word", () => {
+    expect(estimateTokenCount("word")).toBe(1);
   });
 });
 

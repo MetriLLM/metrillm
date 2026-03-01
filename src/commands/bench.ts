@@ -12,7 +12,7 @@ import { runMultilingualBench } from "../benchmarks/multilingual.js";
 import { computeFitness } from "../scoring/fitness.js";
 import { printHardwareTable, printPerformanceTable, printQualityTable, printSummaryTable } from "../ui/results-table.js";
 import { printVerdict } from "../ui/verdict.js";
-import { stepHeader, errorMsg, warnMsg, createSpinner, successMsg } from "../ui/progress.js";
+import { stepHeader, errorMsg, warnMsg, infoMsg, createSpinner, successMsg } from "../ui/progress.js";
 import { saveResult } from "../core/store.js";
 import { uploadBenchResult } from "../core/uploader.js";
 import { promptShare } from "../ui/share-prompt.js";
@@ -60,6 +60,19 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
     if (!silent) {
       spinner.succeed("Hardware detected");
       printHardwareTable(hardware);
+      if (hardware.powerMode === "low-power") {
+        infoMsg("Low-power mode detected — results will reflect energy-saving performance.");
+      }
+      if (
+        hardware.cpuCurrentSpeedGHz != null &&
+        hardware.cpuFreqGHz != null &&
+        hardware.cpuFreqGHz > 0 &&
+        hardware.cpuCurrentSpeedGHz / hardware.cpuFreqGHz < 0.8
+      ) {
+        infoMsg(
+          `CPU running at ${hardware.cpuCurrentSpeedGHz.toFixed(1)} GHz / ${hardware.cpuFreqGHz.toFixed(1)} GHz nominal — possible throttling.`
+        );
+      }
     }
   } catch (err) {
     if (!silent) spinner.fail("Hardware detection failed");
@@ -147,12 +160,14 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
       try {
         // Performance benchmark
         if (!silent) stepHeader("Performance Benchmark");
-        const perf = await runPerformanceBench(modelName, {
+        const perfResult = await runPerformanceBench(modelName, {
           warmupTimeoutMs: options.perfWarmupTimeoutMs,
           promptTimeoutMs: options.perfPromptTimeoutMs,
           minSuccessfulPrompts: options.perfMinSuccessfulPrompts,
           failOnPromptError: options.perfStrict,
         });
+        const perf = perfResult.metrics;
+        const thinkingDetected = perfResult.thinkingDetected;
         if (!silent) printPerformanceTable(perf);
 
         // Quality benchmarks (unless --perf-only)
@@ -195,8 +210,11 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
               parameterSize: matchedModel.parameterSize,
               quantization: matchedModel.quantization,
               family: matchedModel.family,
+              ...(thinkingDetected ? { thinkingDetected } : {}),
             }
-          : undefined;
+          : thinkingDetected
+            ? { thinkingDetected }
+            : undefined;
 
         // Build result without hash first, then compute hash
         const partialResult: Omit<BenchResult, "metadata"> & { metadata: Omit<RunMetadata, "rawLogHash"> } = {
@@ -246,29 +264,8 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
 
         // Upload immediately after each model (when --share is enabled and quality was run)
         if (!options.perfOnly && !silent && options.share === true) {
-          let uploadPayload: BenchResult = benchResult;
-          let submitterEmail: string | undefined;
-
-          if (!options.ciNoMenu) {
-            try {
-              const submitter = await resolveSubmitterForShare();
-              if (submitter) {
-                uploadPayload = {
-                  ...benchResult,
-                  submitter: {
-                    nickname: submitter.nickname,
-                    emailHash: submitter.emailHash,
-                  },
-                };
-                submitterEmail = submitter.email;
-              }
-            } catch (err) {
-              warnMsg("Could not collect benchmark profile; continuing without it.");
-              if (err instanceof Error) {
-                warnMsg(err.message);
-              }
-            }
-          }
+          const uploadPayload: BenchResult = benchResult;
+          const submitterEmail: string | undefined = undefined;
 
           const uploadSpinner = createSpinner("Uploading result...");
           uploadSpinner.start();

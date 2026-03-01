@@ -113,6 +113,16 @@ export function stripThinkTags(text: string): string {
   return stripped.trim();
 }
 
+export function hasThinkingContent(response: string, thinkingField?: string): boolean {
+  if (thinkingField && thinkingField.trim().length > 0) return true;
+  return /<think(?:ing)?[\s>]/i.test(response);
+}
+
+export function estimateTokenCount(text: string): number {
+  if (!text) return 0;
+  return text.split(/\s+/).filter(Boolean).length;
+}
+
 export function extractNumber(text: string): number | null {
   const numberPattern = /[-+]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:e[-+]?\d+)?/i;
   const numberPatternGlobal = /[-+]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:e[-+]?\d+)?/gi;
