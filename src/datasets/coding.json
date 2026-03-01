@@ -103,7 +103,8 @@
           ]
         }
       }
-    ]
+    ],
+    "difficulty": "medium"
   },
   {
     "id": 2,
@@ -212,7 +213,8 @@
           ]
         ]
       }
-    ]
+    ],
+    "difficulty": "medium"
   },
   {
     "id": 3,
@@ -328,7 +330,8 @@
           "c"
         ]
       }
-    ]
+    ],
+    "difficulty": "medium"
   },
   {
     "id": 4,
@@ -392,7 +395,8 @@
           "baa"
         ]
       }
-    ]
+    ],
+    "difficulty": "medium"
   },
   {
     "id": 5,
@@ -436,7 +440,8 @@
         ],
         "expected": 890
       }
-    ]
+    ],
+    "difficulty": "medium"
   },
   {
     "id": 6,
@@ -480,7 +485,8 @@
         ],
         "expected": 3
       }
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 7,
@@ -564,7 +570,8 @@
           "1"
         ]
       }
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 8,
@@ -608,7 +615,8 @@
         ],
         "expected": 0
       }
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 9,
@@ -719,7 +727,8 @@
           "c"
         ]
       }
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 10,
@@ -763,7 +772,8 @@
         ],
         "expected": "Mixed Case Text"
       }
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 11,
@@ -807,7 +817,8 @@
         ],
         "expected": true
       }
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 12,
@@ -909,7 +920,8 @@
           3
         ]
       }
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 13,
@@ -1025,7 +1037,8 @@
           ]
         }
       }
-    ]
+    ],
+    "difficulty": "medium"
   },
   {
     "id": 14,
@@ -1069,7 +1082,8 @@
         ],
         "expected": "MMMCMXCIX"
       }
-    ]
+    ],
+    "difficulty": "medium"
   },
   {
     "id": 15,
@@ -1145,7 +1159,8 @@
         ],
         "expected": 4
       }
-    ]
+    ],
+    "difficulty": "medium"
   },
   {
     "id": 16,
@@ -1209,7 +1224,8 @@
         ],
         "expected": "throne"
       }
-    ]
+    ],
+    "difficulty": "medium"
   },
   {
     "id": 17,
@@ -1253,7 +1269,8 @@
         ],
         "expected": false
       }
-    ]
+    ],
+    "difficulty": "medium"
   },
   {
     "id": 18,
@@ -1421,7 +1438,8 @@
           ]
         ]
       }
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 19,
@@ -1522,7 +1540,8 @@
           1
         ]
       }
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 20,
@@ -1594,7 +1613,8 @@
         ],
         "expected": 20
       }
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 21,
@@ -1644,7 +1664,8 @@
         ],
         "expected": 2
       }
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 22,
@@ -1688,7 +1709,8 @@
         ],
         "expected": "/a/b/c"
       }
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 23,
@@ -1824,7 +1846,8 @@
           3
         ]
       }
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 24,
@@ -1907,7 +1930,8 @@
         ],
         "expected": 0
       }
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 25,
@@ -1995,7 +2019,8 @@
         ],
         "expected": 2
       }
-    ]
+    ],
+    "difficulty": "medium"
   },
   {
     "id": 26,
@@ -2116,7 +2141,8 @@
         ],
         "expected": 2
       }
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 27,
@@ -2209,7 +2235,8 @@
         ],
         "expected": true
       }
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 28,
@@ -2325,7 +2352,8 @@
         ],
         "expected": false
       }
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 29,
@@ -2969,7 +2997,8 @@
         ],
         "expected": true
       }
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 30,
@@ -3050,7 +3079,8 @@
         ],
         "expected": 5
       }
-    ]
+    ],
+    "difficulty": "medium"
   },
   {
     "id": 31,
@@ -3144,7 +3174,8 @@
           "abe"
         ]
       }
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 32,
@@ -3290,7 +3321,8 @@
           30
         ]
       }
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 33,
@@ -3340,7 +3372,8 @@
         ],
         "expected": 4
       }
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 34,
@@ -3384,7 +3417,8 @@
         ],
         "expected": 42
       }
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 35,
@@ -3434,6 +3468,7 @@
         ],
         "expected": true
       }
-    ]
+    ],
+    "difficulty": "hard"
   }
 ]

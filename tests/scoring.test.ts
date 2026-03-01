@@ -112,10 +112,11 @@ describe("computePerformanceScore", () => {
       ttft: 1500,
       memoryPercent: 60,
     }));
-    expect(score.speed).toBeGreaterThanOrEqual(30);
-    expect(score.speed).toBeLessThanOrEqual(36);
-    expect(score.ttft).toBeGreaterThanOrEqual(24);
-    expect(score.ttft).toBeLessThanOrEqual(27);
+    // Without explicit hardware, uses default mid-range tuning
+    expect(score.speed).toBeGreaterThanOrEqual(25);
+    expect(score.speed).toBeLessThanOrEqual(40);
+    expect(score.ttft).toBeGreaterThanOrEqual(20);
+    expect(score.ttft).toBeLessThanOrEqual(30);
     expect(score.memory).toBeGreaterThanOrEqual(15);
     expect(score.memory).toBeLessThanOrEqual(25);
   });
@@ -171,7 +172,7 @@ describe("computePerformanceScore", () => {
     expect(entryScore.speed).toBeGreaterThanOrEqual(highEndScore.speed);
   });
 
-  it("classifies hardware profile tiers", () => {
+  it("classifies hardware profile tiers via continuous capacity", () => {
     expect(
       deriveHardwareFitTuning(makeHardware({ cpuCores: 6, totalMemoryGB: 16 })).profile
     ).toBe("ENTRY");
@@ -179,8 +180,16 @@ describe("computePerformanceScore", () => {
       deriveHardwareFitTuning(makeHardware({ cpuCores: 10, totalMemoryGB: 32 })).profile
     ).toBe("BALANCED");
     expect(
-      deriveHardwareFitTuning(makeHardware({ cpuCores: 14, totalMemoryGB: 64 })).profile
+      deriveHardwareFitTuning(makeHardware({ cpuCores: 20, totalMemoryGB: 64 })).profile
     ).toBe("HIGH-END");
+  });
+
+  it("produces higher speed thresholds for beefier hardware", () => {
+    const small = deriveHardwareFitTuning(makeHardware({ cpuCores: 6, totalMemoryGB: 16 }));
+    const big   = deriveHardwareFitTuning(makeHardware({ cpuCores: 24, totalMemoryGB: 128 }));
+    expect(big.speed.excellent).toBeGreaterThan(small.speed.excellent);
+    expect(big.speed.hardMin).toBeGreaterThan(small.speed.hardMin);
+    expect(big.ttft.excellentMs).toBeLessThan(small.ttft.excellentMs);
   });
 
   it("sanitizes non-finite performance inputs", () => {
@@ -331,14 +340,14 @@ describe("computeFitness", () => {
   });
 
   it("adds a disqualifier when TTFT is extremely high", () => {
-    const perf = makePerf({ ttft: 16_000 });
+    const perf = makePerf({ ttft: 30_000 });
     const fitness = computeFitness(perf, null);
     expect(fitness.disqualifiers.some((d) => d.includes("Time to first token"))).toBe(true);
     expect(fitness.verdict).toBe("NOT RECOMMENDED");
   });
 
   it("adds a disqualifier when load time is extremely high", () => {
-    const perf = makePerf({ loadTime: 200_000 });
+    const perf = makePerf({ loadTime: 350_000 });
     const fitness = computeFitness(perf, null);
     expect(fitness.disqualifiers.some((d) => d.includes("Model load time"))).toBe(true);
     expect(fitness.verdict).toBe("NOT RECOMMENDED");

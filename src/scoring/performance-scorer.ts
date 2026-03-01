@@ -6,55 +6,18 @@ import type {
 } from "../types.js";
 import { clamp, lerp } from "../utils.js";
 
-const ENTRY_TUNING: HardwareFitTuning = {
-  profile: "ENTRY",
-  speed: {
-    excellent: 20,
-    good: 10,
-    marginal: 4,
-    hardMin: 3,
-  },
-  ttft: {
-    excellentMs: 1500,
-    goodMs: 3200,
-    marginalMs: 7000,
-    hardMaxMs: 20000,
-  },
-  loadTimeHardMaxMs: 240000,
+// Anchor points for continuous interpolation.
+// Low end: ~4 cores, ~8 GB.  High end: ~24+ cores, ~96+ GB.
+const TUNING_LOW = {
+  speed:   { excellent: 15, good: 8,  marginal: 3,  hardMin: 2 },
+  ttft:    { excellentMs: 2000, goodMs: 4000, marginalMs: 8000, hardMaxMs: 25000 },
+  loadTimeHardMaxMs: 300000,
 };
 
-const BALANCED_TUNING: HardwareFitTuning = {
-  profile: "BALANCED",
-  speed: {
-    excellent: 30,
-    good: 16,
-    marginal: 7,
-    hardMin: 5,
-  },
-  ttft: {
-    excellentMs: 1000,
-    goodMs: 2200,
-    marginalMs: 5000,
-    hardMaxMs: 15000,
-  },
-  loadTimeHardMaxMs: 180000,
-};
-
-const HIGH_END_TUNING: HardwareFitTuning = {
-  profile: "HIGH-END",
-  speed: {
-    excellent: 45,
-    good: 25,
-    marginal: 12,
-    hardMin: 6,
-  },
-  ttft: {
-    excellentMs: 700,
-    goodMs: 1600,
-    marginalMs: 3500,
-    hardMaxMs: 12000,
-  },
-  loadTimeHardMaxMs: 120000,
+const TUNING_HIGH = {
+  speed:   { excellent: 55, good: 30, marginal: 14, hardMin: 8 },
+  ttft:    { excellentMs: 500,  goodMs: 1200, marginalMs: 2800, hardMaxMs: 10000 },
+  loadTimeHardMaxMs: 90000,
 };
 
 function sanitizeNonNegative(value: number, fallback: number): number {
@@ -62,16 +25,66 @@ function sanitizeNonNegative(value: number, fallback: number): number {
   return value;
 }
 
-export function deriveHardwareFitTuning(hardware?: HardwareInfo): HardwareFitTuning {
-  if (!hardware) return BALANCED_TUNING;
+function lerpNum(t: number, low: number, high: number): number {
+  return low + t * (high - low);
+}
 
-  if (hardware.cpuCores >= 12 && hardware.totalMemoryGB >= 48) {
-    return HIGH_END_TUNING;
+function computeHardwareCapacity(hardware: HardwareInfo): number {
+  // Core score: 4 cores = 0, 24+ cores = 1
+  const coreScore = clamp((hardware.cpuCores - 4) / (24 - 4), 0, 1);
+  // RAM score: 8 GB = 0, 96+ GB = 1
+  const ramScore = clamp((hardware.totalMemoryGB - 8) / (96 - 8), 0, 1);
+  // Weighted average — cores and RAM contribute equally
+  return (coreScore + ramScore) / 2;
+}
+
+function deriveProfile(capacity: number): "ENTRY" | "BALANCED" | "HIGH-END" {
+  if (capacity >= 0.55) return "HIGH-END";
+  if (capacity >= 0.25) return "BALANCED";
+  return "ENTRY";
+}
+
+export function deriveHardwareFitTuning(hardware?: HardwareInfo): HardwareFitTuning {
+  if (!hardware) {
+    // Default to mid-range when hardware is unknown
+    const t = 0.35;
+    return {
+      profile: "BALANCED",
+      speed: {
+        excellent: Math.round(lerpNum(t, TUNING_LOW.speed.excellent, TUNING_HIGH.speed.excellent)),
+        good:      Math.round(lerpNum(t, TUNING_LOW.speed.good,      TUNING_HIGH.speed.good)),
+        marginal:  Math.round(lerpNum(t, TUNING_LOW.speed.marginal,  TUNING_HIGH.speed.marginal)),
+        hardMin:   Math.round(lerpNum(t, TUNING_LOW.speed.hardMin,   TUNING_HIGH.speed.hardMin)),
+      },
+      ttft: {
+        excellentMs: Math.round(lerpNum(t, TUNING_LOW.ttft.excellentMs, TUNING_HIGH.ttft.excellentMs)),
+        goodMs:      Math.round(lerpNum(t, TUNING_LOW.ttft.goodMs,      TUNING_HIGH.ttft.goodMs)),
+        marginalMs:  Math.round(lerpNum(t, TUNING_LOW.ttft.marginalMs,  TUNING_HIGH.ttft.marginalMs)),
+        hardMaxMs:   Math.round(lerpNum(t, TUNING_LOW.ttft.hardMaxMs,   TUNING_HIGH.ttft.hardMaxMs)),
+      },
+      loadTimeHardMaxMs: Math.round(lerpNum(t, TUNING_LOW.loadTimeHardMaxMs, TUNING_HIGH.loadTimeHardMaxMs)),
+    };
   }
-  if (hardware.cpuCores >= 8 && hardware.totalMemoryGB >= 24) {
-    return BALANCED_TUNING;
-  }
-  return ENTRY_TUNING;
+
+  const t = computeHardwareCapacity(hardware);
+  const profile = deriveProfile(t);
+
+  return {
+    profile,
+    speed: {
+      excellent: Math.round(lerpNum(t, TUNING_LOW.speed.excellent, TUNING_HIGH.speed.excellent)),
+      good:      Math.round(lerpNum(t, TUNING_LOW.speed.good,      TUNING_HIGH.speed.good)),
+      marginal:  Math.round(lerpNum(t, TUNING_LOW.speed.marginal,  TUNING_HIGH.speed.marginal)),
+      hardMin:   Math.round(lerpNum(t, TUNING_LOW.speed.hardMin,   TUNING_HIGH.speed.hardMin)),
+    },
+    ttft: {
+      excellentMs: Math.round(lerpNum(t, TUNING_LOW.ttft.excellentMs, TUNING_HIGH.ttft.excellentMs)),
+      goodMs:      Math.round(lerpNum(t, TUNING_LOW.ttft.goodMs,      TUNING_HIGH.ttft.goodMs)),
+      marginalMs:  Math.round(lerpNum(t, TUNING_LOW.ttft.marginalMs,  TUNING_HIGH.ttft.marginalMs)),
+      hardMaxMs:   Math.round(lerpNum(t, TUNING_LOW.ttft.hardMaxMs,   TUNING_HIGH.ttft.hardMaxMs)),
+    },
+    loadTimeHardMaxMs: Math.round(lerpNum(t, TUNING_LOW.loadTimeHardMaxMs, TUNING_HIGH.loadTimeHardMaxMs)),
+  };
 }
 
 function scoreSpeed(tps: number, tuning: HardwareFitTuning): number {

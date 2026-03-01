@@ -21,7 +21,7 @@ import { openUrl } from "../utils.js";
 import { showTelemetryNotice, trackBenchStarted, trackBenchCompleted, trackBenchShared, flushTelemetry } from "../core/telemetry.js";
 import type { BenchResult, HardwareInfo, ModelInfo, OllamaModel, QualityMetrics, RunMetadata } from "../types.js";
 
-const BENCHMARK_SPEC_VERSION = "0.1.0";
+const BENCHMARK_SPEC_VERSION = "0.2.0";
 const PROMPT_PACK_VERSION = "0.1.0";
 
 export interface BenchOptions {

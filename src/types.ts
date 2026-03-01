@@ -97,6 +97,7 @@ export interface CodingTask {
   description: string;
   functionName: string;
   signature: string;
+  difficulty?: "easy" | "medium" | "hard";
   tests: CodingTest[];
 }
 

@@ -34,6 +34,12 @@ function deepEqual(a: unknown, b: unknown): boolean {
   return false;
 }
 
+const DIFFICULTY_WEIGHT: Record<string, number> = {
+  easy: 1,
+  medium: 2,
+  hard: 3,
+};
+
 const SANDBOX_TIMEOUT_MS = 5_000;
 const ISOLATED_WALL_TIMEOUT_MIN_MS = 8_000;
 const ISOLATED_WALL_TIMEOUT_MAX_MS = 60_000;
@@ -455,10 +461,20 @@ Reply with ONLY the function code, no explanation.`;
   const tasksPassed = details.filter((d) => d.correct).length;
   spinner.succeed(`Coding: ${tasksPassed}/${tasks.length} tasks fully passed`);
 
+  // Difficulty-weighted, all-or-nothing scoring: a task scores its weight
+  // only when ALL its tests pass. Easy tasks count less than hard ones.
+  let weightedPassed = 0;
+  let weightedTotal = 0;
+  for (let i = 0; i < tasks.length; i++) {
+    const w = DIFFICULTY_WEIGHT[tasks[i].difficulty ?? "medium"] ?? 2;
+    weightedTotal += w;
+    if (details[i].correct) {
+      weightedPassed += w;
+    }
+  }
+
   return {
-    // Score by test-case pass ratio for finer-grained ranking, while keeping
-    // task-level pass count in `correct/total` for readability.
-    score: totalTests > 0 ? (totalPassed / totalTests) * 100 : 0,
+    score: weightedTotal > 0 ? (weightedPassed / weightedTotal) * 100 : 0,
     correct: tasksPassed,
     total: tasks.length,
     details,
