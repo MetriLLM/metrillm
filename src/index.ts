@@ -101,7 +101,7 @@ program
   .option("--perf-prompt-timeout-ms <ms>", "Per-prompt timeout in milliseconds (default: 60000)")
   .option("--perf-min-successful-prompts <count>", "Minimum successful perf prompts required (default: 3)")
   .option("--perf-strict", "Fail immediately if any performance prompt fails")
-  .option("--share", "Share full benchmark results on the public leaderboard (no prompt)")
+  .option("--share", "Share results on the public leaderboard (skip confirmation)")
   .option("--no-share", "Skip the share prompt entirely")
   .option("--keep-alive <duration>", "Ollama keep_alive value (seconds or duration string, e.g. 2m)")
   .option("--unload-after-bench", "Unload model(s) after benchmark completion")
@@ -109,8 +109,8 @@ program
   .option("--json", "Output results as JSON to stdout (no UI)")
   .option("--export <format>", "Export results: json | csv | md")
   .option("--out <dir>", "Export output directory (default: exports)")
-  .option("--telemetry", "Enable anonymous usage telemetry")
-  .option("--no-telemetry", "Disable anonymous usage telemetry")
+  .option("--telemetry", "Enable anonymous usage stats")
+  .option("--no-telemetry", "Disable anonymous usage stats")
   .action(async (opts) => {
     let exportFormat: ExportFormat | null = null;
     if (opts.export) {

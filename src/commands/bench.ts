@@ -88,7 +88,7 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
     runtimeVersion = await getRuntimeVersion();
   } catch (err) {
     if (!silent) {
-      warnMsg("Could not detect Ollama version (continuing with runtimeVersion=unknown).");
+      warnMsg("Could not detect Ollama version (continuing without it).");
       if (err instanceof Error) warnMsg(err.message);
     }
   }
@@ -328,7 +328,7 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
     const canShareResults = !options.perfOnly;
     if (!canShareResults) {
       if (!silent && options.share === true) {
-        warnMsg("Sharing is disabled in --perf-only mode. Run a full benchmark to upload results.");
+        warnMsg("Sharing is not available in performance-only mode. Run a full benchmark to upload results.");
       }
     } else if (!silent && results.length > 0 && options.share !== true && options.share !== false && !options.ciNoMenu) {
       for (const result of results) {

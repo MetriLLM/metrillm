@@ -230,7 +230,7 @@ export function printVerdict(model: string, fitness: FitnessResult): void {
   } else {
     sectionText("", qualityBorder);
     sectionText("Quality not computed (performance-only run).", qualityBorder);
-    sectionText("Run full benchmarks to get quality assessment.", qualityBorder);
+    sectionText("Run a full benchmark to get quality assessment.", qualityBorder);
   }
   sectionEnd(qualityBorder);
 

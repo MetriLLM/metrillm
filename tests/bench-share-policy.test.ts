@@ -235,7 +235,7 @@ describe("bench share policy", () => {
     expect(uploadBenchResultMock).not.toHaveBeenCalled();
     expect(openUrlMock).not.toHaveBeenCalled();
     expect(warnMsgMock).toHaveBeenCalledWith(
-      "Sharing is disabled in --perf-only mode. Run a full benchmark to upload results."
+      "Sharing is not available in performance-only mode. Run a full benchmark to upload results."
     );
   });
 

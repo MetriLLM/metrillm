@@ -146,7 +146,7 @@ export function printPerformanceTable(perf: PerformanceMetrics): void {
       "Host RAM Pressure",
       perf.memoryHostPercent !== undefined && perf.memoryHostUsedGB !== undefined
         ? `${perf.memoryHostUsedGB.toFixed(1)} GB (${perf.memoryHostPercent.toFixed(0)}%)`
-        : chalk.dim("n/a (host metric unavailable)"),
+        : chalk.dim("N/A (host metric unavailable)"),
     ],
   );
 
@@ -163,7 +163,7 @@ export function printPerformanceTable(perf: PerformanceMetrics): void {
 export function printQualityTable(quality: QualityMetrics, timePenalties?: Record<string, number>): void {
   console.log(
     chalk.dim(
-      "Quality note: scores are based on a mixed-difficulty internal dataset (directional, not absolute)."
+      "Quality scores are based on an internal mixed-difficulty dataset; interpret as directional, not absolute."
     )
   );
 

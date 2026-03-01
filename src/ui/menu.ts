@@ -488,7 +488,7 @@ function mainMenuOptions(): MenuOption<
 
 function nextActionOptions(): MenuOption<"rerun" | "export" | "menu" | "quit">[] {
   return [
-    { label: "Relaunch same benchmark", value: "rerun" },
+    { label: "Re-run same benchmark", value: "rerun" },
     { label: "Export last results", value: "export" },
     { label: "Back to main menu", value: "menu" },
     { label: "Quit", value: "quit" },
@@ -529,7 +529,7 @@ function settingsMenuOptions(
     {
       label: `Auto-share full benchmarks: ${autoShareEnabled ? "ON" : "OFF"}`,
       value: "toggle-auto-share",
-      hint: autoShareEnabled ? "Disable to ask each run." : "Enable to share full benchmark results automatically.",
+      hint: autoShareEnabled ? "Disable to ask before each upload." : "Enable to share results automatically after each benchmark.",
     },
     {
       label: `Benchmark profile: ${hasSubmitterProfile ? "SET" : "NOT SET"}`,
@@ -584,7 +584,7 @@ export async function choosePostBenchmarkAction(
         "Next Action",
         nextActionOptions(),
         {
-          subtitle: "Use Enter to validate, Esc to return to main menu.",
+          subtitle: "Use Enter to confirm, Esc to return to main menu.",
           allowEscape: true,
         }
       ));
@@ -767,7 +767,7 @@ export async function runInteractiveMenu(): Promise<void> {
         continue;
       }
       if (listing.models.length === 0) {
-        await waitForContinue("No model available. Press Enter to return...");
+        await waitForContinue("No models available. Press Enter to return...");
         continue;
       }
 
@@ -800,7 +800,7 @@ export async function runInteractiveMenu(): Promise<void> {
           {
             label: "Performance only",
             value: "perf",
-            hint: "Faster run; skips task-accuracy checks.",
+            hint: "Faster run; skips quality tasks.",
           },
         ],
         {
@@ -861,12 +861,12 @@ export async function runInteractiveMenu(): Promise<void> {
           {
             label: "Full benchmark on all models",
             value: "full",
-            hint: "Includes quality and global scoring; can take longer.",
+            hint: "Performance + quality tasks + global verdict; can take longer.",
           },
           {
             label: "Performance-only benchmark on all models",
             value: "perf",
-            hint: "Fastest global comparison.",
+            hint: "Fastest comparison; skips quality tasks.",
           },
         ],
         {
