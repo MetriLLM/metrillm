@@ -3,6 +3,7 @@ import * as readline from "node:readline";
 import { stdin as input, stdout as output } from "node:process";
 import type { BenchResult } from "../types.js";
 import { loadConfig, saveConfig } from "../core/store.js";
+import { supportsUnicode } from "./terminal.js";
 
 export type ShareDecision = "share" | "skip";
 type ShareChoice = "share" | "skip" | "always";
@@ -45,7 +46,8 @@ function renderShareMenu(result: BenchResult, selectedIndex: number, lastRendere
   lines.push(chalk.dim("Use Up/Down arrows then Enter, or press 1-3 on keyboard/numpad."));
   lines.push(chalk.dim("Shortcuts: y = share, n = skip, a = always. Esc = skip."));
   lines.push("");
-  lines.push(chalk.bold.green("  ok Benchmark complete!"));
+  const checkMark = supportsUnicode ? "\u2713" : "ok";
+  lines.push(chalk.bold.green(`  ${checkMark} Benchmark complete!`));
   lines.push(chalk.dim(`    Score: ${score}/100 — ${verdict}`));
   lines.push(chalk.dim(`    ${result.model} @ ${tps} tok/s (${ram} RAM)`));
   lines.push("");
