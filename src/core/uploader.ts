@@ -158,26 +158,22 @@ async function getRank(
   }
 
   try {
-    const [
-      { count: totalCount },
-      { count: betterCount },
-      { count: cpuTotal },
-      { count: cpuBetter },
-    ] = await Promise.all([
-      supabase.from("benchmarks").select("*", { count: "exact", head: true }),
-      supabase.from("benchmarks").select("*", { count: "exact", head: true }).gt("global_score", globalScore),
-      supabase.from("benchmarks").select("*", { count: "exact", head: true }).eq("cpu", cpu),
-      supabase.from("benchmarks").select("*", { count: "exact", head: true }).eq("cpu", cpu).gt("global_score", globalScore),
-    ]);
+    const { data, error } = await supabase.rpc("get_rank", {
+      p_global_score: globalScore,
+      p_cpu: cpu,
+    });
 
-    const total = totalCount ?? 0;
+    if (error || !data) {
+      return { rankGlobalPct: null, rankCpuPct: null, totalCount: 0 };
+    }
+
+    const { total_count, better_count, cpu_total, cpu_better } = data;
     const rankGlobalPct =
-      total > 0 ? Math.max(1, Math.round(((betterCount ?? 0) + 1) / total * 100)) : null;
-    const cpuTotalN = cpuTotal ?? 0;
+      total_count > 0 ? Math.max(1, Math.round((better_count + 1) / total_count * 100)) : null;
     const rankCpuPct =
-      cpuTotalN > 0 ? Math.max(1, Math.round(((cpuBetter ?? 0) + 1) / cpuTotalN * 100)) : null;
+      cpu_total > 0 ? Math.max(1, Math.round((cpu_better + 1) / cpu_total * 100)) : null;
 
-    return { rankGlobalPct, rankCpuPct, totalCount: total };
+    return { rankGlobalPct, rankCpuPct, totalCount: total_count };
   } catch {
     return { rankGlobalPct: null, rankCpuPct: null, totalCount: 0 };
   }

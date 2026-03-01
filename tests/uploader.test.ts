@@ -8,6 +8,7 @@ const {
   selectMock,
   singleMock,
   upsertMock,
+  rpcMock,
 } = vi.hoisted(() => ({
   createClientMock: vi.fn(),
   fromMock: vi.fn(),
@@ -15,6 +16,7 @@ const {
   selectMock: vi.fn(),
   singleMock: vi.fn(),
   upsertMock: vi.fn(),
+  rpcMock: vi.fn(),
 }));
 
 vi.mock("@supabase/supabase-js", () => ({
@@ -102,7 +104,8 @@ describe("uploadBenchResult", () => {
       }
       return { insert: insertMock };
     });
-    createClientMock.mockReturnValue({ from: fromMock });
+    rpcMock.mockResolvedValue({ data: null, error: { message: "not found" } });
+    createClientMock.mockReturnValue({ from: fromMock, rpc: rpcMock });
   });
 
   it("uploads benchmark row and returns hosted URL", async () => {
@@ -168,26 +171,10 @@ describe("uploadBenchResult", () => {
   });
 
   it("computes percentile ranks when score and counts are available", async () => {
-    let selectCall = 0;
-    fromMock.mockImplementation(() => ({
-      insert: insertMock,
-      select: () => {
-        selectCall++;
-        if (selectCall === 1) {
-          return Promise.resolve({ count: 100 });
-        }
-        if (selectCall === 2) {
-          return { gt: async () => ({ count: 19 }) };
-        }
-        if (selectCall === 3) {
-          return { eq: async () => ({ count: 20 }) };
-        }
-        if (selectCall === 4) {
-          return { eq: () => ({ gt: async () => ({ count: 3 }) }) };
-        }
-        return Promise.resolve({ count: 0 });
-      },
-    }));
+    rpcMock.mockResolvedValueOnce({
+      data: { total_count: 100, better_count: 19, cpu_total: 20, cpu_better: 3 },
+      error: null,
+    });
     singleMock.mockResolvedValueOnce({ data: { id: "row-rank" }, error: null });
     const { uploadBenchResult } = await import("../src/core/uploader.js");
 
@@ -199,6 +186,10 @@ describe("uploadBenchResult", () => {
       },
     });
 
+    expect(rpcMock).toHaveBeenCalledWith("get_rank", {
+      p_global_score: 80,
+      p_cpu: "CPU",
+    });
     expect(out).toEqual({
       id: "row-rank",
       url: "https://metrillm.dev/result/row-rank",
