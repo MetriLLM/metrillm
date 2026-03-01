@@ -1,6 +1,11 @@
 # LLMeter
 
 [![CI](https://github.com/MetriLLM/metrillm/actions/workflows/ci.yml/badge.svg)](https://github.com/MetriLLM/metrillm/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/llmeter)](https://www.npmjs.com/package/llmeter)
+[![npm downloads](https://img.shields.io/npm/dw/llmeter)](https://www.npmjs.com/package/llmeter)
+[![GitHub stars](https://img.shields.io/github/stars/MetriLLM/metrillm)](https://github.com/MetriLLM/metrillm)
+[![License](https://img.shields.io/github/license/MetriLLM/metrillm)](https://github.com/MetriLLM/metrillm/blob/main/LICENSE)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D20-brightgreen)](https://nodejs.org/)
 
 **Benchmark your local LLM models in one command.** Speed, quality, hardware fitness — with a shareable score and public leaderboard.
 
