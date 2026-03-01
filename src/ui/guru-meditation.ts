@@ -2,7 +2,6 @@ import chalk from "chalk";
 
 const BLINK_CYCLES = 6;
 const BLINK_INTERVAL_MS = 550;
-const FRAME_HEIGHT = 7; // empty + border + empty + line1 + line2 + empty + border
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -95,6 +94,10 @@ export async function printGuruMeditation(): Promise<void> {
     return;
   }
 
+  // Compute frame height dynamically from actual frame content
+  const firstFrame = buildFrame(line1, line2, true);
+  const frameHeight = firstFrame.split("\n").length;
+
   // Hide cursor during animation
   process.stdout.write("\x1B[?25l");
 
@@ -103,7 +106,7 @@ export async function printGuruMeditation(): Promise<void> {
 
     // Move cursor up to overwrite previous frame (except first iteration)
     if (i > 0) {
-      process.stdout.write(`\x1B[${FRAME_HEIGHT}A`);
+      process.stdout.write(`\x1B[${frameHeight}A`);
     }
 
     process.stdout.write(buildFrame(line1, line2, borderOn) + "\n");
@@ -111,7 +114,7 @@ export async function printGuruMeditation(): Promise<void> {
   }
 
   // Ensure we end on border-ON state
-  process.stdout.write(`\x1B[${FRAME_HEIGHT}A`);
+  process.stdout.write(`\x1B[${frameHeight}A`);
   process.stdout.write(buildFrame(line1, line2, true) + "\n\n");
 
   // Restore cursor

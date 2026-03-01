@@ -40,12 +40,6 @@ function canUseArrowMenu(): boolean {
   return Boolean(input.isTTY && output.isTTY);
 }
 
-function clearTerminal(): void {
-  if (output.isTTY) {
-    output.write("\x1b[2J\x1b[H");
-  }
-}
-
 function restoreTerminalForExit(): void {
   if (output.isTTY) {
     output.write("\x1b[?25h");
@@ -61,33 +55,45 @@ function renderMenu<T>(
   options: MenuOption<T>[],
   selectedIndex: number,
   config: SelectOptions = {},
-  typedChoice = ""
-): void {
-  clearTerminal();
-  console.log(chalk.bold.cyan(title));
+  typedChoice = "",
+  lastRenderedLines = 0
+): number {
+  const lines: string[] = [];
+  lines.push(chalk.bold.cyan(title));
   if (config.subtitle) {
-    console.log(chalk.dim(config.subtitle));
+    lines.push(chalk.dim(config.subtitle));
   }
   const navHelp = options.length <= 9
     ? "Use Up/Down arrows then Enter, or press a number key."
     : "Use Up/Down arrows then Enter, or type a number then Enter.";
   const backHelp = config.allowEscape !== false ? " Esc to go back." : "";
-  console.log(chalk.dim(`${navHelp}${backHelp}`));
+  lines.push(chalk.dim(`${navHelp}${backHelp}`));
   if (typedChoice.length > 0) {
-    console.log(chalk.dim(`Typed shortcut: ${typedChoice}`));
+    lines.push(chalk.dim(`Typed shortcut: ${typedChoice}`));
   }
-  console.log("");
+  lines.push("");
 
   for (let i = 0; i < options.length; i++) {
     const option = options[i];
     const marker = i === selectedIndex ? chalk.cyan(">") : " ";
     const label = i === selectedIndex ? chalk.bold(option.label) : option.label;
     const ordinal = `${i + 1}.`.padStart(3);
-    console.log(` ${marker} ${chalk.dim(ordinal)} ${label}`);
+    lines.push(` ${marker} ${chalk.dim(ordinal)} ${label}`);
     if (option.hint) {
-      console.log(chalk.dim(`    ${option.hint}`));
+      lines.push(chalk.dim(`    ${option.hint}`));
     }
   }
+
+  // Move cursor up to overwrite previous frame (except first render)
+  if (lastRenderedLines > 0) {
+    output.write(`\x1b[${lastRenderedLines}A`);
+  }
+
+  for (const line of lines) {
+    output.write(line + "\x1b[K\n");
+  }
+
+  return lines.length;
 }
 
 async function promptText(prompt: string): Promise<string | null> {
@@ -132,6 +138,7 @@ async function selectWithArrows<T>(
   return new Promise((resolve) => {
     let index = 0;
     let typedChoice = "";
+    let lastRenderedLines = 0;
     const allowEscape = config.allowEscape !== false;
     const previousRawMode = input.isTTY ? input.isRaw : false;
     const maxDigits = Math.max(1, String(options.length).length);
@@ -145,7 +152,7 @@ async function selectWithArrows<T>(
     };
 
     const render = () => {
-      renderMenu(title, options, index, config, typedChoice);
+      lastRenderedLines = renderMenu(title, options, index, config, typedChoice, lastRenderedLines);
     };
 
     const resolveByNumber = (choice: number) => {

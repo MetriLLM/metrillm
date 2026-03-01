@@ -410,56 +410,60 @@ export async function runCodingBench(model: string): Promise<CategoryResult> {
   let totalPassed = 0;
   let totalTests = 0;
 
-  for (let i = 0; i < tasks.length; i++) {
-    const task = tasks[i];
-    spinner.text = `Coding ${i + 1}/${tasks.length}: ${task.functionName}`;
+  try {
+    for (let i = 0; i < tasks.length; i++) {
+      const task = tasks[i];
+      spinner.text = `Coding ${i + 1}/${tasks.length}: ${task.functionName}`;
 
-    const prompt = `Write a JavaScript function with the following signature:
+      const prompt = `Write a JavaScript function with the following signature:
 ${task.signature}
 
 ${task.description}
 
 Reply with ONLY the function code, no explanation.`;
 
-    const startTime = Date.now();
-    try {
-      const result = await withTimeout(
-        generate(model, prompt, { temperature: 0, num_predict: 2048 }),
-        120_000,
-        "Coding task",
-        abortOngoingRequests
-      );
+      const startTime = Date.now();
+      try {
+        const result = await withTimeout(
+          generate(model, prompt, { temperature: 0, num_predict: 2048 }),
+          120_000,
+          "Coding task",
+          abortOngoingRequests
+        );
 
-      const code = extractCodeBlock(stripThinkTags(result.response), task.functionName);
-      const { passed, total } = await runTestsIsolated(code, task);
-      totalPassed += passed;
-      totalTests += total;
+        const code = extractCodeBlock(stripThinkTags(result.response), task.functionName);
+        const { passed, total } = await runTestsIsolated(code, task);
+        totalPassed += passed;
+        totalTests += total;
 
-      const allPassed = passed === total;
+        const allPassed = passed === total;
 
-      details.push({
-        id: task.id,
-        question: task.description,
-        expected: `${total} tests pass`,
-        actual: `${passed}/${total} tests pass`,
-        correct: allPassed,
-        timeMs: Date.now() - startTime,
-      });
-    } catch (err) {
-      totalTests += task.tests.length;
-      details.push({
-        id: task.id,
-        question: task.description,
-        expected: `${task.tests.length} tests pass`,
-        actual: toBenchmarkFailureLabel(err),
-        correct: false,
-        timeMs: Date.now() - startTime,
-      });
+        details.push({
+          id: task.id,
+          question: task.description,
+          expected: `${total} tests pass`,
+          actual: `${passed}/${total} tests pass`,
+          correct: allPassed,
+          timeMs: Date.now() - startTime,
+        });
+      } catch (err) {
+        totalTests += task.tests.length;
+        details.push({
+          id: task.id,
+          question: task.description,
+          expected: `${task.tests.length} tests pass`,
+          actual: toBenchmarkFailureLabel(err),
+          correct: false,
+          timeMs: Date.now() - startTime,
+        });
+      }
     }
-  }
 
-  const tasksPassed = details.filter((d) => d.correct).length;
-  spinner.succeed(`Coding: ${tasksPassed}/${tasks.length} tasks fully passed`);
+    spinner.succeed(`Coding: ${details.filter((d) => d.correct).length}/${tasks.length} tasks fully passed`);
+  } catch (err) {
+    spinner.fail("Coding benchmark failed");
+    throw err;
+  }
 
   // Difficulty-weighted, all-or-nothing scoring: a task scores its weight
   // only when ALL its tests pass. Easy tasks count less than hard ones.
@@ -473,6 +477,7 @@ Reply with ONLY the function code, no explanation.`;
     }
   }
 
+  const tasksPassed = details.filter((d) => d.correct).length;
   return {
     score: weightedTotal > 0 ? (weightedPassed / weightedTotal) * 100 : 0,
     correct: tasksPassed,

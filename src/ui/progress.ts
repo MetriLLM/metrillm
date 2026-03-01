@@ -1,5 +1,6 @@
 import ora, { type Ora } from "ora";
 import chalk from "chalk";
+import { supportsUnicode } from "./terminal.js";
 
 const FUN_PHRASES = [
   "Convincing the model to cooperate...",
@@ -51,6 +52,19 @@ const FUN_PHRASES = [
 
 const ROTATION_INTERVAL_MS = 3500;
 
+const activeSpinners = new Set<Ora>();
+
+process.on("exit", () => {
+  for (const s of activeSpinners) {
+    try {
+      s.stop();
+    } catch {
+      // ignore
+    }
+  }
+  activeSpinners.clear();
+});
+
 function attachFunSuffix(spinner: Ora): Ora {
   let timer: ReturnType<typeof setInterval> | null = null;
   let phraseIndex = Math.floor(Math.random() * FUN_PHRASES.length);
@@ -66,6 +80,7 @@ function attachFunSuffix(spinner: Ora): Ora {
       timer = null;
     }
     spinner.suffixText = "";
+    activeSpinners.delete(spinner);
   }
 
   function rotateSuffix(): void {
@@ -74,6 +89,7 @@ function attachFunSuffix(spinner: Ora): Ora {
   }
 
   spinner.start = ((text?: string) => {
+    activeSpinners.add(spinner);
     origStart(text);
     spinner.suffixText = chalk.dim(` — ${FUN_PHRASES[phraseIndex]}`);
     timer = setInterval(rotateSuffix, ROTATION_INTERVAL_MS);
@@ -108,8 +124,14 @@ export function createSpinner(text: string): Ora {
   return attachFunSuffix(spinner);
 }
 
+const STEP_MARKER = supportsUnicode ? "\u25B8" : ">";
+const CHECK_MARK = supportsUnicode ? "\u2713" : "ok";
+const CROSS_MARK = supportsUnicode ? "\u2717" : "!!";
+const WARN_MARK = supportsUnicode ? "\u26A0" : "!!";
+const INFO_MARK = supportsUnicode ? "\u2139" : "i";
+
 export function stepHeader(text: string): void {
-  console.log(chalk.bold.blue(`\n▸ ${text}`));
+  console.log(chalk.bold.blue(`\n${STEP_MARKER} ${text}`));
 }
 
 export function subStep(text: string): void {
@@ -117,17 +139,17 @@ export function subStep(text: string): void {
 }
 
 export function successMsg(text: string): void {
-  console.log(chalk.green(`  ✓ ${text}`));
+  console.log(chalk.green(`  ${CHECK_MARK} ${text}`));
 }
 
 export function infoMsg(text: string): void {
-  console.log(chalk.cyan(`  ℹ ${text}`));
+  console.log(chalk.cyan(`  ${INFO_MARK} ${text}`));
 }
 
 export function warnMsg(text: string): void {
-  console.log(chalk.yellow(`  ⚠ ${text}`));
+  console.log(chalk.yellow(`  ${WARN_MARK} ${text}`));
 }
 
 export function errorMsg(text: string): void {
-  console.log(chalk.red(`  ✗ ${text}`));
+  console.log(chalk.red(`  ${CROSS_MARK} ${text}`));
 }

@@ -1,3 +1,7 @@
+if (process.env.NO_COLOR !== undefined) {
+  process.env.FORCE_COLOR = "0";
+}
+
 import { Command } from "commander";
 import { printBanner } from "./ui/banner.js";
 import { benchCommand } from "./commands/bench.js";
@@ -8,12 +12,15 @@ import { errorMsg, successMsg } from "./ui/progress.js";
 import { canUseInteractiveMenu } from "./cli-interactive.js";
 import { printGuruMeditationSync } from "./ui/guru-meditation.js";
 
-// Graceful shutdown on Ctrl+C
-process.on("SIGINT", () => {
-  // Show cursor (ora hides it) and exit cleanly
+// Restore cursor on any exit (covers normal exit, unhandled errors, etc.)
+process.on("exit", () => {
   if (process.stdout.isTTY) {
     process.stdout.write("\x1B[?25h");
   }
+});
+
+// Graceful shutdown on Ctrl+C
+process.on("SIGINT", () => {
   printGuruMeditationSync();
   process.exit(130);
 });

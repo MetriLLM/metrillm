@@ -10,12 +10,16 @@ import type {
 import { formatDuration } from "../utils.js";
 import { scoreColor } from "./score-color.js";
 import { effectiveScore, RESPONSE_TIME_LIMITS_MS } from "../scoring/quality-scorer.js";
+import { supportsUnicode } from "./terminal.js";
+
+const BAR_FILLED = supportsUnicode ? "\u2588" : "#";
+const BAR_EMPTY = supportsUnicode ? "\u2591" : "-";
 
 function compactBar(value: number, max = 100, width = 10): string {
-  if (max <= 0) return "░".repeat(width);
+  if (max <= 0) return BAR_EMPTY.repeat(width);
   const ratio = Math.max(0, Math.min(1, value / max));
   const filled = Math.round(ratio * width);
-  return "█".repeat(filled) + "░".repeat(width - filled);
+  return BAR_FILLED.repeat(filled) + BAR_EMPTY.repeat(width - filled);
 }
 
 function levelColor(level: CategoryLevel) {
@@ -204,27 +208,32 @@ export function printQualityTable(quality: QualityMetrics, timePenalties?: Recor
 }
 
 export function printSummaryTable(results: BenchResult[]): void {
+  const termWidth = process.stdout.columns || 80;
+  const compact = termWidth < 100;
+
   console.log(
     chalk.dim(
       "Global = 40% Hardware Fit + 60% Quality. Hardware Fit = host compatibility. Quality = model capability."
     )
   );
 
+  const head = [
+    chalk.bold("Model"),
+    chalk.bold("tok/s"),
+    chalk.bold("TTFT"),
+    chalk.bold("Host RAM%"),
+    chalk.bold("Profile"),
+    chalk.bold("HW Fit"),
+    chalk.bold("Quality"),
+    chalk.bold("Global"),
+    ...(compact ? [] : [chalk.bold("DQ"), chalk.bold("Flags")]),
+    chalk.bold("Verdict"),
+  ];
+
   const table = new Table({
-    head: [
-      chalk.bold("Model"),
-      chalk.bold("tok/s"),
-      chalk.bold("TTFT"),
-      chalk.bold("Host RAM%"),
-      chalk.bold("Profile"),
-      chalk.bold("HW Fit"),
-      chalk.bold("Quality"),
-      chalk.bold("Global"),
-      chalk.bold("DQ"),
-      chalk.bold("Flags"),
-      chalk.bold("Verdict"),
-    ],
+    head,
     style: { head: [], border: [] },
+    wordWrap: true,
   });
 
   for (const r of results) {
@@ -241,8 +250,12 @@ export function printSummaryTable(results: BenchResult[]): void {
     if (r.hardware.powerMode === "low-power") flags.push(chalk.red("ECO"));
     if (r.modelInfo?.thinkingDetected) flags.push(chalk.magenta("THINK"));
 
-    table.push([
-      r.model,
+    const modelName = compact && r.model.length > 20
+      ? r.model.slice(0, 18) + ".."
+      : r.model;
+
+    const row = [
+      modelName,
       `${r.performance.tokensPerSecond.toFixed(1)}`,
       formatDuration(r.performance.ttft),
       r.performance.memoryHostPercent !== undefined
@@ -256,16 +269,22 @@ export function printSummaryTable(results: BenchResult[]): void {
         ? scoreColor(r.fitness.qualityScore.total)(
             `${compactBar(r.fitness.qualityScore.total)} ${r.fitness.qualityScore.total}%`
           )
-        : "—",
+        : "\u2014",
       r.fitness.globalScore !== null
         ? scoreColor(r.fitness.globalScore)(
             `${compactBar(r.fitness.globalScore)} ${r.fitness.globalScore}%`
           )
-        : "—",
-      String(r.fitness.disqualifiers.length),
-      flags.length > 0 ? flags.join(" ") : "—",
+        : "\u2014",
+      ...(compact
+        ? []
+        : [
+            String(r.fitness.disqualifiers.length),
+            flags.length > 0 ? flags.join(" ") : "\u2014",
+          ]),
       vColor(r.fitness.verdict),
-    ]);
+    ];
+
+    table.push(row);
   }
   console.log(table.toString());
 }

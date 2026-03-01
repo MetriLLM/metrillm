@@ -102,52 +102,57 @@ export async function runMultilingualBench(model: string): Promise<CategoryResul
   const details: QuestionResult[] = [];
   let correct = 0;
 
-  for (let i = 0; i < questions.length; i++) {
-    const q = questions[i];
-    spinner.text = `Multilingual ${i + 1}/${questions.length}: ${q.language}`;
+  try {
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      spinner.text = `Multilingual ${i + 1}/${questions.length}: ${q.language}`;
 
-    const startTime = Date.now();
-    try {
-      const result = await withTimeout(
-        generate(model, q.prompt, { temperature: 0, num_predict: 1024 }),
-        60_000,
-        "Multilingual task",
-        abortOngoingRequests
-      );
+      const startTime = Date.now();
+      try {
+        const result = await withTimeout(
+          generate(model, q.prompt, { temperature: 0, num_predict: 1024 }),
+          60_000,
+          "Multilingual task",
+          abortOngoingRequests
+        );
 
-      const answer = stripThinkTags(result.response);
-      const isCorrect = validateMultilingualResponse(answer, q);
-      if (isCorrect) correct++;
+        const answer = stripThinkTags(result.response);
+        const isCorrect = validateMultilingualResponse(answer, q);
+        if (isCorrect) correct++;
 
-      const expectedStr = q.expectedNumber !== undefined
-        ? String(q.expectedNumber)
-        : (q.acceptedAnswers ?? q.keywords ?? []).join("|");
+        const expectedStr = q.expectedNumber !== undefined
+          ? String(q.expectedNumber)
+          : (q.acceptedAnswers ?? q.keywords ?? []).join("|");
 
-      details.push({
-        id: q.id,
-        question: q.prompt,
-        expected: expectedStr,
-        actual: answer.slice(0, 200),
-        correct: isCorrect,
-        timeMs: Date.now() - startTime,
-      });
-    } catch (err) {
-      const expectedStr = q.expectedNumber !== undefined
-        ? String(q.expectedNumber)
-        : (q.acceptedAnswers ?? q.keywords ?? []).join("|");
+        details.push({
+          id: q.id,
+          question: q.prompt,
+          expected: expectedStr,
+          actual: answer.slice(0, 200),
+          correct: isCorrect,
+          timeMs: Date.now() - startTime,
+        });
+      } catch (err) {
+        const expectedStr = q.expectedNumber !== undefined
+          ? String(q.expectedNumber)
+          : (q.acceptedAnswers ?? q.keywords ?? []).join("|");
 
-      details.push({
-        id: q.id,
-        question: q.prompt,
-        expected: expectedStr,
-        actual: toBenchmarkFailureLabel(err),
-        correct: false,
-        timeMs: Date.now() - startTime,
-      });
+        details.push({
+          id: q.id,
+          question: q.prompt,
+          expected: expectedStr,
+          actual: toBenchmarkFailureLabel(err),
+          correct: false,
+          timeMs: Date.now() - startTime,
+        });
+      }
     }
-  }
 
-  spinner.succeed(`Multilingual: ${correct}/${questions.length} correct`);
+    spinner.succeed(`Multilingual: ${correct}/${questions.length} correct`);
+  } catch (err) {
+    spinner.fail("Multilingual benchmark failed");
+    throw err;
+  }
 
   return {
     score: questions.length > 0 ? (correct / questions.length) * 100 : 0,

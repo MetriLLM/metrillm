@@ -313,44 +313,49 @@ export async function runStructuredOutputBench(model: string): Promise<CategoryR
   const details: QuestionResult[] = [];
   let correct = 0;
 
-  for (let i = 0; i < questions.length; i++) {
-    const q = questions[i];
-    spinner.text = `Structured Output ${i + 1}/${questions.length}: ${q.category}`;
+  try {
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      spinner.text = `Structured Output ${i + 1}/${questions.length}: ${q.category}`;
 
-    const startTime = Date.now();
-    try {
-      const result = await withTimeout(
-        generate(model, q.prompt, { temperature: 0, num_predict: 1024 }),
-        60_000,
-        "Structured output task",
-        abortOngoingRequests
-      );
+      const startTime = Date.now();
+      try {
+        const result = await withTimeout(
+          generate(model, q.prompt, { temperature: 0, num_predict: 1024 }),
+          60_000,
+          "Structured output task",
+          abortOngoingRequests
+        );
 
-      const answer = stripThinkTags(result.response);
-      const isCorrect = validateStructuredOutputResponse(answer, q);
-      if (isCorrect) correct++;
+        const answer = stripThinkTags(result.response);
+        const isCorrect = validateStructuredOutputResponse(answer, q);
+        if (isCorrect) correct++;
 
-      details.push({
-        id: q.id,
-        question: q.prompt,
-        expected: q.validation,
-        actual: answer.slice(0, 200),
-        correct: isCorrect,
-        timeMs: Date.now() - startTime,
-      });
-    } catch (err) {
-      details.push({
-        id: q.id,
-        question: q.prompt,
-        expected: q.validation,
-        actual: toBenchmarkFailureLabel(err),
-        correct: false,
-        timeMs: Date.now() - startTime,
-      });
+        details.push({
+          id: q.id,
+          question: q.prompt,
+          expected: q.validation,
+          actual: answer.slice(0, 200),
+          correct: isCorrect,
+          timeMs: Date.now() - startTime,
+        });
+      } catch (err) {
+        details.push({
+          id: q.id,
+          question: q.prompt,
+          expected: q.validation,
+          actual: toBenchmarkFailureLabel(err),
+          correct: false,
+          timeMs: Date.now() - startTime,
+        });
+      }
     }
-  }
 
-  spinner.succeed(`Structured Output: ${correct}/${questions.length} correct`);
+    spinner.succeed(`Structured Output: ${correct}/${questions.length} correct`);
+  } catch (err) {
+    spinner.fail("Structured output benchmark failed");
+    throw err;
+  }
 
   return {
     score: questions.length > 0 ? (correct / questions.length) * 100 : 0,

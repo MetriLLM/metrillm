@@ -34,39 +34,43 @@ function isEnterKey(str: string, keyName?: string): boolean {
   );
 }
 
-function clearTerminal(): void {
-  if (output.isTTY) {
-    output.write("\x1b[2J\x1b[H");
-  }
-}
-
-function renderShareMenu(result: BenchResult, selectedIndex: number): void {
+function renderShareMenu(result: BenchResult, selectedIndex: number, lastRenderedLines = 0): number {
   const score = result.fitness.globalScore ?? result.fitness.hardwareFitScore;
   const verdict = result.fitness.verdict;
   const tps = result.performance.tokensPerSecond.toFixed(1);
   const ram = `${result.hardware.totalMemoryGB.toFixed(0)} GB`;
 
-  clearTerminal();
-  console.log(chalk.bold.cyan("Share Result"));
-  console.log(chalk.dim("Use Up/Down arrows then Enter, or press 1-3 on keyboard/numpad."));
-  console.log(chalk.dim("Shortcuts: y = share, n = skip, a = always. Esc = skip."));
-  console.log("");
-  console.log(chalk.bold.green("  ✓ Benchmark complete!"));
-  console.log(chalk.dim(`    Score: ${score}/100 — ${verdict}`));
-  console.log(chalk.dim(`    ${result.model} @ ${tps} tok/s (${ram} RAM)`));
-  console.log("");
-  console.log(chalk.bold("  📊 Share your result on the public leaderboard?"));
-  console.log(chalk.dim("     Your hardware specs and scores will be published (no personal data)."));
-  console.log("");
+  const lines: string[] = [];
+  lines.push(chalk.bold.cyan("Share Result"));
+  lines.push(chalk.dim("Use Up/Down arrows then Enter, or press 1-3 on keyboard/numpad."));
+  lines.push(chalk.dim("Shortcuts: y = share, n = skip, a = always. Esc = skip."));
+  lines.push("");
+  lines.push(chalk.bold.green("  ok Benchmark complete!"));
+  lines.push(chalk.dim(`    Score: ${score}/100 — ${verdict}`));
+  lines.push(chalk.dim(`    ${result.model} @ ${tps} tok/s (${ram} RAM)`));
+  lines.push("");
+  lines.push(chalk.bold("  Share your result on the public leaderboard?"));
+  lines.push(chalk.dim("     Your hardware specs and scores will be published (no personal data)."));
+  lines.push("");
 
   for (let i = 0; i < SHARE_OPTIONS.length; i++) {
     const option = SHARE_OPTIONS[i];
     const marker = i === selectedIndex ? chalk.cyan(">") : " ";
     const label = i === selectedIndex ? chalk.bold(option.label) : option.label;
     const ordinal = `${i + 1}.`.padStart(3);
-    console.log(` ${marker} ${chalk.dim(ordinal)} ${label}`);
-    console.log(chalk.dim(`    ${option.hint}`));
+    lines.push(` ${marker} ${chalk.dim(ordinal)} ${label}`);
+    lines.push(chalk.dim(`    ${option.hint}`));
   }
+
+  if (lastRenderedLines > 0) {
+    output.write(`\x1b[${lastRenderedLines}A`);
+  }
+
+  for (const line of lines) {
+    output.write(line + "\x1b[K\n");
+  }
+
+  return lines.length;
 }
 
 function parseChoiceFromKey(str: string, keyName?: string): ShareChoice | null {
@@ -93,6 +97,7 @@ function parseChoiceFromKey(str: string, keyName?: string): ShareChoice | null {
 async function selectShareChoice(result: BenchResult): Promise<ShareChoice> {
   return new Promise((resolve) => {
     let index = 0;
+    let lastRenderedLines = 0;
     const previousRawMode = input.isTTY ? input.isRaw : false;
 
     const cleanup = () => {
@@ -122,13 +127,13 @@ async function selectShareChoice(result: BenchResult): Promise<ShareChoice> {
 
       if (key.name === "up" || key.name === "k") {
         index = (index - 1 + SHARE_OPTIONS.length) % SHARE_OPTIONS.length;
-        renderShareMenu(result, index);
+        lastRenderedLines = renderShareMenu(result, index, lastRenderedLines);
         return;
       }
 
       if (key.name === "down" || key.name === "j") {
         index = (index + 1) % SHARE_OPTIONS.length;
-        renderShareMenu(result, index);
+        lastRenderedLines = renderShareMenu(result, index, lastRenderedLines);
         return;
       }
 
@@ -149,7 +154,7 @@ async function selectShareChoice(result: BenchResult): Promise<ShareChoice> {
     }
 
     output.write("\x1b[?25l");
-    renderShareMenu(result, index);
+    lastRenderedLines = renderShareMenu(result, index, lastRenderedLines);
     input.on("keypress", onKeypress);
   });
 }

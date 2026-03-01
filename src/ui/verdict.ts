@@ -1,13 +1,16 @@
 import chalk from "chalk";
 import type { FitnessResult } from "../types.js";
 import { scoreColor, type ColorFn } from "./score-color.js";
+import { supportsUnicode } from "./terminal.js";
 
 const BOX_INNER = 60;
 
+// eslint-disable-next-line no-control-regex
+const ANSI_RE = /\x1b\[[0-9;]*m/g;
+
 // Strip ANSI escape codes to get visible string length
 function visibleLength(str: string): number {
-  // eslint-disable-next-line no-control-regex
-  return str.replace(/\x1b\[[0-9;]*m/g, "").length;
+  return str.replace(ANSI_RE, "").length;
 }
 
 function wrapText(text: string, maxWidth: number): string[] {
@@ -29,12 +32,15 @@ function wrapText(text: string, maxWidth: number): string[] {
   return lines;
 }
 
+const BAR_FILLED = supportsUnicode ? "\u2588" : "#";
+const BAR_EMPTY = supportsUnicode ? "\u2591" : "-";
+
 function progressBar(value: number, max: number, width = 26): string {
-  if (max <= 0) return "░".repeat(width);
+  if (max <= 0) return BAR_EMPTY.repeat(width);
   const ratio = Math.max(0, Math.min(1, value / max));
   const filled = Math.round(ratio * width);
   const empty = width - filled;
-  return "█".repeat(filled) + "░".repeat(empty);
+  return BAR_FILLED.repeat(filled) + BAR_EMPTY.repeat(empty);
 }
 
 function levelColor(level: string): ColorFn {
@@ -47,13 +53,20 @@ function levelColor(level: string): ColorFn {
   }
 }
 
+const BOX_TL = supportsUnicode ? "\u250C" : "+";
+const BOX_TR = supportsUnicode ? "\u2510" : "+";
+const BOX_BL = supportsUnicode ? "\u2514" : "+";
+const BOX_BR = supportsUnicode ? "\u2518" : "+";
+const BOX_H = supportsUnicode ? "\u2500" : "-";
+const BOX_V = supportsUnicode ? "\u2502" : "|";
+
 function sectionStart(title: string, borderColor: ColorFn): void {
   const pad = Math.max(1, BOX_INNER - title.length);
-  console.log(borderColor(`┌ ${title} ${"─".repeat(pad)}┐`));
+  console.log(borderColor(`${BOX_TL} ${title} ${BOX_H.repeat(pad)}${BOX_TR}`));
 }
 
 function sectionEnd(borderColor: ColorFn): void {
-  console.log(borderColor(`└${"─".repeat(BOX_INNER + 2)}┘`));
+  console.log(borderColor(`${BOX_BL}${BOX_H.repeat(BOX_INNER + 2)}${BOX_BR}`));
 }
 
 function sectionText(
@@ -65,7 +78,7 @@ function sectionText(
   const lines = text.length === 0 ? [""] : wrapText(text, contentWidth);
   for (const line of lines) {
     const pad = Math.max(0, contentWidth - visibleLength(line));
-    console.log(`${borderColor("│")} ${textColor(line)}${" ".repeat(pad)} ${borderColor("│")}`);
+    console.log(`${borderColor(BOX_V)} ${textColor(line)}${" ".repeat(pad)} ${borderColor(BOX_V)}`);
   }
 }
 
@@ -81,16 +94,24 @@ function scoreRow(
   const visible = visibleLength(content);
   const pad = Math.max(0, BOX_INNER - visible);
   console.log(
-    `${borderColor("│")} ${content}${" ".repeat(pad)} ${borderColor("│")}`
+    `${borderColor(BOX_V)} ${content}${" ".repeat(pad)} ${borderColor(BOX_V)}`
   );
 }
 
 function verdictIcon(verdict: string): string {
+  if (supportsUnicode) {
+    switch (verdict) {
+      case "EXCELLENT": return "\u25A0";
+      case "GOOD": return "\u25CF";
+      case "MARGINAL": return "\u25B2";
+      default: return "\u2717";
+    }
+  }
   switch (verdict) {
-    case "EXCELLENT": return "■";
-    case "GOOD": return "●";
-    case "MARGINAL": return "▲";
-    default: return "✗";
+    case "EXCELLENT": return "*";
+    case "GOOD": return "o";
+    case "MARGINAL": return "!";
+    default: return "x";
   }
 }
 
@@ -153,7 +174,7 @@ export function printVerdict(model: string, fitness: FitnessResult): void {
   if (fitness.warnings.length > 0) {
     sectionText("Warnings:", fitBorder, chalk.yellow);
     for (const w of fitness.warnings) {
-      sectionText(`  ⚠ ${w}`, fitBorder, chalk.yellow);
+      sectionText(`  ${supportsUnicode ? "\u26A0" : "!!"} ${w}`, fitBorder, chalk.yellow);
     }
   }
   sectionEnd(fitBorder);
