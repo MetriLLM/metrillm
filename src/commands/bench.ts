@@ -19,6 +19,7 @@ import { promptShare } from "../ui/share-prompt.js";
 import { resolveSubmitterForShare } from "../ui/submitter-prompt.js";
 import { openUrl } from "../utils.js";
 import { showTelemetryNotice, trackBenchStarted, trackBenchCompleted, trackBenchShared, flushTelemetry } from "../core/telemetry.js";
+import { supportsUnicode } from "../ui/terminal.js";
 import type { BenchResult, HardwareInfo, ModelInfo, OllamaModel, QualityMetrics, RunMetadata } from "../types.js";
 
 const BENCHMARK_SPEC_VERSION = "0.2.0";
@@ -143,9 +144,12 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
       if (!silent) {
         const label = `  Benchmarking: ${modelName}  `;
         const innerWidth = Math.max(label.length, 30);
-        console.log(chalk.bold.cyan(`\n╔${"═".repeat(innerWidth)}╗`));
-        console.log(chalk.bold.cyan(`║${label.padEnd(innerWidth)}║`));
-        console.log(chalk.bold.cyan(`╚${"═".repeat(innerWidth)}╝`));
+        const [tl, h, tr, v, bl, br] = supportsUnicode
+          ? ["\u2554", "\u2550", "\u2557", "\u2551", "\u255A", "\u255D"]
+          : ["+", "=", "+", "|", "+", "+"];
+        console.log(chalk.bold.cyan(`\n${tl}${h.repeat(innerWidth)}${tr}`));
+        console.log(chalk.bold.cyan(`${v}${label.padEnd(innerWidth)}${v}`));
+        console.log(chalk.bold.cyan(`${bl}${h.repeat(innerWidth)}${br}`));
       }
 
       const benchStartTime = Date.now();
@@ -389,8 +393,11 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
       console.log(JSON.stringify(results, null, 2));
     }
 
-    // Flush telemetry (non-blocking)
-    await flushTelemetry();
+    // Flush telemetry with timeout to avoid hanging on slow/unreachable network
+    await Promise.race([
+      flushTelemetry(),
+      new Promise((resolve) => setTimeout(resolve, 5_000)),
+    ]);
 
     return { results, failedModels };
   } finally {

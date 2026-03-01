@@ -93,6 +93,15 @@ function renderMenu<T>(
     output.write(line + "\x1b[K\n");
   }
 
+  // Clear leftover lines from previous render (e.g. typedChoice disappeared)
+  for (let i = lines.length; i < lastRenderedLines; i++) {
+    output.write("\x1b[K\n");
+  }
+  // Move cursor back up to end of current content if we wrote extra blank lines
+  if (lastRenderedLines > lines.length) {
+    output.write(`\x1b[${lastRenderedLines - lines.length}A`);
+  }
+
   return lines.length;
 }
 

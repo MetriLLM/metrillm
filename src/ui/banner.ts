@@ -1,11 +1,20 @@
 import chalk from "chalk";
+import { supportsUnicode } from "./terminal.js";
 
-const LOGO_LINES = [
+const LOGO_UNICODE = [
   "██      ██      ██  ██  ██████ ████████ ██████ ██████ ",
   "██      ██      ██  ██  ██        ██    ██     ██  ██ ",
   "██      ██      ██████  ████      ██    ████   ██████ ",
   "██      ██      ██  ██  ██        ██    ██     ██ ██  ",
   "██████  ██████  ██  ██  ██████    ██    ██████ ██  ██ ",
+];
+
+const LOGO_ASCII = [
+  "##      ##      ##  ##  ###### ######## ###### ###### ",
+  "##      ##      ##  ##  ##        ##    ##     ##  ## ",
+  "##      ##      ######  ####      ##    ####   ###### ",
+  "##      ##      ##  ##  ##        ##    ##     ## ##  ",
+  "######  ######  ##  ##  ######    ##    ###### ##  ## ",
 ];
 
 interface ColorStop { r: number; g: number; b: number }
@@ -35,6 +44,8 @@ function interpolateColor(stops: ColorStop[], t: number): ColorStop {
 function gradientLine(line: string): string {
   const len = line.length;
   if (len === 0) return "";
+  // Skip per-char gradient when colors are disabled
+  if (chalk.level === 0) return line;
   return line
     .split("")
     .map((ch, i) => {
@@ -51,8 +62,9 @@ const PROJECT_URL =
   "https://github.com/MetriLLM/metrillm";
 
 export function printBanner(): void {
+  const logo = supportsUnicode ? LOGO_UNICODE : LOGO_ASCII;
   console.log("");
-  for (const line of LOGO_LINES) {
+  for (const line of logo) {
     console.log(`  ${gradientLine(line)}`);
   }
   console.log("");
