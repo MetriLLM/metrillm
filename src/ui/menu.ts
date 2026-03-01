@@ -3,6 +3,9 @@ import * as readline from "node:readline";
 import { stdin as input, stdout as output } from "node:process";
 import { benchCommand } from "../commands/bench.js";
 import { listCommand } from "../commands/list.js";
+import { getHardwareInfo } from "../core/hardware.js";
+import { printHardwareTable } from "./results-table.js";
+import { infoMsg, createSpinner } from "./progress.js";
 import { exportBenchResults, type ExportFormat } from "../core/exporter.js";
 import { loadConfig, saveConfig, type LLMeterConfig } from "../core/store.js";
 import { saveTelemetryConsent } from "../core/telemetry.js";
@@ -422,7 +425,7 @@ function printQuickCommands(): void {
 }
 
 function mainMenuOptions(): MenuOption<
-  "list" | "bench-one" | "bench-all" | "settings" | "export" | "help" | "exit"
+  "list" | "bench-one" | "bench-all" | "hardware" | "settings" | "export" | "help" | "exit"
 >[] {
   return [
     {
@@ -439,6 +442,11 @@ function mainMenuOptions(): MenuOption<
       label: "Benchmark all models",
       value: "bench-all",
       hint: "Compare all local models under the same conditions.",
+    },
+    {
+      label: "Check hardware config",
+      value: "hardware",
+      hint: "Detect and display hardware info without running a benchmark.",
     },
     {
       label: "Settings",
@@ -694,6 +702,34 @@ export async function runInteractiveMenu(): Promise<void> {
 
     if (mainChoice === "help") {
       printQuickCommands();
+      await waitForContinue("Press Enter to return to menu...");
+      continue;
+    }
+
+    if (mainChoice === "hardware") {
+      const spinner = createSpinner("Detecting hardware...");
+      spinner.start();
+      try {
+        const hardware = await getHardwareInfo();
+        spinner.succeed("Hardware detected");
+        printHardwareTable(hardware);
+        if (hardware.powerMode === "low-power") {
+          infoMsg("Low-power mode detected — results will reflect energy-saving performance.");
+        }
+        if (
+          hardware.cpuCurrentSpeedGHz != null &&
+          hardware.cpuFreqGHz != null &&
+          hardware.cpuFreqGHz > 0 &&
+          hardware.cpuCurrentSpeedGHz / hardware.cpuFreqGHz < 0.8
+        ) {
+          infoMsg(
+            `CPU running at ${hardware.cpuCurrentSpeedGHz.toFixed(1)} GHz / ${hardware.cpuFreqGHz.toFixed(1)} GHz nominal — possible throttling.`
+          );
+        }
+      } catch (err) {
+        spinner.fail("Hardware detection failed");
+        if (err instanceof Error) errorMsg(err.message);
+      }
       await waitForContinue("Press Enter to return to menu...");
       continue;
     }

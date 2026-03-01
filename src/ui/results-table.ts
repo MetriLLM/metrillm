@@ -73,6 +73,9 @@ export function printHardwareTable(hw: HardwareInfo): void {
           : chalk.dim;
   const powerModeLabel = hw.powerMode ?? "unknown";
 
+  if (hw.machineModel) {
+    table.push(["Machine", chalk.bold(hw.machineModel)]);
+  }
   table.push(
     ["CPU", cpuLine],
     ["Cores", coresDetail],

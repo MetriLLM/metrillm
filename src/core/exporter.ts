@@ -33,11 +33,15 @@ function toCsv(results: BenchResult[]): string {
     "parameter_size",
     "quantization",
     "family",
+    "thinking_detected",
     "timestamp",
     "tokens_per_second",
     "ttft_ms",
+    "thinking_tokens_estimate",
     "model_memory_percent",
     "host_memory_percent",
+    "machine_model",
+    "power_mode",
     "hardware_profile",
     "performance_score",
     "hardware_fit_score",
@@ -56,13 +60,19 @@ function toCsv(results: BenchResult[]): string {
       r.modelInfo?.parameterSize ?? "",
       r.modelInfo?.quantization ?? "",
       r.modelInfo?.family ?? "",
+      r.modelInfo?.thinkingDetected ? "true" : "",
       r.timestamp,
       r.performance.tokensPerSecond.toFixed(2),
       r.performance.ttft.toFixed(0),
+      r.performance.thinkingTokensEstimate
+        ? String(r.performance.thinkingTokensEstimate)
+        : "",
       r.performance.memoryPercent.toFixed(1),
       r.performance.memoryHostPercent !== undefined
         ? r.performance.memoryHostPercent.toFixed(1)
         : "",
+      r.hardware.machineModel ?? "",
+      r.hardware.powerMode ?? "",
       r.fitness.tuning.profile,
       String(r.fitness.performanceScore.total),
       String(r.fitness.hardwareFitScore),
@@ -93,17 +103,20 @@ function toMarkdown(results: BenchResult[]): string {
     : "_Method: Hardware Fit is based on Speed + TTFT + Memory. Global is shown only when quality is available._");
   lines.push("");
   lines.push(
-    "| Model | Quant | Profile | tok/s | TTFT | Host RAM% | HW Fit | Quality | Global | DQ | Verdict |"
+    "| Model | Quant | Machine | Profile | tok/s | TTFT | Host RAM% | HW Fit | Quality | Global | DQ | Flags | Verdict |"
   );
-  lines.push("|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|");
+  lines.push("|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|---|");
 
   for (const r of results) {
+    const flags: string[] = [];
+    if (r.hardware.powerMode === "low-power") flags.push("ECO");
+    if (r.modelInfo?.thinkingDetected) flags.push("THINK");
     lines.push(
-      `| ${markdownEscape(r.model)} | ${markdownEscape(r.modelInfo?.quantization ?? "—")} | ${markdownEscape(r.fitness.tuning.profile)} | ${r.performance.tokensPerSecond.toFixed(
+      `| ${markdownEscape(r.model)} | ${markdownEscape(r.modelInfo?.quantization ?? "—")} | ${markdownEscape(r.hardware.machineModel ?? "—")} | ${markdownEscape(r.fitness.tuning.profile)} | ${r.performance.tokensPerSecond.toFixed(
         1
       )} | ${r.performance.ttft.toFixed(0)}ms | ${r.performance.memoryHostPercent !== undefined ? `${r.performance.memoryHostPercent.toFixed(1)}%` : "n/a"} | ${
         r.fitness.hardwareFitScore
-      } | ${r.fitness.qualityScore?.total ?? "—"} | ${r.fitness.globalScore ?? "—"} | ${r.fitness.disqualifiers.length} | ${markdownEscape(r.fitness.verdict)} |`
+      } | ${r.fitness.qualityScore?.total ?? "—"} | ${r.fitness.globalScore ?? "—"} | ${r.fitness.disqualifiers.length} | ${flags.length > 0 ? flags.join(" ") : "—"} | ${markdownEscape(r.fitness.verdict)} |`
     );
   }
 

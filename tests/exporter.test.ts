@@ -96,7 +96,7 @@ describe("exportBenchResults", () => {
     const dir = await makeTmpDir("llmeter-export-csv-");
     const path = await exportBenchResults([sampleResult()], "csv", dir);
     const content = await readFile(path, "utf8");
-    expect(content).toContain("model,parameter_size,quantization,family,timestamp");
+    expect(content).toContain("model,parameter_size,quantization,family,thinking_detected,timestamp");
     expect(content).toContain("hardware_fit_score");
     expect(content).toContain("global_score");
     expect(content).toContain("llama3.2:3b");
@@ -111,7 +111,9 @@ describe("exportBenchResults", () => {
     const content = await readFile(path, "utf8");
     expect(content).toContain("# LLMeter Benchmark Results");
     expect(content).toContain("| Quant |");
-    expect(content).toContain("| llama3.2:3b | Q4_0 |");
+    expect(content).toContain("| Machine |");
+    expect(content).toContain("| Flags |");
+    expect(content).toContain("llama3.2:3b | Q4_0 |");
     expect(content).toContain("GOOD");
     expect(content).toContain("Global");
   });

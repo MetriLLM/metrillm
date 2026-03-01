@@ -15,6 +15,7 @@ export interface HardwareInfo {
   gpuVramMB: number | null;
   os: string;
   arch: string;
+  machineModel?: string | null;
   powerMode?: "low-power" | "balanced" | "performance" | "unknown";
   cpuCurrentSpeedGHz?: number | null;
 }

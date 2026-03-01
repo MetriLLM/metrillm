@@ -117,6 +117,10 @@ describe("uploadBenchResult", () => {
     expect(inserted.model).toBe("qwen2.5:7b");
     expect(inserted.parameter_size).toBe("7B");
     expect(inserted.memory_percent).toBe(72.4);
+    expect(inserted.machine_model).toBeNull();
+    expect(inserted.power_mode).toBeNull();
+    expect(inserted.thinking_detected).toBeNull();
+    expect(inserted.thinking_tokens_estimate).toBeNull();
     expect(out).toEqual({
       id: "row-1",
       url: "https://metrillm.dev/result/row-1",

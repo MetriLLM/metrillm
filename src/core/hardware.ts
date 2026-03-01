@@ -50,6 +50,29 @@ async function detectPowerModeWindows(): Promise<PowerMode> {
   return "balanced";
 }
 
+async function detectMachineModel(): Promise<string | null> {
+  try {
+    if (process.platform === "darwin") {
+      // system_profiler gives the marketing name (e.g. "MacBook Air", "Mac mini")
+      const output = await execCommand(
+        "system_profiler SPHardwareDataType 2>/dev/null | grep 'Model Name'"
+      );
+      const match = output.match(/Model Name:\s*(.+)/i);
+      if (match) return match[1].trim();
+      return null;
+    }
+    // Linux / Windows: si.system() often returns useful model info
+    // (e.g. "ThinkPad X1 Carbon", "Dell XPS 15", "ASUS ROG Strix")
+    const sys = await si.system();
+    const parts = [sys.manufacturer, sys.model].filter(
+      (p) => p && p !== "Unknown" && p !== "To Be Filled By O.E.M." && p !== "System Product Name"
+    );
+    return parts.length > 0 ? parts.join(" ") : null;
+  } catch {
+    return null;
+  }
+}
+
 async function detectPowerMode(): Promise<PowerMode> {
   try {
     switch (process.platform) {
@@ -68,7 +91,7 @@ async function detectPowerMode(): Promise<PowerMode> {
 }
 
 export async function getHardwareInfo(): Promise<HardwareInfo> {
-  const [cpu, mem, graphics, osInfo, memLayout, powerMode, cpuSpeed] = await Promise.all([
+  const [cpu, mem, graphics, osInfo, memLayout, powerMode, cpuSpeed, machineModel] = await Promise.all([
     si.cpu(),
     si.mem(),
     si.graphics(),
@@ -76,6 +99,7 @@ export async function getHardwareInfo(): Promise<HardwareInfo> {
     si.memLayout(),
     detectPowerMode(),
     si.cpuCurrentSpeed().catch(() => null),
+    detectMachineModel(),
   ]);
 
   const gpuController = graphics.controllers[0];
@@ -105,6 +129,7 @@ export async function getHardwareInfo(): Promise<HardwareInfo> {
     gpuVramMB: gpuController?.vram ?? null,
     os: `${osInfo.distro} ${osInfo.release}`,
     arch: os.arch(),
+    machineModel: machineModel || null,
     powerMode,
     cpuCurrentSpeedGHz: cpuSpeed?.avg ?? null,
   };
