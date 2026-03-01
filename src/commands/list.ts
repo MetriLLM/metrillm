@@ -67,10 +67,10 @@ export async function listCommand(options: ListOptions = {}): Promise<ListOutcom
     console.log(table.toString());
     return { models, running, reachable: true };
   } catch (err) {
-    spinner.fail("Failed to connect to Ollama");
-    errorMsg(
-      "Make sure Ollama is running: ollama serve"
-    );
+    spinner.fail("Cannot connect to Ollama");
+    errorMsg("Make sure Ollama is installed and running.");
+    errorMsg("  • Start it with:  ollama serve");
+    errorMsg("  • Install it at:  https://ollama.com");
     if (err instanceof Error) {
       errorMsg(err.message);
     }

@@ -4,12 +4,29 @@
 
 CLI benchmark for local Ollama models focused on host hardware fit and task quality, with a combined global verdict.
 
-## Requirements
+## Run it
 
-- Node 20+
-- Ollama installed and running for model benchmarks
+> Requires [Node 20+](https://nodejs.org/) and [Ollama](https://ollama.com/) running.
 
-## Quick Start
+```bash
+npx llmeter@latest bench
+```
+
+Or install globally:
+
+```bash
+npm i -g llmeter
+llmeter bench
+```
+
+Alternative package managers:
+
+```bash
+pnpm dlx llmeter@latest bench   # pnpm
+bunx llmeter@latest bench       # bun
+```
+
+## Development
 
 ```bash
 npm ci

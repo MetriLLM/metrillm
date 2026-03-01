@@ -99,8 +99,10 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
       if (!silent) spinnerModels.succeed(`Found ${allModels.length} model(s)`);
     } catch (err) {
       if (!silent) {
-        spinnerModels.fail("Failed to connect to Ollama");
-        errorMsg("Make sure Ollama is running: ollama serve");
+        spinnerModels.fail("Cannot connect to Ollama");
+        errorMsg("Make sure Ollama is installed and running.");
+        errorMsg("  • Start it with:  ollama serve");
+        errorMsg("  • Install it at:  https://ollama.com");
         if (err instanceof Error) errorMsg(err.message);
       }
       if (shouldSetExitCode) process.exitCode = 1;

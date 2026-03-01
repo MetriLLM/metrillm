@@ -105,7 +105,7 @@ describe("listCommand", () => {
     expect(out.models).toEqual([]);
     expect(out.running).toEqual([]);
     expect(out.reachable).toBe(false);
-    expect(spinner.fail).toHaveBeenCalledWith("Failed to connect to Ollama");
+    expect(spinner.fail).toHaveBeenCalledWith("Cannot connect to Ollama");
     expect(errorMsgMock).toHaveBeenCalled();
     expect(process.exitCode).toBe(1);
 
