@@ -165,6 +165,41 @@ describe("printVerdict", () => {
     expect(joined).toContain("NOT RECOMMENDED");
     expect(joined).toContain("Token speed too low");
   });
+
+  it("keeps category score and level on one rendered line", async () => {
+    const { printVerdict } = await import("../src/ui/verdict.js");
+    const fitness: FitnessResult = {
+      verdict: "GOOD",
+      globalScore: 72,
+      hardwareFitScore: 83,
+      performanceScore: { total: 83, speed: 33, ttft: 26, memory: 24 },
+      qualityScore: { total: 55, reasoning: 7, coding: 13, instructionFollowing: 15, structuredOutput: 12, math: 1, multilingual: 7 },
+      categoryLabels: [
+        { category: "Reasoning", rawScore: 32, level: "Weak" },
+        { category: "Coding", rawScore: 63, level: "Adequate" },
+        { category: "Instruction Following", rawScore: 75, level: "Strong" },
+        { category: "Structured Output", rawScore: 80, level: "Strong" },
+        { category: "Math", rawScore: 8, level: "Poor" },
+        { category: "Multilingual", rawScore: 75, level: "Strong" },
+      ],
+      disqualifiers: [],
+      warnings: [],
+      interpretation: "Runs well enough on this hardware (HW 83/100).",
+      tuning: {
+        profile: "BALANCED",
+        speed: { excellent: 30, good: 16, marginal: 7, hardMin: 5 },
+        ttft: { excellentMs: 1000, goodMs: 2200, marginalMs: 5000, hardMaxMs: 15000 },
+        loadTimeHardMaxMs: 180000,
+      },
+    };
+
+    printVerdict("weak-line-check", fitness);
+
+    const reasoningLine = output.find((line) => line.includes("Reasoning"));
+    expect(reasoningLine).toBeDefined();
+    expect(reasoningLine).toContain("32%");
+    expect(reasoningLine).toContain("Weak");
+  });
 });
 
 describe("printSummaryTable", () => {

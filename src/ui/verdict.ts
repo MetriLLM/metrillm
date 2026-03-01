@@ -11,14 +11,14 @@ function visibleLength(str: string): number {
 }
 
 function wrapText(text: string, maxWidth: number): string[] {
-  if (text.length <= maxWidth) return [text];
+  if (visibleLength(text) <= maxWidth) return [text];
   const words = text.split(" ");
   const lines: string[] = [];
   let current = "";
   for (const word of words) {
-    if (current.length === 0) {
+    if (visibleLength(current) === 0) {
       current = word;
-    } else if (current.length + 1 + word.length <= maxWidth) {
+    } else if (visibleLength(current) + 1 + visibleLength(word) <= maxWidth) {
       current += " " + word;
     } else {
       lines.push(current);
@@ -64,7 +64,7 @@ function sectionText(
   const contentWidth = BOX_INNER;
   const lines = text.length === 0 ? [""] : wrapText(text, contentWidth);
   for (const line of lines) {
-    const pad = Math.max(0, contentWidth - line.length);
+    const pad = Math.max(0, contentWidth - visibleLength(line));
     console.log(`${borderColor("│")} ${textColor(line)}${" ".repeat(pad)} ${borderColor("│")}`);
   }
 }
