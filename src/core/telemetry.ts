@@ -21,7 +21,7 @@ function getDistinctId(): string {
 async function isEnabled(): Promise<boolean> {
   if (consent !== undefined) return consent;
   const config = await loadConfig();
-  consent = config.telemetry === true;
+  consent = config.telemetry !== false;
   return consent;
 }
 
@@ -109,6 +109,6 @@ export async function showTelemetryNotice(): Promise<void> {
   const config = await loadConfig();
   if (config.telemetry !== undefined) return;
   console.log(
-    "Anonymous usage stats help us improve LLMeter. Opt-out anytime: llmeter bench --no-telemetry"
+    "Anonymous usage stats are enabled by default to help improve LLMeter. Opt-out anytime: llmeter bench --no-telemetry"
   );
 }
