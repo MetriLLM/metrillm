@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import chalk from "chalk";
-import { listModels, getRuntimeVersion } from "../core/runtime.js";
+import { listModels, getRuntimeVersion, setRuntimeKeepAlive, unloadModel } from "../core/runtime.js";
 import { getHardwareInfo } from "../core/hardware.js";
 import { runPerformanceBench } from "../benchmarks/performance.js";
 import { runReasoningBench } from "../benchmarks/reasoning.js";
@@ -16,6 +16,7 @@ import { stepHeader, errorMsg, warnMsg, createSpinner, successMsg } from "../ui/
 import { saveResult } from "../core/store.js";
 import { uploadBenchResult } from "../core/uploader.js";
 import { promptShare } from "../ui/share-prompt.js";
+import { resolveSubmitterForShare } from "../ui/submitter-prompt.js";
 import { openUrl } from "../utils.js";
 import { showTelemetryNotice, trackBenchStarted, trackBenchCompleted, trackBenchShared, flushTelemetry } from "../core/telemetry.js";
 import type { BenchResult, HardwareInfo, ModelInfo, OllamaModel, QualityMetrics, RunMetadata } from "../types.js";
@@ -34,6 +35,8 @@ export interface BenchOptions {
   share?: boolean;       // true = --share, false = --no-share, undefined = prompt
   ciNoMenu?: boolean;    // running in CI mode
   json?: boolean;        // output JSON only, no UI
+  keepAlive?: string | number; // forwarded to Ollama keep_alive
+  unloadAfterBench?: boolean;  // unload model after each model benchmark lifecycle
 }
 
 export interface BenchOutcome {
@@ -44,6 +47,8 @@ export interface BenchOutcome {
 export async function benchCommand(options: BenchOptions): Promise<BenchOutcome> {
   const shouldSetExitCode = options.setExitCode !== false;
   const silent = options.json === true;
+  const shouldUnloadAfterModel =
+    options.unloadAfterBench ?? (!options.model || options.ciNoMenu === true);
 
   // Detect hardware
   if (!silent) stepHeader("Hardware Detection");
@@ -112,163 +117,219 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
   // Show one-time telemetry notice
   if (!silent) await showTelemetryNotice();
 
-  // Run benchmarks for each model
-  const results: BenchResult[] = [];
-  const failedModels: string[] = [];
+  setRuntimeKeepAlive(options.keepAlive);
 
-  for (const modelName of modelNames) {
-    if (!silent) {
-      const label = `  Benchmarking: ${modelName}  `;
-      const innerWidth = Math.max(label.length, 30);
-      console.log(chalk.bold.cyan(`\n╔${"═".repeat(innerWidth)}╗`));
-      console.log(chalk.bold.cyan(`║${label.padEnd(innerWidth)}║`));
-      console.log(chalk.bold.cyan(`╚${"═".repeat(innerWidth)}╝`));
-    }
+  try {
+    // Run benchmarks for each model
+    const results: BenchResult[] = [];
+    const failedModels: string[] = [];
 
-    const benchStartTime = Date.now();
-    await trackBenchStarted({
-      model: modelName,
-      os: hardware.os,
-      arch: hardware.arch,
-      cpuCores: hardware.cpuCores,
-      ramGb: hardware.totalMemoryGB,
-    });
-
-    try {
-      // Performance benchmark
-      if (!silent) stepHeader("Performance Benchmark");
-      const perf = await runPerformanceBench(modelName, {
-        warmupTimeoutMs: options.perfWarmupTimeoutMs,
-        promptTimeoutMs: options.perfPromptTimeoutMs,
-        minSuccessfulPrompts: options.perfMinSuccessfulPrompts,
-        failOnPromptError: options.perfStrict,
-      });
-      if (!silent) printPerformanceTable(perf);
-
-      // Quality benchmarks (unless --perf-only)
-      let quality: QualityMetrics | null = null;
-      if (!options.perfOnly) {
-        if (!silent) stepHeader("Quality Benchmark — Reasoning");
-        const reasoning = await runReasoningBench(modelName);
-
-        if (!silent) stepHeader("Quality Benchmark — Math");
-        const math = await runMathBench(modelName);
-
-        if (!silent) stepHeader("Quality Benchmark — Coding");
-        const coding = await runCodingBench(modelName);
-
-        if (!silent) stepHeader("Quality Benchmark — Instruction Following");
-        const instructionFollowing = await runInstructionFollowingBench(modelName);
-
-        if (!silent) stepHeader("Quality Benchmark — Structured Output");
-        const structuredOutput = await runStructuredOutputBench(modelName);
-
-        if (!silent) stepHeader("Quality Benchmark — Multilingual");
-        const multilingual = await runMultilingualBench(modelName);
-
-        quality = { reasoning, math, coding, instructionFollowing, structuredOutput, multilingual };
-      }
-
-      // Compute fitness
-      const fitness = computeFitness(perf, quality, hardware);
+    for (const modelName of modelNames) {
       if (!silent) {
-        if (quality) {
-          printQualityTable(quality, fitness.qualityScore?.timePenalties);
-        }
-        printVerdict(modelName, fitness);
+        const label = `  Benchmarking: ${modelName}  `;
+        const innerWidth = Math.max(label.length, 30);
+        console.log(chalk.bold.cyan(`\n╔${"═".repeat(innerWidth)}╗`));
+        console.log(chalk.bold.cyan(`║${label.padEnd(innerWidth)}║`));
+        console.log(chalk.bold.cyan(`╚${"═".repeat(innerWidth)}╝`));
       }
 
-      // Build model info from discovered models
-      const matchedModel = allModels.find((m) => m.name === modelName);
-      const modelInfo: ModelInfo | undefined = matchedModel
-        ? {
-            parameterSize: matchedModel.parameterSize,
-            quantization: matchedModel.quantization,
-            family: matchedModel.family,
-          }
-        : undefined;
-
-      // Build result without hash first, then compute hash
-      const partialResult: Omit<BenchResult, "metadata"> & { metadata: Omit<RunMetadata, "rawLogHash"> } = {
+      const benchStartTime = Date.now();
+      await trackBenchStarted({
         model: modelName,
-        modelInfo,
-        hardware,
-        performance: perf,
-        quality,
-        fitness,
-        timestamp: new Date().toISOString(),
-        metadata: {
-          benchmarkSpecVersion: BENCHMARK_SPEC_VERSION,
-          promptPackVersion: PROMPT_PACK_VERSION,
-          runtimeVersion,
-        },
-      };
-      const rawLogHash = createHash("sha256")
-        .update(JSON.stringify(partialResult))
-        .digest("hex");
-
-      const benchResult: BenchResult = {
-        ...partialResult,
-        metadata: { ...partialResult.metadata, rawLogHash },
-      };
-      results.push(benchResult);
-
-      await trackBenchCompleted({
-        model: modelName,
-        verdict: fitness.verdict,
-        globalScore: fitness.globalScore,
-        tps: perf.tokensPerSecond,
-        durationMs: Date.now() - benchStartTime,
+        os: hardware.os,
+        arch: hardware.arch,
+        cpuCores: hardware.cpuCores,
+        ramGb: hardware.totalMemoryGB,
       });
 
-      // Persist result locally
       try {
-        const savedPath = await saveResult(benchResult);
-        if (!silent) successMsg(`Result saved: ${savedPath}`);
-      } catch (err) {
+        // Performance benchmark
+        if (!silent) stepHeader("Performance Benchmark");
+        const perf = await runPerformanceBench(modelName, {
+          warmupTimeoutMs: options.perfWarmupTimeoutMs,
+          promptTimeoutMs: options.perfPromptTimeoutMs,
+          minSuccessfulPrompts: options.perfMinSuccessfulPrompts,
+          failOnPromptError: options.perfStrict,
+        });
+        if (!silent) printPerformanceTable(perf);
+
+        // Quality benchmarks (unless --perf-only)
+        let quality: QualityMetrics | null = null;
+        if (!options.perfOnly) {
+          if (!silent) stepHeader("Quality Benchmark — Reasoning");
+          const reasoning = await runReasoningBench(modelName);
+
+          if (!silent) stepHeader("Quality Benchmark — Math");
+          const math = await runMathBench(modelName);
+
+          if (!silent) stepHeader("Quality Benchmark — Coding");
+          const coding = await runCodingBench(modelName);
+
+          if (!silent) stepHeader("Quality Benchmark — Instruction Following");
+          const instructionFollowing = await runInstructionFollowingBench(modelName);
+
+          if (!silent) stepHeader("Quality Benchmark — Structured Output");
+          const structuredOutput = await runStructuredOutputBench(modelName);
+
+          if (!silent) stepHeader("Quality Benchmark — Multilingual");
+          const multilingual = await runMultilingualBench(modelName);
+
+          quality = { reasoning, math, coding, instructionFollowing, structuredOutput, multilingual };
+        }
+
+        // Compute fitness
+        const fitness = computeFitness(perf, quality, hardware);
         if (!silent) {
-          warnMsg("Could not save benchmark result locally.");
-          if (err instanceof Error) {
-            warnMsg(err.message);
+          if (quality) {
+            printQualityTable(quality, fitness.qualityScore?.timePenalties);
+          }
+          printVerdict(modelName, fitness);
+        }
+
+        // Build model info from discovered models
+        const matchedModel = allModels.find((m) => m.name === modelName);
+        const modelInfo: ModelInfo | undefined = matchedModel
+          ? {
+              parameterSize: matchedModel.parameterSize,
+              quantization: matchedModel.quantization,
+              family: matchedModel.family,
+            }
+          : undefined;
+
+        // Build result without hash first, then compute hash
+        const partialResult: Omit<BenchResult, "metadata"> & { metadata: Omit<RunMetadata, "rawLogHash"> } = {
+          model: modelName,
+          modelInfo,
+          hardware,
+          performance: perf,
+          quality,
+          fitness,
+          timestamp: new Date().toISOString(),
+          metadata: {
+            benchmarkSpecVersion: BENCHMARK_SPEC_VERSION,
+            promptPackVersion: PROMPT_PACK_VERSION,
+            runtimeVersion,
+          },
+        };
+        const rawLogHash = createHash("sha256")
+          .update(JSON.stringify(partialResult))
+          .digest("hex");
+
+        const benchResult: BenchResult = {
+          ...partialResult,
+          metadata: { ...partialResult.metadata, rawLogHash },
+        };
+        results.push(benchResult);
+
+        await trackBenchCompleted({
+          model: modelName,
+          verdict: fitness.verdict,
+          globalScore: fitness.globalScore,
+          tps: perf.tokensPerSecond,
+          durationMs: Date.now() - benchStartTime,
+        });
+
+        // Persist result locally
+        try {
+          const savedPath = await saveResult(benchResult);
+          if (!silent) successMsg(`Result saved: ${savedPath}`);
+        } catch (err) {
+          if (!silent) {
+            warnMsg("Could not save benchmark result locally.");
+            if (err instanceof Error) {
+              warnMsg(err.message);
+            }
+          }
+        }
+
+        // Upload immediately after each model (when --share is enabled and quality was run)
+        if (!options.perfOnly && !silent && options.share === true) {
+          let uploadPayload: BenchResult = benchResult;
+          let submitterEmail: string | undefined;
+
+          if (!options.ciNoMenu) {
+            try {
+              const submitter = await resolveSubmitterForShare();
+              if (submitter) {
+                uploadPayload = {
+                  ...benchResult,
+                  submitter: {
+                    nickname: submitter.nickname,
+                    emailHash: submitter.emailHash,
+                  },
+                };
+                submitterEmail = submitter.email;
+              }
+            } catch (err) {
+              warnMsg("Could not collect benchmark profile; continuing without it.");
+              if (err instanceof Error) {
+                warnMsg(err.message);
+              }
+            }
+          }
+
+          const uploadSpinner = createSpinner("Uploading result...");
+          uploadSpinner.start();
+          try {
+            const uploaded = await uploadBenchResult(uploadPayload, { submitterEmail });
+            uploadSpinner.succeed(`Shared! ${uploaded.url}`);
+            if (uploaded.rankGlobalPct != null) {
+              const parts: string[] = [`Top ${uploaded.rankGlobalPct}% globally`];
+              if (uploaded.rankCpuPct != null) {
+                parts.push(`Top ${uploaded.rankCpuPct}% on ${benchResult.hardware.cpu}`);
+              }
+              successMsg(`  → ${parts.join(" · ")}`);
+            }
+            await trackBenchShared({ model: benchResult.model, verdict: benchResult.fitness.verdict });
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : "Unknown error";
+            uploadSpinner.fail(`Upload failed: ${msg}`);
+          }
+        }
+      } catch (err) {
+        failedModels.push(modelName);
+        if (!silent) {
+          errorMsg(`Failed to benchmark ${modelName}`);
+          if (err instanceof Error) errorMsg(err.message);
+        }
+      } finally {
+        if (shouldUnloadAfterModel) {
+          try {
+            await unloadModel(modelName);
+          } catch (err) {
+            if (!silent) {
+              warnMsg(`Could not unload model ${modelName} after benchmark.`);
+              if (err instanceof Error) warnMsg(err.message);
+            }
           }
         }
       }
-    } catch (err) {
-      failedModels.push(modelName);
+    }
+
+    // Summary table if multiple models
+    if (!silent && results.length > 1) {
+      stepHeader("Summary");
+      printSummaryTable(results);
+    }
+
+    if (failedModels.length > 0) {
       if (!silent) {
-        errorMsg(`Failed to benchmark ${modelName}`);
-        if (err instanceof Error) errorMsg(err.message);
+        errorMsg(
+          `Benchmark finished with ${failedModels.length} failure(s): ${failedModels.join(", ")}`
+        );
       }
+      if (shouldSetExitCode) process.exitCode = 1;
     }
-  }
 
-  // Summary table if multiple models
-  if (!silent && results.length > 1) {
-    stepHeader("Summary");
-    printSummaryTable(results);
-  }
-
-  if (failedModels.length > 0) {
-    if (!silent) {
-      errorMsg(
-        `Benchmark finished with ${failedModels.length} failure(s): ${failedModels.join(", ")}`
-      );
-    }
-    if (shouldSetExitCode) process.exitCode = 1;
-  }
-
-  // Share prompt for each result (skip in JSON mode)
-  if (!silent && results.length > 0) {
-    for (const result of results) {
-      let decision: "share" | "skip" = "skip";
-
-      if (options.share === false) {
-        decision = "skip";
-      } else if (options.share === true) {
-        decision = "share";
-      } else if (options.ciNoMenu) {
-        decision = "skip";
-      } else {
+    // Share prompt (interactive) for results not yet uploaded (i.e. --share was not passed)
+    const canShareResults = !options.perfOnly;
+    if (!canShareResults) {
+      if (!silent && options.share === true) {
+        warnMsg("Sharing is disabled in --perf-only mode. Run a full benchmark to upload results.");
+      }
+    } else if (!silent && results.length > 0 && options.share !== true && options.share !== false && !options.ciNoMenu) {
+      for (const result of results) {
+        let decision: "share" | "skip" = "skip";
         try {
           decision = await promptShare(result);
         } catch (err) {
@@ -278,41 +339,63 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
           }
           decision = "skip";
         }
-      }
 
-      if (decision === "share") {
-        const uploadSpinner = createSpinner("Uploading result...");
-        uploadSpinner.start();
-        try {
-          const uploaded = await uploadBenchResult(result);
-          uploadSpinner.succeed(`Shared! ${uploaded.url}`);
-          // Display rank info
-          if (uploaded.rankGlobalPct != null) {
-            const parts: string[] = [`Top ${uploaded.rankGlobalPct}% globally`];
-            if (uploaded.rankCpuPct != null) {
-              parts.push(`Top ${uploaded.rankCpuPct}% on ${result.hardware.cpu}`);
+        if (decision === "share") {
+          let uploadPayload: BenchResult = result;
+          let submitterEmail: string | undefined;
+
+          try {
+            const submitter = await resolveSubmitterForShare();
+            if (submitter) {
+              uploadPayload = {
+                ...result,
+                submitter: {
+                  nickname: submitter.nickname,
+                  emailHash: submitter.emailHash,
+                },
+              };
+              submitterEmail = submitter.email;
             }
-            successMsg(`  → ${parts.join(" · ")}`);
+          } catch (err) {
+            warnMsg("Could not collect benchmark profile; continuing without it.");
+            if (err instanceof Error) {
+              warnMsg(err.message);
+            }
           }
-          // Track share event
-          await trackBenchShared({ model: result.model, verdict: result.fitness.verdict });
-          // Auto-open in browser
-          openUrl(uploaded.url);
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : "Unknown error";
-          uploadSpinner.fail(`Upload failed: ${msg}`);
+
+          const uploadSpinner = createSpinner("Uploading result...");
+          uploadSpinner.start();
+          try {
+            const uploaded = await uploadBenchResult(uploadPayload, { submitterEmail });
+            uploadSpinner.succeed(`Shared! ${uploaded.url}`);
+            if (uploaded.rankGlobalPct != null) {
+              const parts: string[] = [`Top ${uploaded.rankGlobalPct}% globally`];
+              if (uploaded.rankCpuPct != null) {
+                parts.push(`Top ${uploaded.rankCpuPct}% on ${result.hardware.cpu}`);
+              }
+              successMsg(`  → ${parts.join(" · ")}`);
+            }
+            await trackBenchShared({ model: result.model, verdict: result.fitness.verdict });
+            openUrl(uploaded.url);
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : "Unknown error";
+            uploadSpinner.fail(`Upload failed: ${msg}`);
+          }
         }
       }
     }
+
+    // JSON mode: output results as JSON to stdout
+    if (silent) {
+      console.log(JSON.stringify(results, null, 2));
+    }
+
+    // Flush telemetry (non-blocking)
+    await flushTelemetry();
+
+    return { results, failedModels };
+  } finally {
+    // Avoid leaking keep_alive preferences across separate CLI invocations/tests.
+    setRuntimeKeepAlive(undefined);
   }
-
-  // JSON mode: output results as JSON to stdout
-  if (silent) {
-    console.log(JSON.stringify(results, null, 2));
-  }
-
-  // Flush telemetry (non-blocking)
-  await flushTelemetry();
-
-  return { results, failedModels };
 }

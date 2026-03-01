@@ -22,6 +22,17 @@ interface SelectOptions {
   allowEscape?: boolean;
 }
 
+function isEnterKey(str: string, keyName?: string): boolean {
+  return (
+    keyName === "return"
+    || keyName === "enter"
+    || keyName === "numenter"
+    || keyName === "kpenter"
+    || str === "\r"
+    || str === "\n"
+  );
+}
+
 function canUseArrowMenu(): boolean {
   return Boolean(input.isTTY && output.isTTY);
 }
@@ -204,7 +215,7 @@ async function selectWithArrows<T>(
         return;
       }
 
-      if (key.name === "return") {
+      if (isEnterKey(str, key.name)) {
         if (typedChoice.length > 0) {
           const choice = Number.parseInt(typedChoice, 10);
           if (!resolveByNumber(choice)) {
@@ -226,6 +237,7 @@ async function selectWithArrows<T>(
     };
 
     readline.emitKeypressEvents(input);
+    input.resume();
     if (input.isTTY) {
       input.setRawMode(true);
     }
@@ -322,12 +334,13 @@ async function waitForContinue(message = "Press Enter to continue..."): Promise<
         cleanup();
         process.exit(130);
       }
-      if (key.name === "return" || key.name === "escape" || key.name === "space") {
+      if (isEnterKey(_str, key.name) || key.name === "escape" || key.name === "space") {
         cleanup();
       }
     };
 
     readline.emitKeypressEvents(input);
+    input.resume();
     if (input.isTTY) input.setRawMode(true);
     output.write("\x1b[?25l");
     input.on("keypress", onKeypress);
@@ -409,7 +422,7 @@ function printQuickCommands(): void {
 }
 
 function mainMenuOptions(): MenuOption<
-  "list" | "bench-one" | "bench-all" | "export" | "help" | "exit"
+  "list" | "bench-one" | "bench-all" | "settings" | "export" | "help" | "exit"
 >[] {
   return [
     {
@@ -426,6 +439,11 @@ function mainMenuOptions(): MenuOption<
       label: "Benchmark all models",
       value: "bench-all",
       hint: "Compare all local models under the same conditions.",
+    },
+    {
+      label: "Settings",
+      value: "settings",
+      hint: "Configure auto-share, benchmark profile, and telemetry preferences.",
     },
     {
       label: "Export last benchmark results",
@@ -455,6 +473,76 @@ function nextActionOptions(): MenuOption<"rerun" | "export" | "menu" | "quit">[]
 
 export type NextActionSelection = "rerun" | "export" | "menu" | "quit" | null;
 export type PostBenchmarkAction = "rerun" | "menu" | "quit";
+export type SettingsSelection =
+  | "toggle-auto-share"
+  | "edit-submitter-profile"
+  | "clear-submitter-profile"
+  | "toggle-telemetry"
+  | "back"
+  | null;
+
+interface SettingsMenuDeps {
+  loadUserConfig?: () => Promise<LLMeterConfig>;
+  saveUserConfig?: (config: LLMeterConfig) => Promise<void>;
+  saveTelemetryPref?: (value: boolean) => Promise<void>;
+  selectSettingsAction?: (
+    autoShareEnabled: boolean,
+    telemetryEnabled: boolean,
+    hasSubmitterProfile: boolean
+  ) => Promise<SettingsSelection>;
+  promptSubmitterProfile?: () => Promise<{ nickname: string; email: string } | null>;
+  waitForAcknowledge?: (message?: string) => Promise<void>;
+}
+
+function settingsMenuOptions(
+  autoShareEnabled: boolean,
+  telemetryEnabled: boolean,
+  hasSubmitterProfile: boolean
+): MenuOption<
+  Exclude<SettingsSelection, null>
+>[] {
+  return [
+    {
+      label: `Auto-share full benchmarks: ${autoShareEnabled ? "ON" : "OFF"}`,
+      value: "toggle-auto-share",
+      hint: autoShareEnabled ? "Disable to ask each run." : "Enable to share full benchmark results automatically.",
+    },
+    {
+      label: `Benchmark profile: ${hasSubmitterProfile ? "SET" : "NOT SET"}`,
+      value: "edit-submitter-profile",
+      hint: "Nickname + email used to link shared runs to your future dashboard account.",
+    },
+    {
+      label: "Clear benchmark profile",
+      value: "clear-submitter-profile",
+      hint: "Remove locally saved nickname/email.",
+    },
+    {
+      label: `Telemetry: ${telemetryEnabled ? "ON" : "OFF"}`,
+      value: "toggle-telemetry",
+      hint: telemetryEnabled ? "Disable anonymous usage stats." : "Enable anonymous usage stats.",
+    },
+    {
+      label: "Back to main menu",
+      value: "back",
+    },
+  ];
+}
+
+async function defaultSelectSettingsAction(
+  autoShareEnabled: boolean,
+  telemetryEnabled: boolean,
+  hasSubmitterProfile: boolean
+): Promise<SettingsSelection> {
+  return selectOption(
+    "Settings",
+    settingsMenuOptions(autoShareEnabled, telemetryEnabled, hasSubmitterProfile),
+    {
+      subtitle: "Manage preferences. Esc to return to main menu.",
+      allowEscape: true,
+    }
+  );
+}
 
 interface PostBenchmarkActionDeps {
   selectAction?: () => Promise<NextActionSelection>;
@@ -493,6 +581,91 @@ export async function choosePostBenchmarkAction(
   }
 }
 
+export async function runSettingsMenu(deps: SettingsMenuDeps = {}): Promise<void> {
+  const loadUserConfig = deps.loadUserConfig ?? loadConfig;
+  const saveUserConfig = deps.saveUserConfig ?? saveConfig;
+  const saveTelemetryPref = deps.saveTelemetryPref ?? saveTelemetryConsent;
+  const promptSubmitterProfile = deps.promptSubmitterProfile
+    ?? (() => promptAndSaveSubmitterProfile({ loadUserConfig, saveUserConfig }));
+  const waitForAcknowledge = deps.waitForAcknowledge ?? waitForContinue;
+
+  while (true) {
+    const config = await loadUserConfig();
+    const autoShareEnabled = config.autoShare === true;
+    const telemetryEnabled = config.telemetry === true;
+    const hasSubmitterProfile = Boolean(config.submitterNickname && config.submitterEmail);
+    const action =
+      (await (deps.selectSettingsAction ?? defaultSelectSettingsAction)(
+        autoShareEnabled,
+        telemetryEnabled,
+        hasSubmitterProfile
+      )) ?? null;
+
+    if (!action || action === "back") {
+      return;
+    }
+
+    if (action === "toggle-auto-share") {
+      const nextAutoShare: LLMeterConfig["autoShare"] = autoShareEnabled ? "ask" : true;
+      try {
+        await saveUserConfig({ ...config, autoShare: nextAutoShare });
+        successMsg(`Auto-share ${nextAutoShare === true ? "enabled" : "disabled"}.`);
+      } catch (err) {
+        errorMsg("Could not update auto-share setting.");
+        if (err instanceof Error) errorMsg(err.message);
+      }
+      await waitForAcknowledge("Press Enter to continue...");
+      continue;
+    }
+
+    if (action === "edit-submitter-profile") {
+      try {
+        const savedProfile = await promptSubmitterProfile();
+        if (savedProfile) {
+          successMsg(`Benchmark profile saved for ${savedProfile.nickname}.`);
+        } else {
+          warnMsg("Benchmark profile unchanged.");
+        }
+      } catch (err) {
+        errorMsg("Could not update benchmark profile.");
+        if (err instanceof Error) errorMsg(err.message);
+      }
+      await waitForAcknowledge("Press Enter to continue...");
+      continue;
+    }
+
+    if (action === "clear-submitter-profile") {
+      if (!hasSubmitterProfile) {
+        warnMsg("No benchmark profile is currently saved.");
+      } else {
+        try {
+          await saveUserConfig({
+            ...config,
+            submitterNickname: undefined,
+            submitterEmail: undefined,
+          });
+          successMsg("Benchmark profile removed.");
+        } catch (err) {
+          errorMsg("Could not clear benchmark profile.");
+          if (err instanceof Error) errorMsg(err.message);
+        }
+      }
+      await waitForAcknowledge("Press Enter to continue...");
+      continue;
+    }
+
+    const nextTelemetry = !telemetryEnabled;
+    try {
+      await saveTelemetryPref(nextTelemetry);
+      successMsg(`Telemetry ${nextTelemetry ? "enabled" : "disabled"}.`);
+    } catch (err) {
+      errorMsg("Could not update telemetry setting.");
+      if (err instanceof Error) errorMsg(err.message);
+    }
+    await waitForAcknowledge("Press Enter to continue...");
+  }
+}
+
 export async function runInteractiveMenu(): Promise<void> {
   let lastResults: BenchResult[] = [];
 
@@ -522,6 +695,11 @@ export async function runInteractiveMenu(): Promise<void> {
     if (mainChoice === "help") {
       printQuickCommands();
       await waitForContinue("Press Enter to return to menu...");
+      continue;
+    }
+
+    if (mainChoice === "settings") {
+      await runSettingsMenu();
       continue;
     }
 
