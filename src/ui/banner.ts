@@ -2,17 +2,17 @@ import chalk from "chalk";
 import { supportsUnicode } from "./terminal.js";
 
 const LOGO_UNICODE = [
-  "██      ██      ██  ██  ██████ ████████ ██████ ██████ ",
+  "██      ██      ██████  ██████ ████████ ██████ ██████ ",
   "██      ██      ██  ██  ██        ██    ██     ██  ██ ",
-  "██      ██      ██████  ████      ██    ████   ██████ ",
+  "██      ██      ██  ██  ████      ██    ████   ██████ ",
   "██      ██      ██  ██  ██        ██    ██     ██ ██  ",
   "██████  ██████  ██  ██  ██████    ██    ██████ ██  ██ ",
 ];
 
 const LOGO_ASCII = [
-  "##      ##      ##  ##  ###### ######## ###### ###### ",
+  "##      ##      ######  ###### ######## ###### ###### ",
   "##      ##      ##  ##  ##        ##    ##     ##  ## ",
-  "##      ##      ######  ####      ##    ####   ###### ",
+  "##      ##      ##  ##  ####      ##    ####   ###### ",
   "##      ##      ##  ##  ##        ##    ##     ## ##  ",
   "######  ######  ##  ##  ######    ##    ###### ##  ## ",
 ];
@@ -56,10 +56,13 @@ function gradientLine(line: string): string {
     .join("");
 }
 
-const COPYRIGHT = "Copyright The Blue House, Cyril Guilleminot, 2026";
+const COPYRIGHT = "\u00A9 2025 LLMeter";
 const PROJECT_URL =
   process.env.LLMETER_PROJECT_URL ??
-  "https://github.com/MetriLLM/metrillm";
+  "https://github.com/LLMeter-project/llmeter";
+const DASHBOARD_URL =
+  process.env.LLMETER_DASHBOARD_URL ??
+  "https://llmeter.dev";
 
 export function printBanner(): void {
   const logo = supportsUnicode ? LOGO_UNICODE : LOGO_ASCII;
@@ -72,5 +75,6 @@ export function printBanner(): void {
     chalk.dim("  Benchmark local LLMs — hardware fit, task quality, and global verdict")
   );
   console.log(chalk.dim(`  ${COPYRIGHT}`));
-  console.log(chalk.dim(`  Source: ${PROJECT_URL}\n`));
+  console.log(chalk.dim(`  Source: ${PROJECT_URL}`));
+  console.log(chalk.dim(`  Dashboard: ${DASHBOARD_URL}\n`));
 }

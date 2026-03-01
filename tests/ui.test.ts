@@ -29,8 +29,9 @@ describe("printBanner", () => {
     expect(() => printBanner()).not.toThrow();
     expect(output.length).toBeGreaterThan(0);
     expect(output.some((l) => l.includes("Benchmark"))).toBe(true);
-    expect(output.some((l) => l.includes("Copyright The Blue House"))).toBe(true);
+    expect(output.some((l) => l.includes("2025 LLMeter"))).toBe(true);
     expect(output.some((l) => l.includes("github.com"))).toBe(true);
+    expect(output.some((l) => l.includes("Dashboard:"))).toBe(true);
   });
 });
 
