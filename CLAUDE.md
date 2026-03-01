@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Language
+
+Always respond in French. Code, comments, commit messages, and technical identifiers remain in English.
+
 ## Project
 
 LLMeter — CLI benchmark tool for local Ollama LLM models. Measures performance (tok/s, TTFT, memory), quality (reasoning, math, coding, instruction following, structured output, multilingual), and computes a hardware fitness verdict.
