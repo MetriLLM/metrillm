@@ -56,13 +56,13 @@ function gradientLine(line: string): string {
     .join("");
 }
 
-const COPYRIGHT = "\u00A9 2025 LLMeter";
+const COPYRIGHT = "\u00A9 2026 LLMeter";
 const PROJECT_URL =
   process.env.LLMETER_PROJECT_URL ??
-  "https://github.com/LLMeter-project/llmeter";
+  "https://github.com/MetriLLM/metrillm";
 const DASHBOARD_URL =
   process.env.LLMETER_DASHBOARD_URL ??
-  "https://llmeter.dev";
+  "https://metrillm.dev";
 
 export function printBanner(): void {
   const logo = supportsUnicode ? LOGO_UNICODE : LOGO_ASCII;
