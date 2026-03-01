@@ -34,6 +34,29 @@ function parsePositiveIntegerOption(value: unknown, optionName: string): number 
   return parsed;
 }
 
+function parseKeepAliveOption(value: unknown): string | number | null {
+  const raw = String(value).trim();
+  if (raw.length === 0) {
+    errorMsg("Invalid --keep-alive value: expected a duration string (e.g. 2m) or seconds.");
+    return null;
+  }
+  if (/^\d+$/.test(raw)) {
+    const seconds = Number.parseInt(raw, 10);
+    if (!Number.isSafeInteger(seconds) || seconds < 0) {
+      errorMsg(`Invalid --keep-alive value: ${value}.`);
+      return null;
+    }
+    return seconds;
+  }
+  return raw;
+}
+
+function parseUnloadAfterBenchOverride(argv: string[]): boolean | undefined {
+  if (argv.includes("--unload-after-bench")) return true;
+  if (argv.includes("--no-unload-after-bench")) return false;
+  return undefined;
+}
+
 function hasCiNoMenuFlag(argv: string[]): boolean {
   return argv.includes("--ci-no-menu");
 }
@@ -71,8 +94,11 @@ program
   .option("--perf-prompt-timeout-ms <ms>", "Per-prompt timeout in milliseconds (default: 60000)")
   .option("--perf-min-successful-prompts <count>", "Minimum successful perf prompts required (default: 3)")
   .option("--perf-strict", "Fail immediately if any performance prompt fails")
-  .option("--share", "Share results on the public leaderboard (no prompt)")
+  .option("--share", "Share full benchmark results on the public leaderboard (no prompt)")
   .option("--no-share", "Skip the share prompt entirely")
+  .option("--keep-alive <duration>", "Ollama keep_alive value (seconds or duration string, e.g. 2m)")
+  .option("--unload-after-bench", "Unload model(s) after benchmark completion")
+  .option("--no-unload-after-bench", "Do not unload model(s) after benchmark completion")
   .option("--json", "Output results as JSON to stdout (no UI)")
   .option("--export <format>", "Export results: json | csv | md")
   .option("--out <dir>", "Export output directory (default: exports)")
@@ -121,6 +147,16 @@ program
       typeof opts.share === "boolean"
         ? opts.share
         : undefined;
+    const unloadAfterBench = parseUnloadAfterBenchOverride(process.argv.slice(2));
+
+    const keepAlive =
+      opts.keepAlive !== undefined
+        ? parseKeepAliveOption(opts.keepAlive)
+        : undefined;
+    if (opts.keepAlive !== undefined && keepAlive === null) {
+      process.exitCode = 1;
+      return;
+    }
 
     // Handle telemetry opt-in/out persistence
     if (typeof opts.telemetry === "boolean") {
@@ -138,6 +174,8 @@ program
       share: shareOption,
       ciNoMenu: hasCiNoMenuFlag(process.argv.slice(2)),
       json: Boolean(opts.json),
+      keepAlive: keepAlive ?? undefined,
+      unloadAfterBench,
     });
 
     if (exportFormat && !opts.json) {

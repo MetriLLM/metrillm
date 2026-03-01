@@ -27,6 +27,16 @@ npx llmeter --ci-no-menu
 ```
 
 ```bash
+# Force unload after each model benchmark (useful for bench-all/CI memory isolation)
+npx llmeter bench --unload-after-bench
+```
+
+```bash
+# Keep model loaded for a custom duration between requests (Ollama keep_alive)
+npx llmeter bench --model gemma3:1b --keep-alive 2m
+```
+
+```bash
 # Real integration smoke test (local Ollama)
 npm run test:e2e:smoke
 ```

@@ -64,10 +64,18 @@ export interface GenerateResult {
   evalDuration: number; // ns
 }
 
+export type KeepAliveValue = string | number;
+
+let defaultKeepAlive: KeepAliveValue | undefined;
+
+export function setDefaultKeepAlive(keepAlive?: KeepAliveValue): void {
+  defaultKeepAlive = keepAlive;
+}
+
 export async function generate(
   model: string,
   prompt: string,
-  options?: { temperature?: number; num_predict?: number }
+  options?: { temperature?: number; num_predict?: number; keep_alive?: KeepAliveValue }
 ): Promise<GenerateResult> {
   return generateStream(model, prompt, undefined, options);
 }
@@ -81,13 +89,14 @@ export async function generateStream(
   model: string,
   prompt: string,
   callbacks?: StreamCallbacks,
-  options?: { temperature?: number; num_predict?: number }
+  options?: { temperature?: number; num_predict?: number; keep_alive?: KeepAliveValue }
 ): Promise<GenerateResult> {
   const stream = await withTimeout(
     client.generate({
       model,
       prompt,
       stream: true,
+      keep_alive: options?.keep_alive ?? defaultKeepAlive,
       options: {
         temperature: options?.temperature ?? 0,
         num_predict: options?.num_predict ?? 512,
@@ -124,6 +133,23 @@ export async function generateStream(
 
   callbacks?.onDone?.(result);
   return result;
+}
+
+export async function unloadModel(model: string): Promise<void> {
+  await withTimeout(
+    client.generate({
+      model,
+      prompt: "",
+      stream: false,
+      keep_alive: 0,
+      options: {
+        temperature: 0,
+        num_predict: 0,
+      },
+    }),
+    OLLAMA_INIT_TIMEOUT_MS,
+    "Ollama unload model"
+  );
 }
 
 export function abortOngoingRequests(): void {

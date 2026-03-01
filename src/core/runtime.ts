@@ -1,10 +1,11 @@
 import type { OllamaModel, OllamaRunningModel } from "../types.js";
-import type { GenerateResult, StreamCallbacks } from "./ollama-client.js";
+import type { GenerateResult, KeepAliveValue, StreamCallbacks } from "./ollama-client.js";
 import * as ollamaClient from "./ollama-client.js";
 
 export interface GenerateOptions {
   temperature?: number;
   num_predict?: number;
+  keep_alive?: KeepAliveValue;
 }
 
 export interface LLMRuntime {
@@ -19,6 +20,8 @@ export interface LLMRuntime {
   listModels(): Promise<OllamaModel[]>;
   listRunningModels(): Promise<OllamaRunningModel[]>;
   getVersion(): Promise<string>;
+  unloadModel(model: string): Promise<void>;
+  setKeepAlive(keepAlive?: KeepAliveValue): void;
   abort(): void;
 }
 
@@ -48,6 +51,14 @@ class OllamaRuntime implements LLMRuntime {
 
   getVersion(): Promise<string> {
     return ollamaClient.getOllamaVersion();
+  }
+
+  unloadModel(model: string): Promise<void> {
+    return ollamaClient.unloadModel(model);
+  }
+
+  setKeepAlive(keepAlive?: KeepAliveValue): void {
+    ollamaClient.setDefaultKeepAlive(keepAlive);
   }
 
   abort(): void {
@@ -96,9 +107,17 @@ export function getRuntimeVersion(): Promise<string> {
   return activeRuntime.getVersion();
 }
 
+export function unloadModel(model: string): Promise<void> {
+  return activeRuntime.unloadModel(model);
+}
+
+export function setRuntimeKeepAlive(keepAlive?: KeepAliveValue): void {
+  activeRuntime.setKeepAlive(keepAlive);
+}
+
 export function abortOngoingRequests(): void {
   activeRuntime.abort();
 }
 
 // Re-export types from ollama-client for convenience
-export type { GenerateResult, StreamCallbacks } from "./ollama-client.js";
+export type { GenerateResult, KeepAliveValue, StreamCallbacks } from "./ollama-client.js";

@@ -6,6 +6,8 @@ const {
   listModelsMock,
   listRunningModelsMock,
   getOllamaVersionMock,
+  unloadModelMock,
+  setDefaultKeepAliveMock,
   abortOngoingRequestsMock,
 } = vi.hoisted(() => ({
   generateMock: vi.fn(),
@@ -13,6 +15,8 @@ const {
   listModelsMock: vi.fn(),
   listRunningModelsMock: vi.fn(),
   getOllamaVersionMock: vi.fn(),
+  unloadModelMock: vi.fn(),
+  setDefaultKeepAliveMock: vi.fn(),
   abortOngoingRequestsMock: vi.fn(),
 }));
 
@@ -22,6 +26,8 @@ vi.mock("../src/core/ollama-client.js", () => ({
   listModels: listModelsMock,
   listRunningModels: listRunningModelsMock,
   getOllamaVersion: getOllamaVersionMock,
+  unloadModel: unloadModelMock,
+  setDefaultKeepAlive: setDefaultKeepAliveMock,
   abortOngoingRequests: abortOngoingRequestsMock,
 }));
 
@@ -46,6 +52,8 @@ describe("runtime proxy", () => {
     await runtime.listModels();
     await runtime.listRunningModels();
     await runtime.getRuntimeVersion();
+    await runtime.unloadModel("m");
+    runtime.setRuntimeKeepAlive("2m");
     runtime.abortOngoingRequests();
 
     expect(generateMock).toHaveBeenCalled();
@@ -53,6 +61,8 @@ describe("runtime proxy", () => {
     expect(listModelsMock).toHaveBeenCalled();
     expect(listRunningModelsMock).toHaveBeenCalled();
     expect(getOllamaVersionMock).toHaveBeenCalled();
+    expect(unloadModelMock).toHaveBeenCalledWith("m");
+    expect(setDefaultKeepAliveMock).toHaveBeenCalledWith("2m");
     expect(abortOngoingRequestsMock).toHaveBeenCalled();
   });
 
@@ -66,6 +76,8 @@ describe("runtime proxy", () => {
       listModels: vi.fn(async () => [{ name: "x" }]),
       listRunningModels: vi.fn(async () => [{ name: "x" }]),
       getVersion: vi.fn(async () => "1.0.0"),
+      unloadModel: vi.fn(async () => {}),
+      setKeepAlive: vi.fn(),
       abort: vi.fn(),
     };
 
@@ -77,6 +89,8 @@ describe("runtime proxy", () => {
     await runtime.listModels();
     await runtime.listRunningModels();
     await runtime.getRuntimeVersion();
+    await runtime.unloadModel("m");
+    runtime.setRuntimeKeepAlive("1m");
     runtime.abortOngoingRequests();
 
     expect(custom.generate).toHaveBeenCalled();
@@ -84,7 +98,8 @@ describe("runtime proxy", () => {
     expect(custom.listModels).toHaveBeenCalled();
     expect(custom.listRunningModels).toHaveBeenCalled();
     expect(custom.getVersion).toHaveBeenCalled();
+    expect(custom.unloadModel).toHaveBeenCalledWith("m");
+    expect(custom.setKeepAlive).toHaveBeenCalledWith("1m");
     expect(custom.abort).toHaveBeenCalled();
   });
 });
-
