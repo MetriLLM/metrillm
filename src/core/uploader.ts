@@ -82,6 +82,8 @@ export async function uploadBenchResult(
     power_mode: result.hardware.powerMode ?? null,
     benchmark_spec_version: result.metadata.benchmarkSpecVersion,
     runtime_version: result.metadata.runtimeVersion,
+    runtime_backend: result.metadata.runtimeBackend ?? "ollama",
+    model_format: result.metadata.modelFormat ?? "gguf",
     raw_log_hash: result.metadata.rawLogHash,
     result: result,
   };

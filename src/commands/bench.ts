@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import chalk from "chalk";
-import { listModels, getRuntimeVersion, setRuntimeKeepAlive, unloadModel } from "../core/runtime.js";
+import { listModels, getRuntimeVersion, getRuntimeName, getRuntimeModelFormat, setRuntimeKeepAlive, unloadModel } from "../core/runtime.js";
 import { getHardwareInfo } from "../core/hardware.js";
 import { runPerformanceBench } from "../benchmarks/performance.js";
 import { runReasoningBench } from "../benchmarks/reasoning.js";
@@ -233,6 +233,8 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
             benchmarkSpecVersion: BENCHMARK_SPEC_VERSION,
             promptPackVersion: PROMPT_PACK_VERSION,
             runtimeVersion,
+            runtimeBackend: getRuntimeName(),
+            modelFormat: getRuntimeModelFormat(),
           },
         };
         const rawLogHash = createHash("sha256")

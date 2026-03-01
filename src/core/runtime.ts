@@ -10,6 +10,7 @@ export interface GenerateOptions {
 
 export interface LLMRuntime {
   name: string;
+  modelFormat?: string; // default "gguf"
   generate(model: string, prompt: string, opts?: GenerateOptions): Promise<GenerateResult>;
   generateStream(
     model: string,
@@ -27,6 +28,7 @@ export interface LLMRuntime {
 
 class OllamaRuntime implements LLMRuntime {
   name = "ollama";
+  modelFormat = "gguf";
 
   generate(model: string, prompt: string, opts?: GenerateOptions): Promise<GenerateResult> {
     return ollamaClient.generate(model, prompt, opts);
@@ -117,6 +119,14 @@ export function setRuntimeKeepAlive(keepAlive?: KeepAliveValue): void {
 
 export function abortOngoingRequests(): void {
   activeRuntime.abort();
+}
+
+export function getRuntimeName(): string {
+  return activeRuntime.name;
+}
+
+export function getRuntimeModelFormat(): string {
+  return activeRuntime.modelFormat ?? "gguf";
 }
 
 // Re-export types from ollama-client for convenience

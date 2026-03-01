@@ -211,6 +211,34 @@ describe("uploadBenchResult", () => {
     );
   });
 
+  it("includes runtime_backend and model_format in uploaded row", async () => {
+    singleMock.mockResolvedValueOnce({ data: { id: "row-rt" }, error: null });
+    const { uploadBenchResult } = await import("../src/core/uploader.js");
+
+    const result = sampleResult();
+    result.metadata.runtimeBackend = "ollama";
+    result.metadata.modelFormat = "gguf";
+    await uploadBenchResult(result);
+
+    const inserted = insertMock.mock.calls[0][0] as Record<string, unknown>;
+    expect(inserted.runtime_backend).toBe("ollama");
+    expect(inserted.model_format).toBe("gguf");
+  });
+
+  it("defaults runtime_backend and model_format when metadata fields are absent", async () => {
+    singleMock.mockResolvedValueOnce({ data: { id: "row-def" }, error: null });
+    const { uploadBenchResult } = await import("../src/core/uploader.js");
+
+    const result = sampleResult();
+    delete result.metadata.runtimeBackend;
+    delete result.metadata.modelFormat;
+    await uploadBenchResult(result);
+
+    const inserted = insertMock.mock.calls[0][0] as Record<string, unknown>;
+    expect(inserted.runtime_backend).toBe("ollama");
+    expect(inserted.model_format).toBe("gguf");
+  });
+
   it("surfaces generic upload errors", async () => {
     singleMock.mockResolvedValueOnce({
       data: null,

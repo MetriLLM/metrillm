@@ -175,6 +175,8 @@ export interface RunMetadata {
   benchmarkSpecVersion: string;
   promptPackVersion: string;
   runtimeVersion: string;    // Ollama version (e.g. "0.5.12")
+  runtimeBackend?: string;   // "ollama" | "lm-studio" | "mlx" | "llamacpp" | "vllm"
+  modelFormat?: string;      // "gguf" | "mlx" | "safetensors" | "onnx"
   rawLogHash: string;        // SHA-256 hex digest of the serialised result (excl. this field)
 }
 

@@ -50,6 +50,8 @@ const {
 vi.mock("../src/core/runtime.js", () => ({
   listModels: listModelsMock,
   getRuntimeVersion: getRuntimeVersionMock,
+  getRuntimeName: () => "ollama",
+  getRuntimeModelFormat: () => "gguf",
   setRuntimeKeepAlive: setRuntimeKeepAliveMock,
   unloadModel: unloadModelMock,
 }));

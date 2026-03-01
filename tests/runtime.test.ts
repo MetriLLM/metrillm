@@ -46,6 +46,8 @@ describe("runtime proxy", () => {
 
     const runtime = await import("../src/core/runtime.js");
     expect(runtime.getRuntime().name).toBe("ollama");
+    expect(runtime.getRuntimeName()).toBe("ollama");
+    expect(runtime.getRuntimeModelFormat()).toBe("gguf");
 
     await runtime.generate("m", "p");
     await runtime.generateStream("m", "p");
@@ -71,6 +73,7 @@ describe("runtime proxy", () => {
 
     const custom = {
       name: "custom",
+      modelFormat: "mlx",
       generate: vi.fn(async () => ({ response: "c1" })),
       generateStream: vi.fn(async () => ({ response: "c2" })),
       listModels: vi.fn(async () => [{ name: "x" }]),
@@ -83,6 +86,8 @@ describe("runtime proxy", () => {
 
     runtime.setRuntime(custom);
     expect(runtime.getRuntime().name).toBe("custom");
+    expect(runtime.getRuntimeName()).toBe("custom");
+    expect(runtime.getRuntimeModelFormat()).toBe("mlx");
 
     await runtime.generate("m", "p");
     await runtime.generateStream("m", "p");
