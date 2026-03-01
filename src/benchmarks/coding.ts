@@ -1,6 +1,6 @@
 import { abortOngoingRequests, generate } from "../core/runtime.js";
 import type { CategoryResult, CodingTask, QuestionResult } from "../types.js";
-import { extractCodeBlock, stripThinkTags, toBenchmarkFailureLabel, withTimeout } from "../utils.js";
+import { extractCodeBlock, stripThinkTags, stripTypeAnnotations, toBenchmarkFailureLabel, withTimeout } from "../utils.js";
 import { createSpinner } from "../ui/progress.js";
 import vm from "node:vm";
 import { spawn } from "node:child_process";
@@ -449,7 +449,8 @@ Reply with ONLY the function code, no explanation.`;
           abortOngoingRequests
         );
 
-        const code = extractCodeBlock(stripThinkTags(result.response), task.functionName);
+        const rawCode = extractCodeBlock(stripThinkTags(result.response), task.functionName);
+        const code = stripTypeAnnotations(rawCode);
         const { passed, total } = await runTestsIsolated(code, task);
         totalPassed += passed;
         totalTests += total;

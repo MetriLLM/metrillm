@@ -24,6 +24,7 @@ import {
   stripThinkTags,
   hasThinkingContent,
   estimateTokenCount,
+  stripTypeAnnotations,
 } from "../src/utils.js";
 
 describe("avg", () => {
@@ -433,6 +434,83 @@ describe("estimateTokenCount", () => {
 
   it("handles single word", () => {
     expect(estimateTokenCount("word")).toBe(1);
+  });
+});
+
+describe("stripTypeAnnotations", () => {
+  it("returns valid JS unchanged", () => {
+    const js = "function add(a, b) { return a + b; }";
+    expect(stripTypeAnnotations(js)).toBe(js);
+  });
+
+  it("strips parameter type annotations", () => {
+    const ts = "function add(a: number, b: number) { return a + b; }";
+    const result = stripTypeAnnotations(ts);
+    expect(result).not.toContain(": number");
+    // Node's stripTypeScriptTypes may pad with spaces; just verify it compiles
+    expect(result).toMatch(/function add\(a\s*,\s*b\s*\)/);
+  });
+
+  it("strips return type annotations", () => {
+    const ts = "function add(a, b): number { return a + b; }";
+    const result = stripTypeAnnotations(ts);
+    expect(result).not.toContain(": number");
+    expect(result).toContain("function add(a, b)");
+  });
+
+  it("strips complex return type like Record<string, string[]>", () => {
+    const ts = 'function group(items): Record<string, string[]> { return {}; }';
+    const result = stripTypeAnnotations(ts);
+    expect(result).not.toContain("Record");
+  });
+
+  it("strips variable type annotations", () => {
+    const ts = 'const x: string = "hello";';
+    const result = stripTypeAnnotations(ts);
+    expect(result).not.toContain(": string");
+    expect(result).toMatch(/const x\s*=\s*"hello"/);
+  });
+
+  it("removes interface declarations", () => {
+    const ts = "interface Foo { bar: string; }\nfunction test() { return 1; }";
+    const result = stripTypeAnnotations(ts);
+    expect(result).not.toContain("interface");
+    expect(result).toContain("function test()");
+  });
+
+  it("removes interface with nested braces", () => {
+    const ts = "interface Foo { nested: { x: number }; }\nfunction test() { return 1; }";
+    const result = stripTypeAnnotations(ts);
+    expect(result).not.toContain("interface");
+    expect(result).toContain("function test()");
+  });
+
+  it("removes type alias declarations", () => {
+    const ts = "type ID = string | number;\nfunction test() { return 1; }";
+    const result = stripTypeAnnotations(ts);
+    expect(result).not.toContain("type ID");
+    expect(result).toContain("function test()");
+  });
+
+  it("strips 'as Type' casts", () => {
+    const ts = "const x = value as string;";
+    const result = stripTypeAnnotations(ts);
+    expect(result).not.toContain("as string");
+  });
+
+  it("strips generic type params on functions", () => {
+    const ts = "function identity<T>(x: T): T { return x; }";
+    const result = stripTypeAnnotations(ts);
+    expect(result).not.toContain("<T>");
+    // Node's stripTypeScriptTypes may pad with spaces
+    expect(result).toMatch(/function identity\s*\(/);
+  });
+
+  it("strips non-null assertion operator", () => {
+    const ts = "const x = obj!.property;";
+    const result = stripTypeAnnotations(ts);
+    // Node's stripTypeScriptTypes replaces ! with space; regex fallback replaces !. with .
+    expect(result).toMatch(/obj\s*\.property/);
   });
 });
 
