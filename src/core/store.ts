@@ -2,14 +2,17 @@ import { mkdir, writeFile, readFile, readdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { BenchResult } from "../types.js";
+import { normalizeEmail, normalizeNickname, isValidEmail, isValidNickname } from "./submitter.js";
 
 const BASE_DIR = join(homedir(), ".llmeter");
 const RESULTS_DIR = join(BASE_DIR, "results");
 const CONFIG_PATH = join(BASE_DIR, "config.json");
 
 export interface LLMeterConfig {
-  autoShare: boolean | "ask"; // true = always share, false = never, "ask" = prompt
+  autoShare: true | "ask"; // true = always share, "ask" = prompt every run
   telemetry?: boolean;        // true = opt-in, false = opt-out, undefined = not yet decided
+  submitterNickname?: string;
+  submitterEmail?: string;
 }
 
 const DEFAULT_CONFIG: LLMeterConfig = {
@@ -63,8 +66,18 @@ export async function loadResults(): Promise<BenchResult[]> {
 export async function loadConfig(): Promise<LLMeterConfig> {
   try {
     const content = await readFile(CONFIG_PATH, "utf8");
-    const parsed = JSON.parse(content) as Partial<LLMeterConfig>;
-    return { ...DEFAULT_CONFIG, ...parsed };
+    const parsed = JSON.parse(content) as Record<string, unknown>;
+    const autoShare = parsed.autoShare === true ? true : "ask";
+    const telemetry = typeof parsed.telemetry === "boolean" ? parsed.telemetry : undefined;
+    const submitterNickname = typeof parsed.submitterNickname === "string"
+      && isValidNickname(parsed.submitterNickname)
+      ? normalizeNickname(parsed.submitterNickname)
+      : undefined;
+    const submitterEmail = typeof parsed.submitterEmail === "string"
+      && isValidEmail(parsed.submitterEmail)
+      ? normalizeEmail(parsed.submitterEmail)
+      : undefined;
+    return { ...DEFAULT_CONFIG, autoShare, telemetry, submitterNickname, submitterEmail };
   } catch {
     return { ...DEFAULT_CONFIG };
   }

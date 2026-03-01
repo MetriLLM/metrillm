@@ -1,15 +1,42 @@
 import { createClient } from "@supabase/supabase-js";
 import type { BenchResult } from "../types.js";
 
-const SUPABASE_URL =
-  process.env.LLMETER_SUPABASE_URL ?? "https://YOUR_SUPABASE_PROJECT.supabase.co";
-const SUPABASE_ANON_KEY =
-  process.env.LLMETER_SUPABASE_ANON_KEY ??
-  "YOUR_SUPABASE_ANON_KEY";
-const PUBLIC_RESULT_BASE_URL =
-  process.env.LLMETER_PUBLIC_RESULT_BASE_URL ?? "https://metrillm.dev";
+const SUPABASE_URL_PLACEHOLDER = "https://YOUR_SUPABASE_PROJECT.supabase.co";
+const SUPABASE_ANON_KEY_PLACEHOLDER = "YOUR_SUPABASE_ANON_KEY";
+const PUBLIC_RESULT_BASE_URL_PLACEHOLDER = "https://YOUR_DASHBOARD_DOMAIN";
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+function resolveUploaderConfig(): {
+  supabaseUrl: string;
+  supabaseAnonKey: string;
+  publicResultBaseUrl: string;
+} {
+  return {
+    supabaseUrl: process.env.LLMETER_SUPABASE_URL ?? SUPABASE_URL_PLACEHOLDER,
+    supabaseAnonKey: process.env.LLMETER_SUPABASE_ANON_KEY ?? SUPABASE_ANON_KEY_PLACEHOLDER,
+    publicResultBaseUrl:
+      process.env.LLMETER_PUBLIC_RESULT_BASE_URL ?? PUBLIC_RESULT_BASE_URL_PLACEHOLDER,
+  };
+}
+
+function hasPlaceholder(value: string): boolean {
+  return value.includes("YOUR_");
+}
+
+function assertUploaderConfig(config: {
+  supabaseUrl: string;
+  supabaseAnonKey: string;
+  publicResultBaseUrl: string;
+}): void {
+  const missing: string[] = [];
+  if (hasPlaceholder(config.supabaseUrl)) missing.push("LLMETER_SUPABASE_URL");
+  if (hasPlaceholder(config.supabaseAnonKey)) missing.push("LLMETER_SUPABASE_ANON_KEY");
+  if (hasPlaceholder(config.publicResultBaseUrl)) missing.push("LLMETER_PUBLIC_RESULT_BASE_URL");
+  if (missing.length > 0) {
+    throw new Error(
+      `Upload is not configured. Set these variables first: ${missing.join(", ")}`
+    );
+  }
+}
 
 export interface UploadResult {
   id: string;
@@ -19,7 +46,18 @@ export interface UploadResult {
   totalCount: number;
 }
 
-export async function uploadBenchResult(result: BenchResult): Promise<UploadResult> {
+export interface UploadBenchOptions {
+  submitterEmail?: string;
+}
+
+export async function uploadBenchResult(
+  result: BenchResult,
+  options: UploadBenchOptions = {}
+): Promise<UploadResult> {
+  const config = resolveUploaderConfig();
+  assertUploaderConfig(config);
+  const supabase: any = createClient(config.supabaseUrl, config.supabaseAnonKey);
+
   const row = {
     model: result.model,
     parameter_size: result.modelInfo?.parameterSize ?? null,
@@ -59,13 +97,55 @@ export async function uploadBenchResult(result: BenchResult): Promise<UploadResu
   }
 
   const id = data.id as string;
-  const url = `${PUBLIC_RESULT_BASE_URL.replace(/\/+$/, "")}/result/${id}`;
+  const url = `${config.publicResultBaseUrl.replace(/\/+$/, "")}/result/${id}`;
 
-  const rank = await getRank(result.fitness.globalScore, result.hardware.cpu);
+  await upsertLeadBestEffort(
+    supabase,
+    options.submitterEmail,
+    result.submitter?.nickname ?? null,
+    result.submitter?.emailHash ?? null
+  );
+
+  const rank = await getRank(
+    supabase,
+    result.fitness.globalScore,
+    result.hardware.cpu
+  );
   return { id, url, ...rank };
 }
 
+async function upsertLeadBestEffort(
+  supabase: any,
+  email: string | undefined,
+  nickname: string | null,
+  emailHash: string | null
+): Promise<void> {
+  if (!email || !emailHash) return;
+
+  try {
+    const { error } = await supabase
+      .from("benchmark_leads")
+      .upsert(
+        {
+          email,
+          email_hash: emailHash,
+          nickname,
+          source: "cli",
+          last_seen_at: new Date().toISOString(),
+        },
+        { onConflict: "email_hash" }
+      );
+
+    if (error) {
+      throw error;
+    }
+  } catch {
+    // Lead collection is best-effort and must not block benchmark uploads.
+  }
+}
+
 async function getRank(
+  supabase: any,
   globalScore: number | null,
   cpu: string
 ): Promise<{ rankGlobalPct: number | null; rankCpuPct: number | null; totalCount: number }> {

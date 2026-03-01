@@ -7,7 +7,7 @@
  * - Broken persistence causes confusing behavior across runs.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { BenchResult } from "../src/types.js";
@@ -124,6 +124,44 @@ describe("store", () => {
     await store.saveConfig({ autoShare: true });
     const updated = await store.loadConfig();
     expect(updated.autoShare).toBe(true);
+  });
+
+  it("normalizes and keeps submitter profile when valid", async () => {
+    const store = await import("../src/core/store.js");
+    await store.saveConfig({
+      autoShare: "ask",
+      submitterNickname: "  Cyril   Bench  ",
+      submitterEmail: "  CYRIL@Example.COM ",
+    });
+
+    const updated = await store.loadConfig();
+    expect(updated.submitterNickname).toBe("Cyril Bench");
+    expect(updated.submitterEmail).toBe("cyril@example.com");
+  });
+
+  it("drops invalid submitter profile fields from config", async () => {
+    const store = await import("../src/core/store.js");
+    const configPath = join(fakeHome, ".llmeter", "config.json");
+    await mkdir(join(fakeHome, ".llmeter"), { recursive: true });
+    await writeFile(configPath, JSON.stringify({
+      autoShare: "ask",
+      submitterNickname: "x",
+      submitterEmail: "invalid-email",
+    }), "utf8");
+
+    const config = await store.loadConfig();
+    expect(config.submitterNickname).toBeUndefined();
+    expect(config.submitterEmail).toBeUndefined();
+  });
+
+  it("normalizes legacy autoShare=false to ask", async () => {
+    const store = await import("../src/core/store.js");
+    const configPath = join(fakeHome, ".llmeter", "config.json");
+    await mkdir(join(fakeHome, ".llmeter"), { recursive: true });
+    await writeFile(configPath, JSON.stringify({ autoShare: false }), "utf8");
+
+    const config = await store.loadConfig();
+    expect(config.autoShare).toBe("ask");
   });
 
   it("ignores malformed result files", async () => {

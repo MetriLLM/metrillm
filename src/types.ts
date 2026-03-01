@@ -180,6 +180,11 @@ export interface ModelInfo {
   family?: string;         // e.g. "llama"
 }
 
+export interface SubmitterIdentity {
+  nickname: string;
+  emailHash: string;
+}
+
 // ── Bench result ─────────────────────────────────────────
 export interface BenchResult {
   model: string;
@@ -190,4 +195,5 @@ export interface BenchResult {
   fitness: FitnessResult;
   timestamp: string;
   metadata: RunMetadata;
+  submitter?: SubmitterIdentity;
 }

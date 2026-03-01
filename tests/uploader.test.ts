@@ -7,12 +7,14 @@ const {
   insertMock,
   selectMock,
   singleMock,
+  upsertMock,
 } = vi.hoisted(() => ({
   createClientMock: vi.fn(),
   fromMock: vi.fn(),
   insertMock: vi.fn(),
   selectMock: vi.fn(),
   singleMock: vi.fn(),
+  upsertMock: vi.fn(),
 }));
 
 vi.mock("@supabase/supabase-js", () => ({
@@ -87,13 +89,19 @@ describe("uploadBenchResult", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
-    delete process.env.LLMETER_SUPABASE_URL;
-    delete process.env.LLMETER_SUPABASE_ANON_KEY;
-    delete process.env.LLMETER_PUBLIC_RESULT_BASE_URL;
+    process.env.LLMETER_SUPABASE_URL = "https://example.supabase.co";
+    process.env.LLMETER_SUPABASE_ANON_KEY = "anon-key";
+    process.env.LLMETER_PUBLIC_RESULT_BASE_URL = "https://metrillm.dev";
 
     selectMock.mockReturnValue({ single: singleMock });
     insertMock.mockReturnValue({ select: selectMock });
-    fromMock.mockReturnValue({ insert: insertMock });
+    upsertMock.mockResolvedValue({ error: null });
+    fromMock.mockImplementation((table: string) => {
+      if (table === "benchmark_leads") {
+        return { upsert: upsertMock };
+      }
+      return { insert: insertMock };
+    });
     createClientMock.mockReturnValue({ from: fromMock });
   });
 
@@ -125,6 +133,34 @@ describe("uploadBenchResult", () => {
 
     const out = await uploadBenchResult(sampleResult());
     expect(out.url).toBe("https://example.test/result/row-2");
+  });
+
+  it("upserts submitter lead when profile is provided", async () => {
+    singleMock.mockResolvedValueOnce({ data: { id: "row-lead" }, error: null });
+    const { uploadBenchResult } = await import("../src/core/uploader.js");
+
+    const out = await uploadBenchResult(
+      {
+        ...sampleResult(),
+        submitter: {
+          nickname: "cyril",
+          emailHash: "hash-123",
+        },
+      },
+      { submitterEmail: "hello@example.com" }
+    );
+
+    expect(out.id).toBe("row-lead");
+    expect(fromMock).toHaveBeenCalledWith("benchmark_leads");
+    expect(upsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: "hello@example.com",
+        email_hash: "hash-123",
+        nickname: "cyril",
+        source: "cli",
+      }),
+      { onConflict: "email_hash" }
+    );
   });
 
   it("computes percentile ranks when score and counts are available", async () => {
