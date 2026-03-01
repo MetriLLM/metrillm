@@ -8,22 +8,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { BenchResult } from "../src/types.js";
 
-const { loadConfigMock, saveConfigMock, promptState } = vi.hoisted(() => ({
+const { loadConfigMock, saveConfigMock } = vi.hoisted(() => ({
   loadConfigMock: vi.fn(),
   saveConfigMock: vi.fn(),
-  promptState: { answer: "" },
 }));
 
 vi.mock("../src/core/store.js", () => ({
   loadConfig: loadConfigMock,
   saveConfig: saveConfigMock,
-}));
-
-vi.mock("node:readline/promises", () => ({
-  createInterface: vi.fn(() => ({
-    question: vi.fn(async () => promptState.answer),
-    close: vi.fn(),
-  })),
 }));
 
 import { promptShare } from "../src/ui/share-prompt.js";
@@ -87,31 +79,79 @@ function sampleResult(): BenchResult {
 }
 
 describe("promptShare", () => {
-  const ttyDescriptor = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
-  const originalIsTTY = process.stdin.isTTY;
+  const stdinTtyDescriptor = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
+  const stdoutTtyDescriptor = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
+  const originalStdinIsTTY = process.stdin.isTTY;
+  const originalStdoutIsTTY = process.stdout.isTTY;
 
   const setTTY = (value: boolean) => {
     Object.defineProperty(process.stdin, "isTTY", {
       configurable: true,
       value,
     });
+    Object.defineProperty(process.stdout, "isTTY", {
+      configurable: true,
+      value,
+    });
   };
+
+  async function runInteractivePromptWithKeys(
+    keys: Array<{ str: string; key: { name?: string; ctrl?: boolean } }>
+  ): Promise<"share" | "skip"> {
+    setTTY(true);
+    const stdinStream = process.stdin as NodeJS.ReadStream & {
+      setRawMode?: (mode: boolean) => void;
+      isRaw?: boolean;
+    };
+    const originalSetRawMode = stdinStream.setRawMode;
+    const originalIsRaw = stdinStream.isRaw;
+
+    stdinStream.setRawMode = (mode: boolean) => {
+      stdinStream.isRaw = mode;
+    };
+
+    try {
+      const pendingDecision = promptShare(sampleResult());
+      await new Promise((resolve) => setImmediate(resolve));
+
+      for (const inputKey of keys) {
+        process.stdin.emit("keypress", inputKey.str, inputKey.key);
+      }
+
+      return await pendingDecision;
+    } finally {
+      if (originalSetRawMode) {
+        stdinStream.setRawMode = originalSetRawMode;
+      } else {
+        delete stdinStream.setRawMode;
+      }
+      stdinStream.isRaw = originalIsRaw;
+    }
+  }
 
   beforeEach(() => {
     vi.clearAllMocks();
-    promptState.answer = "";
     loadConfigMock.mockResolvedValue({ autoShare: "ask" });
     saveConfigMock.mockResolvedValue(undefined);
     setTTY(false);
   });
 
   afterEach(() => {
-    if (ttyDescriptor) {
-      Object.defineProperty(process.stdin, "isTTY", ttyDescriptor);
+    if (stdinTtyDescriptor) {
+      Object.defineProperty(process.stdin, "isTTY", stdinTtyDescriptor);
     } else {
       Object.defineProperty(process.stdin, "isTTY", {
         configurable: true,
-        value: originalIsTTY,
+        value: originalStdinIsTTY,
+      });
+    }
+
+    if (stdoutTtyDescriptor) {
+      Object.defineProperty(process.stdout, "isTTY", stdoutTtyDescriptor);
+    } else {
+      Object.defineProperty(process.stdout, "isTTY", {
+        configurable: true,
+        value: originalStdoutIsTTY,
       });
     }
   });
@@ -123,32 +163,78 @@ describe("promptShare", () => {
     expect(saveConfigMock).not.toHaveBeenCalled();
   });
 
-  it("returns skip when autoShare is false", async () => {
-    loadConfigMock.mockResolvedValueOnce({ autoShare: false });
-    const decision = await promptShare(sampleResult());
-    expect(decision).toBe("skip");
-    expect(saveConfigMock).not.toHaveBeenCalled();
-  });
-
   it("returns skip in non-interactive mode when autoShare is ask", async () => {
     const decision = await promptShare(sampleResult());
     expect(decision).toBe("skip");
     expect(saveConfigMock).not.toHaveBeenCalled();
   });
 
+  it("does not treat legacy false as persistent opt-out", async () => {
+    setTTY(true);
+    loadConfigMock.mockResolvedValueOnce({ autoShare: false });
+    const selectChoice = vi.fn(async () => "share");
+    const decision = await promptShare(sampleResult(), { selectChoice });
+    expect(decision).toBe("share");
+    expect(selectChoice).toHaveBeenCalledTimes(1);
+    expect(saveConfigMock).not.toHaveBeenCalled();
+  });
+
   it("stores always preference when user chooses 'a'", async () => {
     setTTY(true);
-    promptState.answer = "a";
-    const decision = await promptShare(sampleResult());
+    const decision = await promptShare(sampleResult(), {
+      selectChoice: vi.fn(async () => "always"),
+    });
     expect(decision).toBe("share");
     expect(saveConfigMock).toHaveBeenCalledWith({ autoShare: true });
   });
 
-  it("stores never preference when user chooses 'x'", async () => {
+  it("returns share when user chooses one-time share", async () => {
     setTTY(true);
-    promptState.answer = "x";
-    const decision = await promptShare(sampleResult());
+    const decision = await promptShare(sampleResult(), {
+      selectChoice: vi.fn(async () => "share"),
+    });
+    expect(decision).toBe("share");
+    expect(saveConfigMock).not.toHaveBeenCalled();
+  });
+
+  it("returns skip when user chooses one-time skip without saving", async () => {
+    setTTY(true);
+    const decision = await promptShare(sampleResult(), {
+      selectChoice: vi.fn(async () => "skip"),
+    });
     expect(decision).toBe("skip");
-    expect(saveConfigMock).toHaveBeenCalledWith({ autoShare: false });
+    expect(saveConfigMock).not.toHaveBeenCalled();
+  });
+
+  it("supports numpad selection for immediate share", async () => {
+    const decision = await runInteractivePromptWithKeys([
+      { str: "", key: { name: "numpad1" } },
+    ]);
+    expect(decision).toBe("share");
+    expect(saveConfigMock).not.toHaveBeenCalled();
+  });
+
+  it("supports arrow navigation then Enter for always-share", async () => {
+    const decision = await runInteractivePromptWithKeys([
+      { str: "", key: { name: "down" } },
+      { str: "", key: { name: "down" } },
+      { str: "\r", key: { name: "return" } },
+    ]);
+    expect(decision).toBe("share");
+    expect(saveConfigMock).toHaveBeenCalledWith({ autoShare: true });
+  });
+
+  it("accepts enter alias for validation key", async () => {
+    const decision = await runInteractivePromptWithKeys([
+      { str: "\r", key: { name: "enter" } },
+    ]);
+    expect(decision).toBe("share");
+  });
+
+  it("accepts numpad enter alias for validation key", async () => {
+    const decision = await runInteractivePromptWithKeys([
+      { str: "", key: { name: "numenter" } },
+    ]);
+    expect(decision).toBe("share");
   });
 });
