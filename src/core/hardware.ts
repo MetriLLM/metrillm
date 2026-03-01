@@ -1,14 +1,14 @@
 import si from "systeminformation";
 import type { HardwareInfo } from "../types.js";
 import os from "node:os";
-import { exec as execCb } from "node:child_process";
+import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 
 type PowerMode = "low-power" | "balanced" | "performance" | "unknown";
 
-function execCommand(cmd: string, timeoutMs = 3000): Promise<string> {
+function execCommand(cmd: string, args: string[], timeoutMs = 3000): Promise<string> {
   return new Promise((resolve) => {
-    const child = execCb(cmd, { timeout: timeoutMs }, (err, stdout) => {
+    const child = execFile(cmd, args, { timeout: timeoutMs }, (err, stdout) => {
       if (err) return resolve("");
       resolve(stdout.trim());
     });
@@ -17,7 +17,7 @@ function execCommand(cmd: string, timeoutMs = 3000): Promise<string> {
 }
 
 async function detectPowerModeMacOS(): Promise<PowerMode> {
-  const output = await execCommand("pmset -g");
+  const output = await execCommand("pmset", ["-g"]);
   if (!output) return "unknown";
   const match = output.match(/lowpowermode\s+(\d)/i);
   if (match) return match[1] === "1" ? "low-power" : "balanced";
@@ -40,7 +40,7 @@ async function detectPowerModeLinux(): Promise<PowerMode> {
 }
 
 async function detectPowerModeWindows(): Promise<PowerMode> {
-  const output = await execCommand("powercfg /getactivescheme");
+  const output = await execCommand("powercfg", ["/getactivescheme"]);
   if (!output) return "unknown";
   const match = output.match(/\(([^)]+)\)/);
   if (!match) return "unknown";
@@ -54,9 +54,7 @@ async function detectMachineModel(): Promise<string | null> {
   try {
     if (process.platform === "darwin") {
       // system_profiler gives the marketing name (e.g. "MacBook Air", "Mac mini")
-      const output = await execCommand(
-        "system_profiler SPHardwareDataType 2>/dev/null | grep 'Model Name'"
-      );
+      const output = await execCommand("system_profiler", ["SPHardwareDataType"]);
       const match = output.match(/Model Name:\s*(.+)/i);
       if (match) return match[1].trim();
       return null;

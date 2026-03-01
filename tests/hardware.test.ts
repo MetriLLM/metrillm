@@ -8,11 +8,11 @@
  * - Detection must never crash the benchmark flow.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { exec as execCb } from "node:child_process";
+import { execFile as execFileCb } from "node:child_process";
 import { readFile } from "node:fs/promises";
 
 vi.mock("node:child_process", () => ({
-  exec: vi.fn(),
+  execFile: vi.fn(),
 }));
 
 vi.mock("node:fs/promises", () => ({
@@ -54,7 +54,7 @@ vi.mock("systeminformation", () => ({
   },
 }));
 
-const mockedExec = vi.mocked(execCb);
+const mockedExecFile = vi.mocked(execFileCb);
 const mockedReadFile = vi.mocked(readFile);
 
 describe("power mode detection", () => {
@@ -71,9 +71,9 @@ describe("power mode detection", () => {
 
   it("detects macOS low-power mode", async () => {
     Object.defineProperty(process, "platform", { value: "darwin" });
-    mockedExec.mockImplementation((_cmd: string, _opts: unknown, cb: unknown) => {
+    mockedExecFile.mockImplementation((_cmd: string, _args: unknown, _opts: unknown, cb: unknown) => {
       (cb as (err: null, stdout: string) => void)(null, "Currently drawing from 'AC Power'\n lowpowermode 1\n");
-      return {} as ReturnType<typeof execCb>;
+      return {} as ReturnType<typeof execFileCb>;
     });
 
     const { getHardwareInfo } = await import("../src/core/hardware.js");
@@ -83,9 +83,9 @@ describe("power mode detection", () => {
 
   it("detects macOS balanced mode", async () => {
     Object.defineProperty(process, "platform", { value: "darwin" });
-    mockedExec.mockImplementation((_cmd: string, _opts: unknown, cb: unknown) => {
+    mockedExecFile.mockImplementation((_cmd: string, _args: unknown, _opts: unknown, cb: unknown) => {
       (cb as (err: null, stdout: string) => void)(null, "Currently drawing from 'AC Power'\n lowpowermode 0\n");
-      return {} as ReturnType<typeof execCb>;
+      return {} as ReturnType<typeof execFileCb>;
     });
 
     const { getHardwareInfo } = await import("../src/core/hardware.js");
@@ -122,12 +122,12 @@ describe("power mode detection", () => {
 
   it("detects Windows Power Saver", async () => {
     Object.defineProperty(process, "platform", { value: "win32" });
-    mockedExec.mockImplementation((_cmd: string, _opts: unknown, cb: unknown) => {
+    mockedExecFile.mockImplementation((_cmd: string, _args: unknown, _opts: unknown, cb: unknown) => {
       (cb as (err: null, stdout: string) => void)(
         null,
         "Power Scheme GUID: 123  (Power saver)"
       );
-      return {} as ReturnType<typeof execCb>;
+      return {} as ReturnType<typeof execFileCb>;
     });
 
     const { getHardwareInfo } = await import("../src/core/hardware.js");
@@ -137,12 +137,12 @@ describe("power mode detection", () => {
 
   it("detects Windows High performance", async () => {
     Object.defineProperty(process, "platform", { value: "win32" });
-    mockedExec.mockImplementation((_cmd: string, _opts: unknown, cb: unknown) => {
+    mockedExecFile.mockImplementation((_cmd: string, _args: unknown, _opts: unknown, cb: unknown) => {
       (cb as (err: null, stdout: string) => void)(
         null,
         "Power Scheme GUID: 456  (High performance)"
       );
-      return {} as ReturnType<typeof execCb>;
+      return {} as ReturnType<typeof execFileCb>;
     });
 
     const { getHardwareInfo } = await import("../src/core/hardware.js");
@@ -152,12 +152,12 @@ describe("power mode detection", () => {
 
   it("detects Windows Balanced mode", async () => {
     Object.defineProperty(process, "platform", { value: "win32" });
-    mockedExec.mockImplementation((_cmd: string, _opts: unknown, cb: unknown) => {
+    mockedExecFile.mockImplementation((_cmd: string, _args: unknown, _opts: unknown, cb: unknown) => {
       (cb as (err: null, stdout: string) => void)(
         null,
         "Power Scheme GUID: 789  (Balanced)"
       );
-      return {} as ReturnType<typeof execCb>;
+      return {} as ReturnType<typeof execFileCb>;
     });
 
     const { getHardwareInfo } = await import("../src/core/hardware.js");
@@ -167,9 +167,9 @@ describe("power mode detection", () => {
 
   it("returns unknown when exec fails", async () => {
     Object.defineProperty(process, "platform", { value: "darwin" });
-    mockedExec.mockImplementation((_cmd: string, _opts: unknown, cb: unknown) => {
+    mockedExecFile.mockImplementation((_cmd: string, _args: unknown, _opts: unknown, cb: unknown) => {
       (cb as (err: Error, stdout: string) => void)(new Error("command not found"), "");
-      return {} as ReturnType<typeof execCb>;
+      return {} as ReturnType<typeof execFileCb>;
     });
 
     const { getHardwareInfo } = await import("../src/core/hardware.js");
@@ -179,9 +179,9 @@ describe("power mode detection", () => {
 
   it("includes cpuCurrentSpeedGHz in hardware info", async () => {
     Object.defineProperty(process, "platform", { value: "darwin" });
-    mockedExec.mockImplementation((_cmd: string, _opts: unknown, cb: unknown) => {
+    mockedExecFile.mockImplementation((_cmd: string, _args: unknown, _opts: unknown, cb: unknown) => {
       (cb as (err: null, stdout: string) => void)(null, "lowpowermode 0\n");
-      return {} as ReturnType<typeof execCb>;
+      return {} as ReturnType<typeof execFileCb>;
     });
 
     const { getHardwareInfo } = await import("../src/core/hardware.js");

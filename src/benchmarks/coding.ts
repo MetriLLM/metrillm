@@ -7,6 +7,7 @@ import { spawn } from "node:child_process";
 import { Worker } from "node:worker_threads";
 import codingData from "../datasets/coding.json" with { type: "json" };
 
+const VALID_IDENTIFIER_RE = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
 const tasks = codingData as CodingTask[];
 
 function deepEqual(a: unknown, b: unknown): boolean {
@@ -54,6 +55,11 @@ function runTestsInSandbox(
 ): { passed: number; total: number } {
   let passed = 0;
   const total = task.tests.length;
+
+  const VALID_ID = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
+  if (!VALID_ID.test(task.functionName)) {
+    return { passed: 0, total };
+  }
 
   try {
     const noop = () => {};
@@ -369,8 +375,8 @@ async function runTestsInWorker(
       finish({ passed: 0, total });
     });
 
-    worker.once("exit", (code) => {
-      if (!settled && code !== 0) {
+    worker.once("exit", () => {
+      if (!settled) {
         finish({ passed: 0, total });
       }
     });
@@ -413,6 +419,18 @@ export async function runCodingBench(model: string): Promise<CategoryResult> {
   try {
     for (let i = 0; i < tasks.length; i++) {
       const task = tasks[i];
+      if (!VALID_IDENTIFIER_RE.test(task.functionName)) {
+        details.push({
+          id: task.id,
+          question: task.description,
+          expected: `${task.tests.length} tests pass`,
+          actual: "ERROR: invalid function name in dataset",
+          correct: false,
+          timeMs: 0,
+        });
+        totalTests += task.tests.length;
+        continue;
+      }
       spinner.text = `Coding ${i + 1}/${tasks.length}: ${task.functionName}`;
 
       const prompt = `Write a JavaScript function with the following signature:
