@@ -235,4 +235,6 @@ if (shouldShortCircuitCiNoMenu(argv)) {
   }
 } else {
   await program.parseAsync();
+  // Force exit — PostHog telemetry keeps the event loop alive otherwise.
+  setTimeout(() => process.exit(process.exitCode ?? 0), 500).unref();
 }

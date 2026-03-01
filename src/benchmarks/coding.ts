@@ -120,6 +120,7 @@ function computeIsolatedWallTimeoutMs(task: CodingTask): number {
 }
 
 const CODING_ISOLATED_SOURCE = `
+var __name = (fn, _name) => fn;
 const deepEqual = ${deepEqual.toString()};
 const runTestsInSandbox = ${runTestsInSandbox.toString()};
 const vm = require("node:vm");
@@ -154,6 +155,7 @@ process.stdin.on("end", () => {
 `;
 
 const CODING_WORKER_SOURCE = `
+var __name = (fn, _name) => fn;
 const deepEqual = ${deepEqual.toString()};
 const runTestsInSandbox = ${runTestsInSandbox.toString()};
 const { parentPort, workerData } = require("node:worker_threads");

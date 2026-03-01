@@ -390,11 +390,13 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
       console.log(JSON.stringify(results, null, 2));
     }
 
-    // Flush telemetry with timeout to avoid hanging on slow/unreachable network
-    await Promise.race([
-      flushTelemetry(),
-      new Promise((resolve) => setTimeout(resolve, 5_000)),
-    ]);
+    // Fire-and-forget telemetry flush — do NOT await shutdown() as PostHog
+    // keeps the event loop alive indefinitely.  Give it 2 s then move on.
+    flushTelemetry().catch(() => {});
+    await new Promise<void>((resolve) => {
+      const t = setTimeout(resolve, 2_000);
+      if (typeof t === "object" && "unref" in t) (t as NodeJS.Timeout).unref();
+    });
 
     return { results, failedModels };
   } finally {
