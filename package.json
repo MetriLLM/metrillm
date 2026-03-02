@@ -1,10 +1,10 @@
 {
-  "name": "llmeter",
+  "name": "metrillm",
   "version": "0.1.0",
   "description": "Benchmark your local LLM models — speed, quality & hardware fitness verdict",
   "type": "module",
   "bin": {
-    "llmeter": "./dist/index.mjs"
+    "metrillm": "./dist/index.mjs"
   },
   "main": "./dist/index.mjs",
   "files": [

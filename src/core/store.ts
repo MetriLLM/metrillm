@@ -4,18 +4,18 @@ import { join } from "node:path";
 import type { BenchResult } from "../types.js";
 import { normalizeEmail, normalizeNickname, isValidEmail, isValidNickname } from "./submitter.js";
 
-const BASE_DIR = join(homedir(), ".llmeter");
+const BASE_DIR = join(homedir(), ".metrillm");
 const RESULTS_DIR = join(BASE_DIR, "results");
 const CONFIG_PATH = join(BASE_DIR, "config.json");
 
-export interface LLMeterConfig {
+export interface MetriLLMConfig {
   autoShare: true | "ask"; // true = always share, "ask" = prompt every run
   telemetry?: boolean;        // true = opt-in, false = opt-out, undefined = not yet decided
   submitterNickname?: string;
   submitterEmail?: string;
 }
 
-const DEFAULT_CONFIG: LLMeterConfig = {
+const DEFAULT_CONFIG: MetriLLMConfig = {
   autoShare: "ask",
 };
 
@@ -63,7 +63,7 @@ export async function loadResults(): Promise<BenchResult[]> {
   }
 }
 
-export async function loadConfig(): Promise<LLMeterConfig> {
+export async function loadConfig(): Promise<MetriLLMConfig> {
   try {
     const content = await readFile(CONFIG_PATH, "utf8");
     const parsed = JSON.parse(content) as Record<string, unknown>;
@@ -83,7 +83,7 @@ export async function loadConfig(): Promise<LLMeterConfig> {
   }
 }
 
-export async function saveConfig(config: LLMeterConfig): Promise<void> {
+export async function saveConfig(config: MetriLLMConfig): Promise<void> {
   await ensureDirs();
   await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2), "utf8");
 }

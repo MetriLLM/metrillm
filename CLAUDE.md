@@ -8,7 +8,7 @@ Always respond in French. Code, comments, commit messages, and technical identif
 
 ## Project
 
-LLMeter — CLI benchmark tool for local Ollama LLM models. Measures performance (tok/s, TTFT, memory), quality (reasoning, math, coding, instruction following, structured output, multilingual), and computes a hardware fitness verdict.
+MetriLLM — CLI benchmark tool for local Ollama LLM models. Measures performance (tok/s, TTFT, memory), quality (reasoning, math, coding, instruction following, structured output, multilingual), and computes a hardware fitness verdict.
 
 ## Commands
 
@@ -37,7 +37,7 @@ Run a single test by name: `npx vitest run -t "test name pattern"`
 4. Run quality benchmarks (6 categories) → `src/benchmarks/*.ts` against `src/datasets/*.json`
 5. Compute scores → `src/scoring/` (performance-scorer, quality-scorer, fitness)
 6. Display results → `src/ui/` (tables, verdict, colors)
-7. Persist locally → `~/.llmeter/results/`
+7. Persist locally → `~/.metrillm/results/`
 8. Optional upload → Supabase via `src/core/uploader.ts`
 
 **Scoring system**:

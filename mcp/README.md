@@ -1,6 +1,6 @@
-# LLMeter MCP Server
+# MetriLLM MCP Server
 
-Serveur [MCP](https://modelcontextprotocol.io) (Model Context Protocol) pour [LLMeter](https://github.com/MetriLLM/metrillm) — benchmark de LLMs locaux directement depuis Claude Code, Cursor, Windsurf, Continue.dev ou tout client MCP compatible.
+Serveur [MCP](https://modelcontextprotocol.io) (Model Context Protocol) pour [MetriLLM](https://github.com/MetriLLM/metrillm) — benchmark de LLMs locaux directement depuis Claude Code, Cursor, Windsurf, Continue.dev ou tout client MCP compatible.
 
 ## Installation
 
@@ -13,7 +13,7 @@ npm run build
 ### Claude Code
 
 ```bash
-claude mcp add llmeter -- node /chemin/vers/metrillm/mcp/dist/index.js
+claude mcp add metrillm -- node /chemin/vers/metrillm/mcp/dist/index.js
 ```
 
 ### Claude Desktop
@@ -23,7 +23,7 @@ Ajouter dans `claude_desktop_config.json` :
 ```json
 {
   "mcpServers": {
-    "llmeter": {
+    "metrillm": {
       "command": "node",
       "args": ["/chemin/vers/metrillm/mcp/dist/index.js"]
     }
@@ -38,7 +38,7 @@ Ajouter dans la configuration MCP de l'éditeur :
 ```json
 {
   "mcpServers": {
-    "llmeter": {
+    "metrillm": {
       "command": "node",
       "args": ["/chemin/vers/metrillm/mcp/dist/index.js"]
     }
@@ -113,7 +113,7 @@ Récupère les résultats de benchmarks précédents stockés localement.
 
 ### `share_result`
 
-Upload un résultat vers le leaderboard public LLMeter.
+Upload un résultat vers le leaderboard public MetriLLM.
 
 **Paramètres :**
 | Param | Type | Description |
@@ -121,13 +121,13 @@ Upload un résultat vers le leaderboard public LLMeter.
 | `resultFile` | `string` | Chemin absolu vers le fichier JSON de résultat |
 
 **Variables d'environnement requises :**
-- `LLMETER_SUPABASE_URL`
-- `LLMETER_SUPABASE_ANON_KEY`
-- `LLMETER_PUBLIC_RESULT_BASE_URL`
+- `METRILLM_SUPABASE_URL`
+- `METRILLM_SUPABASE_ANON_KEY`
+- `METRILLM_PUBLIC_RESULT_BASE_URL`
 
 ## Architecture
 
-Le serveur MCP est un wrapper mince autour de la logique existante du CLI LLMeter :
+Le serveur MCP est un wrapper mince autour de la logique existante du CLI MetriLLM :
 
 ```
 mcp/src/index.ts  → Point d'entrée MCP (stdio transport)

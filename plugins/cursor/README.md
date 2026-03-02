@@ -1,4 +1,4 @@
-# LLMeter Plugin for Cursor
+# MetriLLM Plugin for Cursor
 
 Benchmark local LLM models directly from Cursor. Measures performance (tok/s, TTFT, memory), quality (reasoning, math, coding, instruction following, structured output, multilingual), and computes a hardware fitness verdict.
 
@@ -7,7 +7,7 @@ Benchmark local LLM models directly from Cursor. Measures performance (tok/s, TT
 Copy the plugin directory to your Cursor plugins folder:
 
 ```bash
-cp -r plugins/cursor ~/.cursor/plugins/local/llmeter
+cp -r plugins/cursor ~/.cursor/plugins/local/metrillm
 ```
 
 Or install from the Cursor marketplace when available.
@@ -16,9 +16,9 @@ Or install from the Cursor marketplace when available.
 
 | Component | Description |
 |---|---|
-| **MCP Server** | `llmeter-mcp` — 4 tools: `list_models`, `run_benchmark`, `get_results`, `share_result` |
+| **MCP Server** | `metrillm-mcp` — 4 tools: `list_models`, `run_benchmark`, `get_results`, `share_result` |
 | **Skill: /benchmark** | Run a full benchmark on any local model |
-| **Skill: llmeter-guide** | Background context auto-activated when relevant |
+| **Skill: metrillm-guide** | Background context auto-activated when relevant |
 | **Agent: benchmark-advisor** | Read-only agent that analyzes and compares results |
 | **Rule: model-selection** | Suggests benchmarking when you discuss local model choices |
 
@@ -27,7 +27,7 @@ Or install from the Cursor marketplace when available.
 ### Benchmark a model
 
 ```
-/llmeter:benchmark llama3.2:3b
+/metrillm:benchmark llama3.2:3b
 ```
 
 ### Ask the advisor
@@ -46,7 +46,7 @@ The MCP server exposes 4 tools:
 
 ### Auto-suggestion
 
-The `llmeter-model-selection` rule will suggest benchmarking when you discuss local model selection, performance, or hardware fitness.
+The `metrillm-model-selection` rule will suggest benchmarking when you discuss local model selection, performance, or hardware fitness.
 
 ## Requirements
 
@@ -56,6 +56,6 @@ The `llmeter-model-selection` rule will suggest benchmarking when you discuss lo
 
 ## Links
 
-- [LLMeter CLI](https://github.com/MetriLLM/metrillm)
-- [Public Leaderboard](https://llmeter.app/leaderboard)
+- [MetriLLM CLI](https://github.com/MetriLLM/metrillm)
+- [Public Leaderboard](https://metrillm.dev/leaderboard)
 - [MCP Server docs](https://github.com/MetriLLM/metrillm/tree/main/mcp)

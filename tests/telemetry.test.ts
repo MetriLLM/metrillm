@@ -57,7 +57,7 @@ describe("telemetry", () => {
     expect(captureMock).toHaveBeenCalledTimes(1);
     const payload = captureMock.mock.calls[0][0] as Record<string, unknown>;
     expect(payload.event).toBe("bench_started");
-    expect((payload.properties as Record<string, unknown>).source).toBe("llmeter-cli");
+    expect((payload.properties as Record<string, unknown>).source).toBe("metrillm-cli");
   });
 
   it("saves consent and reuses it for subsequent calls", async () => {

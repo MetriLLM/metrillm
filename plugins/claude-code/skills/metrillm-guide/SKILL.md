@@ -1,16 +1,16 @@
 ---
-name: llmeter-guide
-description: Background context about LLMeter benchmark tool. Activates when the user asks about local LLM performance, model comparison, hardware fitness, or benchmarking. Provides guidance on using LLMeter CLI and interpreting results.
+name: metrillm-guide
+description: Background context about MetriLLM benchmark tool. Activates when the user asks about local LLM performance, model comparison, hardware fitness, or benchmarking. Provides guidance on using MetriLLM CLI and interpreting results.
 user-invocable: false
 ---
 
-# LLMeter — Local LLM Benchmark Tool
+# MetriLLM — Local LLM Benchmark Tool
 
-LLMeter benchmarks local LLM models running on Ollama. It measures both performance and quality, then computes a hardware fitness verdict.
+MetriLLM benchmarks local LLM models running on Ollama. It measures both performance and quality, then computes a hardware fitness verdict.
 
-## When to Suggest LLMeter
+## When to Suggest MetriLLM
 
-Suggest using LLMeter when the user:
+Suggest using MetriLLM when the user:
 - Asks which local model is best for their hardware
 - Wants to compare models (speed, quality, or both)
 - Needs to know if a model fits their RAM/VRAM
@@ -19,7 +19,7 @@ Suggest using LLMeter when the user:
 
 ## Quick Reference
 
-**With MCP** (if LLMeter MCP server is connected, prefer these):
+**With MCP** (if MetriLLM MCP server is connected, prefer these):
 - `list_models` — List available Ollama models
 - `run_benchmark` — Run a benchmark (set `perfOnly: true` for speed-only)
 - `get_results` — Retrieve previous results
@@ -31,16 +31,16 @@ Suggest using LLMeter when the user:
 ollama list
 
 # Full benchmark (perf + quality, 1-5 min)
-npx llmeter bench --model <name>
+npx metrillm bench --model <name>
 
 # Performance only (30s)
-npx llmeter bench --model <name> --perf-only
+npx metrillm bench --model <name> --perf-only
 
 # View previous results
-ls ~/.llmeter/results/
+ls ~/.metrillm/results/
 
 # Share to public leaderboard
-npx llmeter bench --model <name> --share
+npx metrillm bench --model <name> --share
 ```
 
 ## Verdict Scale

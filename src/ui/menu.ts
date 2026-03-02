@@ -7,7 +7,7 @@ import { getHardwareInfo } from "../core/hardware.js";
 import { printHardwareTable } from "./results-table.js";
 import { infoMsg, createSpinner } from "./progress.js";
 import { exportBenchResults, type ExportFormat } from "../core/exporter.js";
-import { loadConfig, saveConfig, type LLMeterConfig } from "../core/store.js";
+import { loadConfig, saveConfig, type MetriLLMConfig } from "../core/store.js";
 import { saveTelemetryConsent } from "../core/telemetry.js";
 import type { BenchResult } from "../types.js";
 import { errorMsg, successMsg, warnMsg } from "./progress.js";
@@ -430,14 +430,14 @@ async function exportLastResults(results: BenchResult[]): Promise<void> {
 function printQuickCommands(): void {
   console.log(chalk.bold("\nUseful Commands"));
   console.log(chalk.dim("  Use these commands if you want to skip the interactive menu."));
-  console.log("  llmeter list");
-  console.log("  llmeter bench --model <model-name>");
-  console.log("  llmeter bench --model <model-name> --perf-only");
-  console.log("  llmeter bench --model <model-name> --perf-prompt-timeout-ms 90000");
-  console.log("  llmeter bench --model <model-name> --export json --out exports");
-  console.log("  llmeter --ci-no-menu");
-  console.log("  llmeter bench");
-  console.log("  llmeter menu");
+  console.log("  metrillm list");
+  console.log("  metrillm bench --model <model-name>");
+  console.log("  metrillm bench --model <model-name> --perf-only");
+  console.log("  metrillm bench --model <model-name> --perf-prompt-timeout-ms 90000");
+  console.log("  metrillm bench --model <model-name> --export json --out exports");
+  console.log("  metrillm --ci-no-menu");
+  console.log("  metrillm bench");
+  console.log("  metrillm menu");
 }
 
 function mainMenuOptions(): MenuOption<
@@ -506,8 +506,8 @@ export type SettingsSelection =
   | null;
 
 interface SettingsMenuDeps {
-  loadUserConfig?: () => Promise<LLMeterConfig>;
-  saveUserConfig?: (config: LLMeterConfig) => Promise<void>;
+  loadUserConfig?: () => Promise<MetriLLMConfig>;
+  saveUserConfig?: (config: MetriLLMConfig) => Promise<void>;
   saveTelemetryPref?: (value: boolean) => Promise<void>;
   selectSettingsAction?: (
     autoShareEnabled: boolean,
@@ -630,7 +630,7 @@ export async function runSettingsMenu(deps: SettingsMenuDeps = {}): Promise<void
     }
 
     if (action === "toggle-auto-share") {
-      const nextAutoShare: LLMeterConfig["autoShare"] = autoShareEnabled ? "ask" : true;
+      const nextAutoShare: MetriLLMConfig["autoShare"] = autoShareEnabled ? "ask" : true;
       try {
         await saveUserConfig({ ...config, autoShare: nextAutoShare });
         successMsg(`Auto-share ${nextAutoShare === true ? "enabled" : "disabled"}.`);

@@ -70,14 +70,14 @@ function hasCiNoMenuFlag(argv: string[]): boolean {
 
 function shouldShortCircuitCiNoMenu(argv: string[]): boolean {
   // Only short-circuit on the exact root invocation:
-  // `llmeter --ci-no-menu`
+  // `metrillm --ci-no-menu`
   // Any additional argument should still be parsed by commander
   // so unknown flags/subcommands fail fast.
   return argv.length === 1 && argv[0] === "--ci-no-menu";
 }
 
 program
-  .name("llmeter")
+  .name("metrillm")
   .description(
     "Benchmark local LLMs for hardware fit and task quality, then compute a global verdict"
   )
@@ -228,7 +228,7 @@ if (shouldShortCircuitCiNoMenu(argv)) {
 } else if (argv.length === 0) {
   printBanner();
   if (!canUseInteractiveMenu(process.stdin.isTTY, process.stdout.isTTY)) {
-    errorMsg("No interactive terminal detected. Use `llmeter --ci-no-menu` or a subcommand.");
+    errorMsg("No interactive terminal detected. Use `metrillm --ci-no-menu` or a subcommand.");
     process.exitCode = 1;
   } else {
     await runInteractiveMenu();

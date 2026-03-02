@@ -95,7 +95,7 @@ function toCsv(results: BenchResult[]): string {
 
 function toMarkdown(results: BenchResult[]): string {
   const lines: string[] = [];
-  lines.push("# LLMeter Benchmark Results");
+  lines.push("# MetriLLM Benchmark Results");
   lines.push("");
   const allHaveGlobal = results.every((r) => r.fitness.globalScore !== null);
   lines.push(allHaveGlobal
@@ -187,7 +187,7 @@ export async function exportBenchResults(
 
   const ts = timestampForFilename(new Date().toISOString());
   const unique = Math.random().toString(36).slice(2, 8);
-  const filename = `llmeter-results-${ts}-${unique}.${format}`;
+  const filename = `metrillm-results-${ts}-${unique}.${format}`;
   const path = resolve(outDir, filename);
 
   let content: string;

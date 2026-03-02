@@ -7,16 +7,16 @@
  */
 import { describe, expect, it, vi } from "vitest";
 import { runSettingsMenu } from "../src/ui/menu.js";
-import type { LLMeterConfig } from "../src/core/store.js";
+import type { MetriLLMConfig } from "../src/core/store.js";
 
 describe("runSettingsMenu", () => {
   it("toggles auto-share and persists to config", async () => {
-    let config: LLMeterConfig = { autoShare: "ask", telemetry: false };
+    let config: MetriLLMConfig = { autoShare: "ask", telemetry: false };
     const sequence = ["toggle-auto-share", "back"] as const;
     let idx = 0;
 
     const loadUserConfig = vi.fn(async () => config);
-    const saveUserConfig = vi.fn(async (next: LLMeterConfig) => {
+    const saveUserConfig = vi.fn(async (next: MetriLLMConfig) => {
       config = next;
     });
     const saveTelemetryPref = vi.fn(async (_value: boolean) => {});
@@ -37,12 +37,12 @@ describe("runSettingsMenu", () => {
   });
 
   it("toggles telemetry via telemetry consent helper", async () => {
-    const config: LLMeterConfig = { autoShare: true, telemetry: false };
+    const config: MetriLLMConfig = { autoShare: true, telemetry: false };
     const sequence = ["toggle-telemetry", "back"] as const;
     let idx = 0;
 
     const loadUserConfig = vi.fn(async () => config);
-    const saveUserConfig = vi.fn(async (_next: LLMeterConfig) => {});
+    const saveUserConfig = vi.fn(async (_next: MetriLLMConfig) => {});
     const saveTelemetryPref = vi.fn(async (_value: boolean) => {});
     const selectSettingsAction = vi.fn(async () => sequence[idx++] ?? null);
     const waitForAcknowledge = vi.fn(async () => {});
@@ -62,7 +62,7 @@ describe("runSettingsMenu", () => {
 
   it("returns immediately when user exits settings", async () => {
     const loadUserConfig = vi.fn(async () => ({ autoShare: "ask" as const }));
-    const saveUserConfig = vi.fn(async (_next: LLMeterConfig) => {});
+    const saveUserConfig = vi.fn(async (_next: MetriLLMConfig) => {});
     const saveTelemetryPref = vi.fn(async (_value: boolean) => {});
     const selectSettingsAction = vi.fn(async () => null);
     const promptSubmitterProfile = vi.fn(async () => null);
@@ -84,12 +84,12 @@ describe("runSettingsMenu", () => {
   });
 
   it("edits benchmark profile from settings", async () => {
-    const config: LLMeterConfig = { autoShare: "ask", telemetry: false };
+    const config: MetriLLMConfig = { autoShare: "ask", telemetry: false };
     const sequence = ["edit-submitter-profile", "back"] as const;
     let idx = 0;
 
     const loadUserConfig = vi.fn(async () => config);
-    const saveUserConfig = vi.fn(async (_next: LLMeterConfig) => {});
+    const saveUserConfig = vi.fn(async (_next: MetriLLMConfig) => {});
     const saveTelemetryPref = vi.fn(async (_value: boolean) => {});
     const selectSettingsAction = vi.fn(async () => sequence[idx++] ?? null);
     const promptSubmitterProfile = vi.fn(async () => ({
@@ -114,7 +114,7 @@ describe("runSettingsMenu", () => {
   });
 
   it("clears benchmark profile from settings", async () => {
-    let config: LLMeterConfig = {
+    let config: MetriLLMConfig = {
       autoShare: "ask",
       telemetry: false,
       submitterNickname: "Cyril",
@@ -124,7 +124,7 @@ describe("runSettingsMenu", () => {
     let idx = 0;
 
     const loadUserConfig = vi.fn(async () => config);
-    const saveUserConfig = vi.fn(async (next: LLMeterConfig) => {
+    const saveUserConfig = vi.fn(async (next: MetriLLMConfig) => {
       config = next;
     });
     const saveTelemetryPref = vi.fn(async (_value: boolean) => {});

@@ -1,5 +1,5 @@
 ---
-name: llmeter
+name: metrillm
 description: Benchmark local LLM models — measures performance (tok/s, TTFT, memory), quality (reasoning, math, coding, instruction following, structured output, multilingual), and computes a hardware fitness verdict. Works with Ollama.
 argument-hint: "[model-name]"
 author: MetriLLM
@@ -8,7 +8,7 @@ license: MIT
 allowed-tools: Bash, Read
 ---
 
-# LLMeter — Benchmark Local LLM Models
+# MetriLLM — Benchmark Local LLM Models
 
 Benchmark any local LLM model directly from your AI coding assistant. Get a clear verdict on whether a model fits your hardware.
 
@@ -28,7 +28,7 @@ ollama list
 ### Run a full benchmark
 
 ```bash
-npx llmeter bench --model $ARGUMENTS --json
+npx metrillm bench --model $ARGUMENTS --json
 ```
 
 This measures:
@@ -41,7 +41,7 @@ A full benchmark takes 1-5 minutes depending on model size.
 ### Performance-only benchmark (faster)
 
 ```bash
-npx llmeter bench --model $ARGUMENTS --perf-only --json
+npx metrillm bench --model $ARGUMENTS --perf-only --json
 ```
 
 Takes about 30 seconds. Skips quality evaluation.
@@ -49,7 +49,7 @@ Takes about 30 seconds. Skips quality evaluation.
 ### View previous results
 
 ```bash
-ls ~/.llmeter/results/
+ls ~/.metrillm/results/
 ```
 
 Read any JSON file to see full benchmark details.
@@ -57,7 +57,7 @@ Read any JSON file to see full benchmark details.
 ### Share to public leaderboard
 
 ```bash
-npx llmeter bench --model $ARGUMENTS --share
+npx metrillm bench --model $ARGUMENTS --share
 ```
 
 ## Interpreting Results

@@ -1,6 +1,6 @@
 {
-  "name": "llmeter",
-  "displayName": "LLMeter",
+  "name": "metrillm",
+  "displayName": "MetriLLM",
   "version": "0.1.0",
   "description": "Benchmark local LLM models — performance, quality & hardware fitness verdict",
   "category": "developer-tools",

@@ -75,9 +75,9 @@ describe("coding sandbox isolation", () => {
 
   it("does not pollute host prototypes", () => {
     const context = createSandbox();
-    const script = new vm.Script("Array.prototype.__llmeterProbe = 123");
+    const script = new vm.Script("Array.prototype.__metrillmProbe = 123");
     script.runInContext(context, { timeout: 5000 });
-    expect(([] as unknown[] & { __llmeterProbe?: number }).__llmeterProbe).toBeUndefined();
+    expect(([] as unknown[] & { __metrillmProbe?: number }).__metrillmProbe).toBeUndefined();
   });
 
   it("times out on infinite loops", () => {

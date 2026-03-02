@@ -1,6 +1,6 @@
-# Contributing to LLMeter
+# Contributing to MetriLLM
 
-Thank you for your interest in contributing to LLMeter! This document explains how to contribute and the requirements for submissions.
+Thank you for your interest in contributing to MetriLLM! This document explains how to contribute and the requirements for submissions.
 
 ## How to Contribute
 

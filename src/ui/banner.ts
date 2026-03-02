@@ -2,19 +2,20 @@ import chalk from "chalk";
 import { supportsUnicode } from "./terminal.js";
 
 const LOGO_UNICODE = [
-  "██      ██      ██████  ██████ ████████ ██████ ██████ ",
-  "██      ██      ██  ██  ██        ██    ██     ██  ██ ",
-  "██      ██      ██  ██  ████      ██    ████   ██████ ",
-  "██      ██      ██  ██  ██        ██    ██     ██ ██  ",
-  "██████  ██████  ██  ██  ██████    ██    ██████ ██  ██ ",
+  "███╗   ███╗███████╗████████╗██████╗ ██╗██╗     ██╗     ███╗   ███╗   ██████╗ ███████╗██╗   ██╗",
+  "████╗ ████║██╔════╝╚══██╔══╝██╔══██╗██║██║     ██║     ████╗ ████║   ██╔══██╗██╔════╝██║   ██║",
+  "██╔████╔██║█████╗     ██║   ██████╔╝██║██║     ██║     ██╔████╔██║   ██║  ██║█████╗  ██║   ██║",
+  "██║╚██╔╝██║██╔══╝     ██║   ██╔══██╗██║██║     ██║     ██║╚██╔╝██║   ██║  ██║██╔══╝  ╚██╗ ██╔╝",
+  "██║ ╚═╝ ██║███████╗   ██║   ██║  ██║██║███████╗███████╗██║ ╚═╝ ██║██╗██████╔╝███████╗ ╚████╔╝ ",
+  "╚═╝     ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝╚══════╝╚══════╝╚═╝     ╚═╝╚═╝╚═════╝ ╚══════╝  ╚═══╝  ",
 ];
 
 const LOGO_ASCII = [
-  "##      ##      ######  ###### ######## ###### ###### ",
-  "##      ##      ##  ##  ##        ##    ##     ##  ## ",
-  "##      ##      ##  ##  ####      ##    ####   ###### ",
-  "##      ##      ##  ##  ##        ##    ##     ## ##  ",
-  "######  ######  ##  ##  ######    ##    ###### ##  ## ",
+  "M   M EEEEE TTTTT RRRR  I L     L     M   M     DDDD  EEEEE V   V",
+  "MM MM E       T   R   R I L     L     MM MM     D   D E     V   V",
+  "M M M EEE     T   RRRR  I L     L     M M M     D   D EEE    V V ",
+  "M   M E       T   R  R  I L     L     M   M     D   D E      V V ",
+  "M   M EEEEE   T   R   R I LLLLL LLLLL M   M  .  DDDD  EEEEE   V  ",
 ];
 
 interface ColorStop { r: number; g: number; b: number }
@@ -56,12 +57,12 @@ function gradientLine(line: string): string {
     .join("");
 }
 
-const COPYRIGHT = "\u00A9 2026 LLMeter";
+const COPYRIGHT = "\u00A9 2026 MetriLLM";
 const PROJECT_URL =
-  process.env.LLMETER_PROJECT_URL ??
+  process.env.METRILLM_PROJECT_URL ??
   "https://github.com/MetriLLM/metrillm";
 const DASHBOARD_URL =
-  process.env.LLMETER_DASHBOARD_URL ??
+  process.env.METRILLM_DASHBOARD_URL ??
   "https://metrillm.dev";
 
 export function printBanner(): void {

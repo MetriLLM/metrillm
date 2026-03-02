@@ -85,7 +85,7 @@ function sampleResult(): BenchResult {
 
 describe("exportBenchResults", () => {
   it("exports JSON", async () => {
-    const dir = await makeTmpDir("llmeter-export-json-");
+    const dir = await makeTmpDir("metrillm-export-json-");
     const path = await exportBenchResults([sampleResult()], "json", dir);
     const content = await readFile(path, "utf8");
     expect(content).toContain("\"model\": \"llama3.2:3b\"");
@@ -93,7 +93,7 @@ describe("exportBenchResults", () => {
   });
 
   it("exports CSV", async () => {
-    const dir = await makeTmpDir("llmeter-export-csv-");
+    const dir = await makeTmpDir("metrillm-export-csv-");
     const path = await exportBenchResults([sampleResult()], "csv", dir);
     const content = await readFile(path, "utf8");
     expect(content).toContain("model,parameter_size,quantization,family,thinking_detected,timestamp");
@@ -106,10 +106,10 @@ describe("exportBenchResults", () => {
   });
 
   it("exports Markdown", async () => {
-    const dir = await makeTmpDir("llmeter-export-md-");
+    const dir = await makeTmpDir("metrillm-export-md-");
     const path = await exportBenchResults([sampleResult()], "md", dir);
     const content = await readFile(path, "utf8");
-    expect(content).toContain("# LLMeter Benchmark Results");
+    expect(content).toContain("# MetriLLM Benchmark Results");
     expect(content).toContain("| Quant |");
     expect(content).toContain("| Machine |");
     expect(content).toContain("| Flags |");
@@ -135,7 +135,7 @@ describe("exportBenchResults", () => {
       },
     };
 
-    const dir = await makeTmpDir("llmeter-export-md-multi-");
+    const dir = await makeTmpDir("metrillm-export-md-multi-");
     const path = await exportBenchResults([first, second], "md", dir);
     const content = await readFile(path, "utf8");
     const lines = content.split("\n");
@@ -162,7 +162,7 @@ describe("exportBenchResults", () => {
       ...sampleResult(),
       model: "=HYPERLINK(\"https://malicious.example\")",
     };
-    const dir = await makeTmpDir("llmeter-export-csv-safe-");
+    const dir = await makeTmpDir("metrillm-export-csv-safe-");
     const path = await exportBenchResults([malicious], "csv", dir);
     const content = await readFile(path, "utf8");
 
@@ -174,7 +174,7 @@ describe("exportBenchResults", () => {
       ...sampleResult(),
       model: "   =cmd|'/C calc'!A0",
     };
-    const dir = await makeTmpDir("llmeter-export-csv-safe-leading-");
+    const dir = await makeTmpDir("metrillm-export-csv-safe-leading-");
     const path = await exportBenchResults([malicious], "csv", dir);
     const content = await readFile(path, "utf8");
 
@@ -190,7 +190,7 @@ describe("exportBenchResults", () => {
         verdict: "GOOD | CHECK",
       },
     };
-    const dir = await makeTmpDir("llmeter-export-md-escape-");
+    const dir = await makeTmpDir("metrillm-export-md-escape-");
     const path = await exportBenchResults([withPipes], "md", dir);
     const content = await readFile(path, "utf8");
 

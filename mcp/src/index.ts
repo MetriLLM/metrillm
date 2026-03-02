@@ -19,7 +19,7 @@ import {
 // ── MCP Server ──
 
 const server = new McpServer({
-  name: "llmeter",
+  name: "metrillm",
   version: "0.1.0",
 });
 
@@ -105,10 +105,10 @@ for (const def of toolDefinitions) {
 async function main(): Promise<void> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("LLMeter MCP server running on stdio");
+  console.error("MetriLLM MCP server running on stdio");
 }
 
 main().catch((err) => {
-  console.error("Fatal error starting LLMeter MCP server:", err);
+  console.error("Fatal error starting MetriLLM MCP server:", err);
   process.exit(1);
 });

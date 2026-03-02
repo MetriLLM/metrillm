@@ -53,7 +53,7 @@ export async function trackEvent(
       distinctId: getDistinctId(),
       event,
       properties: {
-        source: "llmeter-cli",
+        source: "metrillm-cli",
         ...properties,
       },
     });
@@ -109,6 +109,6 @@ export async function showTelemetryNotice(): Promise<void> {
   const config = await loadConfig();
   if (config.telemetry !== undefined) return;
   console.log(
-    "Anonymous usage stats are enabled by default to help improve LLMeter. Opt-out anytime: llmeter bench --no-telemetry"
+    "Anonymous usage stats are enabled by default to help improve MetriLLM. Opt-out anytime: metrillm bench --no-telemetry"
   );
 }

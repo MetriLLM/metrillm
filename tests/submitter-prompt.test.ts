@@ -6,7 +6,7 @@
  * - Profile capture should be optional, robust, and persistable.
  */
 import { describe, expect, it, vi } from "vitest";
-import type { LLMeterConfig } from "../src/core/store.js";
+import type { MetriLLMConfig } from "../src/core/store.js";
 import { resolveSubmitterForShare } from "../src/ui/submitter-prompt.js";
 
 describe("resolveSubmitterForShare", () => {
@@ -17,7 +17,7 @@ describe("resolveSubmitterForShare", () => {
       submitterNickname: "Cyril",
       submitterEmail: "cyril@example.com",
     }));
-    const saveUserConfig = vi.fn(async (_config: LLMeterConfig) => {});
+    const saveUserConfig = vi.fn(async (_config: MetriLLMConfig) => {});
 
     const submitter = await resolveSubmitterForShare({
       askLine,
@@ -37,7 +37,7 @@ describe("resolveSubmitterForShare", () => {
   it("returns null when user declines profile capture", async () => {
     const askLine = vi.fn(async () => "n");
     const loadUserConfig = vi.fn(async () => ({ autoShare: "ask" as const }));
-    const saveUserConfig = vi.fn(async (_config: LLMeterConfig) => {});
+    const saveUserConfig = vi.fn(async (_config: MetriLLMConfig) => {});
 
     const submitter = await resolveSubmitterForShare({
       askLine,
@@ -59,7 +59,7 @@ describe("resolveSubmitterForShare", () => {
     ];
     const askLine = vi.fn(async () => answers.shift() ?? null);
     const loadUserConfig = vi.fn(async () => ({ autoShare: "ask" as const }));
-    const saveUserConfig = vi.fn(async (_config: LLMeterConfig) => {});
+    const saveUserConfig = vi.fn(async (_config: MetriLLMConfig) => {});
 
     const submitter = await resolveSubmitterForShare({
       askLine,

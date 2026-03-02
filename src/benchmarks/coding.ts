@@ -224,13 +224,13 @@ function sandboxProcessEnv(): NodeJS.ProcessEnv {
 }
 
 function resolveSandboxMode(): "subprocess" | "worker" {
-  const raw = process.env.LLMETER_CODING_SANDBOX?.trim().toLowerCase();
+  const raw = process.env.METRILLM_CODING_SANDBOX?.trim().toLowerCase();
   if (raw === "worker") return "worker";
   return "subprocess";
 }
 
 function allowWorkerFallback(): boolean {
-  const raw = process.env.LLMETER_CODING_ALLOW_WORKER_FALLBACK?.trim().toLowerCase();
+  const raw = process.env.METRILLM_CODING_ALLOW_WORKER_FALLBACK?.trim().toLowerCase();
   return raw === "1" || raw === "true" || raw === "yes";
 }
 
@@ -406,7 +406,7 @@ async function runTestsIsolated(
     return runTestsInWorker(code, task);
   }
   throw new Error(
-    "Coding sandbox infrastructure failure (set LLMETER_CODING_ALLOW_WORKER_FALLBACK=true to allow worker fallback)"
+    "Coding sandbox infrastructure failure (set METRILLM_CODING_ALLOW_WORKER_FALLBACK=true to allow worker fallback)"
   );
 }
 

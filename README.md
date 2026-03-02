@@ -1,12 +1,12 @@
-# LLMeter
+# MetriLLM
 
 [![CI](https://github.com/MetriLLM/metrillm/actions/workflows/ci.yml/badge.svg)](https://github.com/MetriLLM/metrillm/actions/workflows/ci.yml)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20-brightgreen)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 
 <!-- TODO: Uncomment once npm is published and repo is public -->
-<!-- [![npm version](https://img.shields.io/npm/v/llmeter)](https://www.npmjs.com/package/llmeter) -->
-<!-- [![npm downloads](https://img.shields.io/npm/dw/llmeter)](https://www.npmjs.com/package/llmeter) -->
+<!-- [![npm version](https://img.shields.io/npm/v/metrillm)](https://www.npmjs.com/package/metrillm) -->
+<!-- [![npm downloads](https://img.shields.io/npm/dw/metrillm)](https://www.npmjs.com/package/metrillm) -->
 <!-- [![GitHub stars](https://img.shields.io/github/stars/MetriLLM/metrillm)](https://github.com/MetriLLM/metrillm) -->
 
 **Benchmark your local LLM models in one command.** Speed, quality, hardware fitness — with a shareable score and public leaderboard.
@@ -14,7 +14,7 @@
 > Think Geekbench, but for local LLMs on your actual hardware.
 
 ```bash
-npx llmeter@latest bench
+npx metrillm@latest bench
 ```
 
 ## What You Get
@@ -27,7 +27,7 @@ npx llmeter@latest bench
 
 ## Real Benchmark Results
 
-> From the [public leaderboard](https://metrillm.dev) — all results below were submitted with `llmeter bench --share`.
+> From the [public leaderboard](https://metrillm.dev) — all results below were submitted with `metrillm bench --share`.
 
 | Model | Machine | CPU | RAM | tok/s | TTFT | Global | Verdict |
 |-------|---------|-----|-----|------:|-----:|-------:|---------|
@@ -50,41 +50,41 @@ npx llmeter@latest bench
 
 ```bash
 # Run directly (no install)
-npx llmeter@latest bench
+npx metrillm@latest bench
 
 # Or install globally
-npm i -g llmeter
-llmeter bench
+npm i -g metrillm
+metrillm bench
 
 # Alternative package managers
-pnpm dlx llmeter@latest bench
-bunx llmeter@latest bench
+pnpm dlx metrillm@latest bench
+bunx metrillm@latest bench
 ```
 
 ## Usage
 
 ```bash
 # Interactive mode — pick models from a menu
-llmeter bench
+metrillm bench
 
 # Benchmark a specific model
-llmeter bench --model gemma3:4b
+metrillm bench --model gemma3:4b
 
 # Benchmark all installed models
-llmeter bench --all
+metrillm bench --all
 
 # Share your result (upload + public URL + leaderboard rank)
-llmeter bench --share
+metrillm bench --share
 
 # CI/non-interactive mode
-llmeter bench --ci-no-menu --share
+metrillm bench --ci-no-menu --share
 
 # Force unload after each model (useful for memory isolation)
-llmeter bench --all --unload-after-bench
+metrillm bench --all --unload-after-bench
 
 # Export results locally
-llmeter bench --export json
-llmeter bench --export csv
+metrillm bench --export json
+metrillm bench --export csv
 ```
 
 ## How Scoring Works
@@ -109,7 +109,7 @@ Hardware is auto-detected and scoring adapts to your tier (Entry/Balanced/High-E
 Every benchmark you share enriches the public leaderboard. No account needed.
 
 ```bash
-llmeter bench --share
+metrillm bench --share
 ```
 
 You'll get:

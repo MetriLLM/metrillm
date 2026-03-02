@@ -78,7 +78,7 @@ describe("store", () => {
   beforeEach(async () => {
     prevHome = process.env.HOME;
     prevUserProfile = process.env.USERPROFILE;
-    fakeHome = await mkdtemp(join(tmpdir(), "llmeter-store-home-"));
+    fakeHome = await mkdtemp(join(tmpdir(), "metrillm-store-home-"));
     process.env.HOME = fakeHome;
     process.env.USERPROFILE = fakeHome;
     vi.resetModules();
@@ -108,8 +108,8 @@ describe("store", () => {
     const firstPath = await store.saveResult(first);
     const secondPath = await store.saveResult(second);
 
-    expect(firstPath).toContain(".llmeter/results");
-    expect(secondPath).toContain(".llmeter/results");
+    expect(firstPath).toContain(".metrillm/results");
+    expect(secondPath).toContain(".metrillm/results");
 
     const loaded = await store.loadResults();
     expect(loaded).toHaveLength(2);
@@ -141,8 +141,8 @@ describe("store", () => {
 
   it("drops invalid submitter profile fields from config", async () => {
     const store = await import("../src/core/store.js");
-    const configPath = join(fakeHome, ".llmeter", "config.json");
-    await mkdir(join(fakeHome, ".llmeter"), { recursive: true });
+    const configPath = join(fakeHome, ".metrillm", "config.json");
+    await mkdir(join(fakeHome, ".metrillm"), { recursive: true });
     await writeFile(configPath, JSON.stringify({
       autoShare: "ask",
       submitterNickname: "x",
@@ -156,8 +156,8 @@ describe("store", () => {
 
   it("normalizes legacy autoShare=false to ask", async () => {
     const store = await import("../src/core/store.js");
-    const configPath = join(fakeHome, ".llmeter", "config.json");
-    await mkdir(join(fakeHome, ".llmeter"), { recursive: true });
+    const configPath = join(fakeHome, ".metrillm", "config.json");
+    await mkdir(join(fakeHome, ".metrillm"), { recursive: true });
     await writeFile(configPath, JSON.stringify({ autoShare: false }), "utf8");
 
     const config = await store.loadConfig();

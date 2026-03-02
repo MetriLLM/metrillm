@@ -1,4 +1,4 @@
-LLMeter
+MetriLLM
 Copyright 2026 The Blue House, Cyril Guilleminot
 
 This product includes software developed by
@@ -8,7 +8,7 @@ The Blue House (https://github.com/MetriLLM/metrillm).
 Trademark Notice
 ==========================================================================
 
-"LLMeter" is a trademark of The Blue House / Cyril Guilleminot.
+"MetriLLM" is a trademark of The Blue House / Cyril Guilleminot.
 
 The Apache License 2.0 under which this software is released does not
 grant any rights to use the trade names, trademarks, service marks, or
@@ -16,20 +16,20 @@ product names of the licensor, except as required for reasonable and
 customary use in describing the origin of the work.
 
 In particular, you may NOT:
-- Use the name "LLMeter", the LLMeter logo, or any related branding in
+- Use the name "MetriLLM", the MetriLLM logo, or any related branding in
   the name of derivative products, forks, or services without prior
   written permission from the copyright holder.
 - Present a derivative work in a way that suggests official endorsement
-  or affiliation with The Blue House or LLMeter.
+  or affiliation with The Blue House or MetriLLM.
 
-If you wish to use the LLMeter name or logo, please contact us first.
+If you wish to use the MetriLLM name or logo, please contact us first.
 
 ==========================================================================
 Data and Leaderboard
 ==========================================================================
 
 The benchmark data, leaderboard rankings, and aggregated results published
-on the LLMeter website and associated services are proprietary to
+on the MetriLLM website and associated services are proprietary to
 The Blue House. They are not covered by the Apache License 2.0 and may
 not be reproduced, redistributed, or used commercially without explicit
 written permission.

@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import * as readline from "node:readline";
 import { stdin as input, stdout as output } from "node:process";
-import { loadConfig, saveConfig, type LLMeterConfig } from "../core/store.js";
+import { loadConfig, saveConfig, type MetriLLMConfig } from "../core/store.js";
 import {
   isValidEmail,
   isValidNickname,
@@ -20,8 +20,8 @@ export interface ShareSubmitter {
 
 interface SubmitterPromptDeps {
   askLine?: (prompt: string) => Promise<string | null>;
-  loadUserConfig?: () => Promise<LLMeterConfig>;
-  saveUserConfig?: (config: LLMeterConfig) => Promise<void>;
+  loadUserConfig?: () => Promise<MetriLLMConfig>;
+  saveUserConfig?: (config: MetriLLMConfig) => Promise<void>;
 }
 
 function canPromptInteractively(): boolean {

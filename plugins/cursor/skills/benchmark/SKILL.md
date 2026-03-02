@@ -1,20 +1,20 @@
 ---
 name: benchmark
-description: Benchmark a local LLM model with LLMeter. Measures performance (tok/s, TTFT, memory) and quality (reasoning, math, coding, instruction following, structured output, multilingual). Use when the user wants to test, compare, or evaluate a local model.
+description: Benchmark a local LLM model with MetriLLM. Measures performance (tok/s, TTFT, memory) and quality (reasoning, math, coding, instruction following, structured output, multilingual). Use when the user wants to test, compare, or evaluate a local model.
 argument-hint: "[model-name]"
 allowed-tools: Bash, Read, Glob, Grep
 ---
 
 # Benchmark a Local LLM Model
 
-Run an LLMeter benchmark on a locally available model. This skill handles setup verification, model selection, benchmark execution, and result interpretation.
+Run an MetriLLM benchmark on a locally available model. This skill handles setup verification, model selection, benchmark execution, and result interpretation.
 
 ## Prerequisites Check
 
 Before running any benchmark, verify the environment:
 
 1. **Ollama running**: Run `ollama list` to check. If it fails, tell the user to start Ollama first.
-2. **LLMeter available**: If the LLMeter MCP server is connected, use the MCP tools directly. Otherwise, check if `npx llmeter` works.
+2. **MetriLLM available**: If the MetriLLM MCP server is connected, use the MCP tools directly. Otherwise, check if `npx metrillm` works.
 
 ## Workflow
 
@@ -34,12 +34,12 @@ Use the `run_benchmark` tool with the model name. Set `perfOnly: true` for perfo
 
 **Without MCP**:
 ```bash
-npx llmeter bench --model <model-name> --json
+npx metrillm bench --model <model-name> --json
 ```
 
 For performance-only (skip quality tests, much faster):
 ```bash
-npx llmeter bench --model <model-name> --perf-only --json
+npx metrillm bench --model <model-name> --perf-only --json
 ```
 
 ### Step 3 — Interpret results
@@ -62,7 +62,7 @@ Present the results in a clear, concise format. Highlight the verdict prominentl
 If the user wants to compare models:
 
 - **With MCP**: Use the `get_results` tool to retrieve previous results.
-- **Without MCP**: Read JSON files from `~/.llmeter/results/`.
+- **Without MCP**: Read JSON files from `~/.metrillm/results/`.
 
 Compare side-by-side on key metrics.
 
@@ -71,9 +71,9 @@ Compare side-by-side on key metrics.
 If the user wants to share results to the public leaderboard:
 
 - **With MCP**: Use the `share_result` tool with the result file path.
-- **Without MCP**: `npx llmeter bench --model <model-name> --share`
+- **Without MCP**: `npx metrillm bench --model <model-name> --share`
 
-Requires `LLMETER_SUPABASE_URL` and `LLMETER_SUPABASE_ANON_KEY` environment variables.
+Requires `METRILLM_SUPABASE_URL` and `METRILLM_SUPABASE_ANON_KEY` environment variables.
 
 ## Tips
 

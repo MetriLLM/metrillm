@@ -1,10 +1,10 @@
 {
-  "name": "llmeter-mcp",
+  "name": "metrillm-mcp",
   "version": "0.1.0",
-  "description": "MCP server for LLMeter — benchmark local LLMs from any AI coding assistant",
+  "description": "MCP server for MetriLLM — benchmark local LLMs from any AI coding assistant",
   "type": "module",
   "bin": {
-    "llmeter-mcp": "./dist/index.js"
+    "metrillm-mcp": "./dist/index.js"
   },
   "main": "./dist/index.js",
   "files": [

@@ -1,8 +1,8 @@
 {
   "mcpServers": {
-    "llmeter": {
+    "metrillm": {
       "command": "npx",
-      "args": ["llmeter-mcp"]
+      "args": ["metrillm-mcp"]
     }
   }
 }

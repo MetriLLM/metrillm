@@ -1,6 +1,6 @@
 # Multi-Backend Architecture
 
-LLMeter supports multiple LLM inference backends through the `LLMRuntime` interface. Two dimensions affect benchmark scores:
+MetriLLM supports multiple LLM inference backends through the `LLMRuntime` interface. Two dimensions affect benchmark scores:
 
 - **Runtime backend** — the inference engine (Ollama, LM Studio, mlx-lm, llama.cpp, vLLM)
 - **Model format** — the weight format (GGUF, MLX, Safetensors, ONNX)

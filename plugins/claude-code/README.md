@@ -1,4 +1,4 @@
-# LLMeter Plugin for Claude Code
+# MetriLLM Plugin for Claude Code
 
 Benchmark local LLM models directly from Claude Code. Measures performance (tok/s, TTFT, memory), quality (reasoning, math, coding, instruction following, structured output, multilingual), and computes a hardware fitness verdict.
 
@@ -9,16 +9,16 @@ Benchmark local LLM models directly from Claude Code. Measures performance (tok/
 claude --plugin-dir ./plugins/claude-code
 
 # Or install from the marketplace (when available)
-claude plugin install llmeter
+claude plugin install metrillm
 ```
 
 ## What's included
 
 | Component | Description |
 |---|---|
-| **MCP Server** | `llmeter-mcp` — 4 tools: `list_models`, `run_benchmark`, `get_results`, `share_result` |
-| **Skill: /llmeter:benchmark** | Run a full benchmark on any local model |
-| **Skill: llmeter-guide** | Background context, auto-activated when relevant |
+| **MCP Server** | `metrillm-mcp` — 4 tools: `list_models`, `run_benchmark`, `get_results`, `share_result` |
+| **Skill: /metrillm:benchmark** | Run a full benchmark on any local model |
+| **Skill: metrillm-guide** | Background context, auto-activated when relevant |
 | **Agent: benchmark-advisor** | Read-only agent that analyzes and compares results |
 
 ## Usage
@@ -26,7 +26,7 @@ claude plugin install llmeter
 ### Benchmark a model
 
 ```
-/llmeter:benchmark llama3.2:3b
+/metrillm:benchmark llama3.2:3b
 ```
 
 ### Ask the advisor
@@ -51,6 +51,6 @@ The MCP server exposes 4 tools:
 
 ## Links
 
-- [LLMeter CLI](https://github.com/MetriLLM/metrillm)
-- [Public Leaderboard](https://llmeter.app/leaderboard)
+- [MetriLLM CLI](https://github.com/MetriLLM/metrillm)
+- [Public Leaderboard](https://metrillm.dev/leaderboard)
 - [MCP Server docs](https://github.com/MetriLLM/metrillm/tree/main/mcp)

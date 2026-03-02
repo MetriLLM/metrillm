@@ -91,9 +91,9 @@ describe("uploadBenchResult", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
-    process.env.LLMETER_SUPABASE_URL = "https://example.supabase.co";
-    process.env.LLMETER_SUPABASE_ANON_KEY = "anon-key";
-    process.env.LLMETER_PUBLIC_RESULT_BASE_URL = "https://metrillm.dev";
+    process.env.METRILLM_SUPABASE_URL = "https://example.supabase.co";
+    process.env.METRILLM_SUPABASE_ANON_KEY = "anon-key";
+    process.env.METRILLM_PUBLIC_RESULT_BASE_URL = "https://metrillm.dev";
 
     selectMock.mockReturnValue({ single: singleMock });
     insertMock.mockReturnValue({ select: selectMock });
@@ -134,7 +134,7 @@ describe("uploadBenchResult", () => {
   });
 
   it("uses configured public base URL and trims trailing slash", async () => {
-    process.env.LLMETER_PUBLIC_RESULT_BASE_URL = "https://example.test/";
+    process.env.METRILLM_PUBLIC_RESULT_BASE_URL = "https://example.test/";
     singleMock.mockResolvedValueOnce({ data: { id: "row-2" }, error: null });
     const { uploadBenchResult } = await import("../src/core/uploader.js");
 

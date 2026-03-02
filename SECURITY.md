@@ -8,11 +8,11 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in LLMeter, please report it responsibly.
+If you discover a security vulnerability in MetriLLM, please report it responsibly.
 
 **Do NOT open a public GitHub issue for security vulnerabilities.**
 
-Instead, send an email to **security@llmeter.org** with:
+Instead, send an email to **security@metrillm.dev** with:
 
 - A description of the vulnerability
 - Steps to reproduce

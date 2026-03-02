@@ -39,7 +39,7 @@ export const getResultsSchema = z.object({
 export const shareResultSchema = z.object({
   resultFile: z
     .string()
-    .describe("Absolute path to a benchmark result JSON file (from ~/.llmeter/results/). Must be inside ~/.llmeter/results/."),
+    .describe("Absolute path to a benchmark result JSON file (from ~/.metrillm/results/). Must be inside ~/.metrillm/results/."),
 });
 
 // ── Tool definitions for MCP registration ──
@@ -55,7 +55,7 @@ export const toolDefinitions = [
   {
     name: "run_benchmark",
     description:
-      "Run an LLMeter benchmark on a local model. Measures performance (tokens/s, TTFT, memory) " +
+      "Run an MetriLLM benchmark on a local model. Measures performance (tokens/s, TTFT, memory) " +
       "and optionally quality (reasoning, math, coding, instruction following, structured output, multilingual). " +
       "Returns a detailed fitness verdict. Warning: benchmarks take 30s to 5+ minutes depending on model size.",
     inputSchema: runBenchmarkSchema,
@@ -63,16 +63,16 @@ export const toolDefinitions = [
   {
     name: "get_results",
     description:
-      "Retrieve previously saved benchmark results from ~/.llmeter/results/. " +
+      "Retrieve previously saved benchmark results from ~/.metrillm/results/. " +
       "Optionally filter by model name. Returns an array of full benchmark result objects.",
     inputSchema: getResultsSchema,
   },
   {
     name: "share_result",
     description:
-      "Upload a benchmark result to the public LLMeter leaderboard. " +
-      "Requires LLMETER_SUPABASE_URL and LLMETER_SUPABASE_ANON_KEY environment variables. " +
-      "The resultFile must be an absolute path to a JSON file in ~/.llmeter/results/.",
+      "Upload a benchmark result to the public MetriLLM leaderboard. " +
+      "Requires METRILLM_SUPABASE_URL and METRILLM_SUPABASE_ANON_KEY environment variables. " +
+      "The resultFile must be an absolute path to a JSON file in ~/.metrillm/results/.",
     inputSchema: shareResultSchema,
   },
 ] as const;
@@ -83,12 +83,12 @@ function assertRuntime(runtime: string): void {
   if (runtime !== "ollama") {
     throw new Error(
       `Runtime "${runtime}" is not yet supported. Currently supported: ${SUPPORTED_RUNTIMES.join(", ")}. ` +
-        "New runtimes will be added as they become available in the LLMeter CLI."
+        "New runtimes will be added as they become available in the MetriLLM CLI."
     );
   }
 }
 
-const RESULTS_DIR = join(homedir(), ".llmeter", "results");
+const RESULTS_DIR = join(homedir(), ".metrillm", "results");
 
 // ── Mutex for benchmark serialization ──
 // The CLI uses a singleton runtime — concurrent benchmarks would corrupt results.
@@ -187,7 +187,7 @@ export async function handleGetResults(
   try {
     files = await readdir(RESULTS_DIR);
   } catch {
-    return JSON.stringify({ results: [], message: "No results directory found (~/.llmeter/results/)" });
+    return JSON.stringify({ results: [], message: "No results directory found (~/.metrillm/results/)" });
   }
 
   const jsonFiles = files.filter((f) => f.endsWith(".json")).sort();
@@ -233,7 +233,7 @@ export async function handleGetResults(
 export async function handleShareResult(
   args: z.infer<typeof shareResultSchema>
 ): Promise<string> {
-  // Validate that the file is inside ~/.llmeter/results/ to prevent path traversal
+  // Validate that the file is inside ~/.metrillm/results/ to prevent path traversal
   const { resolve } = await import("node:path");
   const resolvedPath = resolve(args.resultFile);
   const resolvedResultsDir = resolve(RESULTS_DIR);
@@ -258,7 +258,7 @@ export async function handleShareResult(
   }
 
   if (!result.model || !result.performance || !result.fitness) {
-    throw new Error("File does not appear to be a valid LLMeter benchmark result.");
+    throw new Error("File does not appear to be a valid MetriLLM benchmark result.");
   }
 
   const uploaded = await uploadBenchResult(result);

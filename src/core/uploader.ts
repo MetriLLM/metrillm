@@ -11,10 +11,10 @@ function resolveUploaderConfig(): {
   publicResultBaseUrl: string;
 } {
   return {
-    supabaseUrl: process.env.LLMETER_SUPABASE_URL ?? SUPABASE_URL_PLACEHOLDER,
-    supabaseAnonKey: process.env.LLMETER_SUPABASE_ANON_KEY ?? SUPABASE_ANON_KEY_PLACEHOLDER,
+    supabaseUrl: process.env.METRILLM_SUPABASE_URL ?? SUPABASE_URL_PLACEHOLDER,
+    supabaseAnonKey: process.env.METRILLM_SUPABASE_ANON_KEY ?? SUPABASE_ANON_KEY_PLACEHOLDER,
     publicResultBaseUrl:
-      process.env.LLMETER_PUBLIC_RESULT_BASE_URL ?? PUBLIC_RESULT_BASE_URL_PLACEHOLDER,
+      process.env.METRILLM_PUBLIC_RESULT_BASE_URL ?? PUBLIC_RESULT_BASE_URL_PLACEHOLDER,
   };
 }
 
@@ -28,9 +28,9 @@ function assertUploaderConfig(config: {
   publicResultBaseUrl: string;
 }): void {
   const missing: string[] = [];
-  if (hasPlaceholder(config.supabaseUrl)) missing.push("LLMETER_SUPABASE_URL");
-  if (hasPlaceholder(config.supabaseAnonKey)) missing.push("LLMETER_SUPABASE_ANON_KEY");
-  if (hasPlaceholder(config.publicResultBaseUrl)) missing.push("LLMETER_PUBLIC_RESULT_BASE_URL");
+  if (hasPlaceholder(config.supabaseUrl)) missing.push("METRILLM_SUPABASE_URL");
+  if (hasPlaceholder(config.supabaseAnonKey)) missing.push("METRILLM_SUPABASE_ANON_KEY");
+  if (hasPlaceholder(config.publicResultBaseUrl)) missing.push("METRILLM_PUBLIC_RESULT_BASE_URL");
   if (missing.length > 0) {
     throw new Error(
       `Upload is not configured. Set these variables first: ${missing.join(", ")}`
