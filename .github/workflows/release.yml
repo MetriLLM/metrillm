@@ -73,7 +73,7 @@ jobs:
       - name: Publish with provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access public --provenance
+        run: npm publish --access public --provenance || { [ $? -eq 1 ] && npm view metrillm@"$(node -p 'require("./package.json").version')" version && echo "Version already published, skipping" || exit 1; }
 
   publish-mcp:
     name: Publish MCP server to npm
@@ -107,7 +107,7 @@ jobs:
         working-directory: mcp
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access public --provenance
+        run: npm publish --access public --provenance || { [ $? -eq 1 ] && npm view metrillm-mcp@"$(node -p 'require("./package.json").version')" version && echo "Version already published, skipping" || exit 1; }
 
   github-release:
     name: GitHub Release
