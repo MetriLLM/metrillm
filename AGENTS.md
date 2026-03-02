@@ -1,47 +1,81 @@
-# Repository Guidelines
+# AGENTS.md — MetriLLM CLI (`MetriLLM/metrillm`)
 
-## Project Structure & Module Organization
-- `src/` contains the CLI and benchmark logic.
-- `src/benchmarks/` holds benchmark runners (performance, reasoning, coding, etc.).
-- `src/core/` contains integrations and persistence (`ollama-client`, exporter, store, uploader).
-- `src/scoring/` computes hardware fit, quality, and final verdict.
-- `src/ui/` renders CLI tables, menus, prompts, and verdict screens.
-- `src/datasets/` stores benchmark datasets in JSON.
-- `tests/` mirrors runtime behavior with unit/regression tests (`*.test.ts`).
-- `scripts/` contains smoke/e2e helpers. `supabase/migrations/` tracks DB schema changes.
+Guidelines for AI agents and contributors working on this repository.
 
-## Build, Test, and Development Commands
-- `npm run dev` — run CLI from source (`tsx src/index.ts`).
-- `npm run build` — build distributable CLI with `tsup` into `dist/`.
-- `npm run typecheck` — strict TypeScript check (`tsc --noEmit`).
-- `npm test` — run all Vitest tests once.
-- `npm run test:coverage` — run tests with V8 coverage report.
-- `npm run test:watch` — interactive test mode for local iteration.
-- `npm run ci:verify` — full local CI gate: typecheck + coverage + build.
-- `npm run security:audit` — dependency vulnerability audit.
+## Project Overview
 
-## Coding Style & Naming Conventions
-- Language: TypeScript (ESM, Node 20+).
-- Indentation: 2 spaces; keep functions short and explicit.
-- Naming: `camelCase` for variables/functions, `PascalCase` for types/interfaces, kebab-case filenames (e.g., `performance-scorer.ts`).
-- Prefer small pure helpers in `src/utils.ts` and domain logic in module-specific files.
+MetriLLM is an open-source CLI tool that benchmarks local LLM models running on Ollama. It measures performance (tok/s, TTFT, memory) and quality (reasoning, math, coding, instruction following, structured output, multilingual), then computes a hardware fitness verdict.
 
-## Testing Guidelines
-- Framework: Vitest (`tests/*.test.ts`).
-- Add focused regression tests for every bug fix (especially scoring, parsing, menu flow, sandboxing).
-- Keep tests deterministic; avoid external network dependency unless using dedicated smoke scripts.
-- Before opening a PR, run: `npm run ci:verify` and `npm run security:audit`.
+- **License**: Apache 2.0
+- **Language**: TypeScript (ESM, Node 20+)
+- **Companion repo**: `MetriLLM/metrillm-web` (private) — leaderboard website at `metrillm.dev`
 
-## Commit & Pull Request Guidelines
-- Follow existing commit style: imperative, concise subject (e.g., `Improve robustness: ...`, `Add migration for ...`).
-- One logical change per commit when possible.
-- PRs should include:
-  - What changed and why.
-  - Risk/impact notes (CLI behavior, scoring, schema, security).
-  - Test evidence (commands run, key outputs).
-  - Screenshots/terminal captures for UI/menu changes.
+## Project Structure
 
-## Security & Configuration Tips
-- Use Node `>=20` (`.nvmrc` is `20`).
-- Do not commit secrets; keep local overrides in environment variables.
-- `OLLAMA_HOST` can be used to target non-default Ollama endpoints.
+```
+src/
+  benchmarks/       # Benchmark runners (performance + 6 quality categories)
+  commands/         # CLI command handlers (bench, list)
+  core/             # Infrastructure (Ollama client, hardware detection, storage, upload, telemetry)
+  datasets/         # Ground truth JSON fixtures for quality evaluation
+  scoring/          # Score computation (performance, quality, fitness verdict)
+  ui/               # CLI output (tables, spinners, menus, verdict display)
+  index.ts          # Entry point — Commander.js CLI with interactive menu fallback
+  types.ts          # Shared types (also used by companion website)
+tests/              # Vitest unit/regression tests (mirrors src/ structure)
+mcp/                # MCP server for IDE integration (Claude Code, Cursor, etc.)
+plugins/            # IDE plugins (Claude Code, Cursor)
+scripts/            # Smoke/e2e helpers
+docs/               # Technical documentation
+```
+
+## Commands
+
+```bash
+npm run dev            # Run CLI from source (tsx)
+npm run build          # Build distributable CLI (tsup → dist/index.mjs)
+npm run typecheck      # tsc --noEmit
+npm test               # Vitest run (all tests)
+npm run test:watch     # Vitest watch mode
+npm run test:coverage  # Vitest with V8 coverage (thresholds enforced)
+npm run ci:verify      # Full CI gate: typecheck + coverage + build
+npm run security:audit # Dependency vulnerability audit
+npm run test:e2e:smoke # Real Ollama integration test (requires running Ollama)
+```
+
+Run a single test: `npx vitest run tests/scoring.test.ts`
+
+## Coding Conventions
+
+- **Indentation**: 2 spaces
+- **Naming**: `camelCase` for variables/functions, `PascalCase` for types/interfaces, kebab-case filenames
+- **Modules**: Small pure helpers in `src/utils.ts`, domain logic in module-specific files
+- **Imports**: ESM only (`import`/`export`), no CommonJS
+
+## Testing
+
+- **Framework**: Vitest (`tests/*.test.ts`)
+- Add focused regression tests for every bug fix (especially scoring, parsing, menu flow, sandboxing)
+- Keep tests deterministic — no external network calls unless in dedicated smoke scripts
+- Before opening a PR: `npm run ci:verify && npm run security:audit`
+
+## Commit Guidelines
+
+- Imperative, concise subject (e.g., `fix: handle timeout in performance benchmark`)
+- One logical change per commit
+- PRs should include: what changed, why, risk/impact notes, test evidence
+
+## Security
+
+- **Node >= 20** required (`.nvmrc`)
+- Never commit secrets — use environment variables (`METRILLM_SUPABASE_URL`, `METRILLM_SUPABASE_ANON_KEY`)
+- `src/benchmarks/coding.ts` runs LLM-generated code in a Node VM sandbox — changes require extra care
+- `OLLAMA_HOST` env var targets non-default Ollama endpoints
+
+## Database
+
+Supabase (PostgreSQL) with RLS — public read + public insert, immutable rows. Upload credentials via env vars. Schema is not tracked in this repo.
+
+## CI
+
+GitHub Actions (`.github/workflows/ci.yml`): typecheck + coverage + build + audit on every push/PR. Ollama smoke test is manual-only.
