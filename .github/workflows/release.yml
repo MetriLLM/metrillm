@@ -141,15 +141,12 @@ jobs:
           echo "$changelog" >> "$GITHUB_OUTPUT"
           echo "$EOF" >> "$GITHUB_OUTPUT"
 
-      - name: Write release notes to file
-        run: cat <<'NOTES_EOF' > /tmp/release-notes.md
-          ${{ steps.changelog.outputs.body }}
-          NOTES_EOF
-
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_BODY: ${{ steps.changelog.outputs.body }}
         run: |
+          printf '%s\n' "$RELEASE_BODY" > /tmp/release-notes.md
           gh release create "${{ steps.version.outputs.version }}" \
             --title "${{ steps.version.outputs.version }}" \
             --notes-file /tmp/release-notes.md \
