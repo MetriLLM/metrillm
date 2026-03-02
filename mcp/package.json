@@ -1,6 +1,7 @@
 {
   "name": "metrillm-mcp",
-  "version": "0.1.1",
+  "version": "0.1.2",
+  "mcpName": "io.github.MetriLLM/metrillm",
   "description": "MCP server for MetriLLM — benchmark local LLMs from any AI coding assistant",
   "type": "module",
   "bin": {
