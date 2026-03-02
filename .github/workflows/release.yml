@@ -97,7 +97,7 @@ jobs:
         run: |
           version="${GITHUB_REF#refs/tags/v}"
           # Escape regex metacharacters in version string
-          escaped=$(printf '%s' "$version" | sed 's/[.[\*^$+?(){}|]/\\&/g')
+          escaped=$(printf '%s' "$version" | sed 's/[].[\\*^$+?(){}|]/\\&/g')
           changelog=$(awk "/^## \[${escaped}\]/{found=1; next} /^## \[/{if(found) exit} found{print}" CHANGELOG.md 2>/dev/null || true)
           if [ -z "$changelog" ]; then
             changelog="See [CHANGELOG.md](CHANGELOG.md) for details."
@@ -107,13 +107,18 @@ jobs:
           echo "$changelog" >> "$GITHUB_OUTPUT"
           echo "$EOF" >> "$GITHUB_OUTPUT"
 
+      - name: Write release notes to file
+        run: cat <<'NOTES_EOF' > /tmp/release-notes.md
+          ${{ steps.changelog.outputs.body }}
+          NOTES_EOF
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create "${{ steps.version.outputs.version }}" \
             --title "${{ steps.version.outputs.version }}" \
-            --notes "${{ steps.changelog.outputs.body }}" \
+            --notes-file /tmp/release-notes.md \
             --verify-tag
 
   smoke-test:
@@ -150,4 +155,5 @@ jobs:
           exit 1
 
       - name: Verify npx install and --help
+        shell: bash
         run: npx "metrillm@${{ steps.version.outputs.version }}" --help
