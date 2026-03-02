@@ -31,7 +31,7 @@ describe("printBanner", () => {
     expect(output.some((l) => l.includes("Benchmark"))).toBe(true);
     expect(output.some((l) => l.includes("2026 MetriLLM"))).toBe(true);
     expect(output.some((l) => l.includes("github.com"))).toBe(true);
-    expect(output.some((l) => l.includes("Dashboard:"))).toBe(true);
+    expect(output.some((l) => l.includes("Leaderboard:"))).toBe(true);
   });
 });
 
