@@ -1,4 +1,15 @@
+import { readFileSync } from "node:fs";
 import { defineConfig } from "tsup";
+
+function loadEnvKey(key: string): string {
+  try {
+    const env = readFileSync(".env", "utf-8");
+    const match = env.match(new RegExp(`^${key}=(.+)$`, "m"));
+    return match?.[1]?.trim() ?? "";
+  } catch {
+    return process.env[key] ?? "";
+  }
+}
 
 export default defineConfig({
   entry: ["src/index.ts"],
@@ -14,4 +25,9 @@ export default defineConfig({
   outExtension: () => ({ js: ".mjs" }),
   noExternal: [/(.*)/],
   treeshake: true,
+  define: {
+    "process.env.METRILLM_POSTHOG_KEY": JSON.stringify(
+      loadEnvKey("METRILLM_POSTHOG_KEY")
+    ),
+  },
 });
