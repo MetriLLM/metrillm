@@ -1,0 +1,13 @@
+{
+  "name": "llmeter",
+  "version": "0.1.0",
+  "description": "Benchmark local LLM models — performance, quality & hardware fitness verdict",
+  "author": {
+    "name": "Cyril Guilleminot",
+    "url": "https://github.com/MetriLLM"
+  },
+  "homepage": "https://github.com/MetriLLM/metrillm",
+  "repository": "https://github.com/MetriLLM/metrillm",
+  "license": "Apache-2.0",
+  "keywords": ["llm", "benchmark", "ollama", "local-llm", "performance"]
+}

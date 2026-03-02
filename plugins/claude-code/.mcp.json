@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "llmeter": {
+      "command": "npx",
+      "args": ["llmeter-mcp"]
+    }
+  }
+}
