@@ -16,6 +16,13 @@
 npx metrillm@latest bench
 ```
 
+<p align="center">
+  <img src="docs/images/cli1.png" width="48%" alt="MetriLLM CLI — interactive menu" />
+  <img src="docs/images/cli2.png" width="48%" alt="MetriLLM CLI — hardware detection" />
+</p>
+
+[![MetriLLM Leaderboard](docs/images/leaderboard.png)](https://metrillm.dev)
+
 ## What You Get
 
 - **Performance metrics**: tokens/sec, time to first token, memory usage, load time
