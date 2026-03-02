@@ -191,7 +191,7 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
         // Quality benchmarks (unless --perf-only)
         let quality: QualityMetrics | null = null;
         if (!options.perfOnly) {
-          const qualityOpts = thinkEnabled ? { think: thinkEnabled } : undefined;
+          const qualityOpts = thinkEnabled !== undefined ? { think: thinkEnabled } : undefined;
 
           if (!silent) stepHeader("Quality Benchmark — Reasoning");
           const reasoning = await runReasoningBench(modelName, qualityOpts);

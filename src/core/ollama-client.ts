@@ -99,7 +99,7 @@ export async function generateStream(
       prompt,
       stream: true,
       keep_alive: options?.keep_alive ?? defaultKeepAlive,
-      ...(options?.think ? { think: true } : {}),
+      ...(options?.think !== undefined ? { think: options.think } : {}),
       options: {
         temperature: options?.temperature ?? 0,
         num_predict: options?.num_predict ?? 512,
