@@ -5,10 +5,12 @@ function loadEnvKey(key: string): string {
   try {
     const env = readFileSync(".env", "utf-8");
     const match = env.match(new RegExp(`^${key}=(.+)$`, "m"));
-    return match?.[1]?.trim() ?? "";
+    const value = match?.[1]?.trim();
+    if (value) return value;
   } catch {
-    return process.env[key] ?? "";
+    // .env not found — fall through to process.env
   }
+  return process.env[key] ?? "";
 }
 
 export default defineConfig({
