@@ -12,7 +12,7 @@ If you discover a security vulnerability in MetriLLM, please report it responsib
 
 **Do NOT open a public GitHub issue for security vulnerabilities.**
 
-Instead, send an email to **security@metrillm.dev** with:
+Instead, open a [private security advisory](https://github.com/MetriLLM/metrillm/security/advisories/new) on GitHub with:
 
 - A description of the vulnerability
 - Steps to reproduce
