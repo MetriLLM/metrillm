@@ -6,7 +6,7 @@ import reasoningData from "../datasets/reasoning.json" with { type: "json" };
 
 const questions = reasoningData as ReasoningQuestion[];
 
-export async function runReasoningBench(model: string): Promise<CategoryResult> {
+export async function runReasoningBench(model: string, opts?: { think?: boolean }): Promise<CategoryResult> {
   const spinner = createSpinner("Running reasoning benchmark...");
   spinner.start();
 
@@ -28,7 +28,7 @@ Answer:`;
       const startTime = Date.now();
       try {
         const result = await withTimeout(
-          generate(model, prompt, { temperature: 0, num_predict: 1024 }),
+          generate(model, prompt, { temperature: 0, num_predict: 1024, think: opts?.think }),
           60_000,
           "Reasoning question",
           abortOngoingRequests

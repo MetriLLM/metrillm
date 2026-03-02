@@ -107,6 +107,7 @@ vi.mock("../src/ui/progress.js", () => ({
   stepHeader: vi.fn(),
   errorMsg: vi.fn(),
   warnMsg: warnMsgMock,
+  infoMsg: vi.fn(),
   createSpinner: () => ({
     start: vi.fn(),
     succeed: vi.fn(),
@@ -127,6 +128,10 @@ vi.mock("../src/core/uploader.js", () => ({
 
 vi.mock("../src/ui/share-prompt.js", () => ({
   promptShare: promptShareMock,
+}));
+
+vi.mock("../src/ui/thinking-prompt.js", () => ({
+  promptThinkingMode: vi.fn(async () => false),
 }));
 
 vi.mock("../src/utils.js", () => ({

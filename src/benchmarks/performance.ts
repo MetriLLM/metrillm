@@ -24,6 +24,7 @@ export interface PerformanceBenchOptions {
   promptTimeoutMs?: number;
   minSuccessfulPrompts?: number;
   failOnPromptError?: boolean;
+  think?: boolean;
 }
 
 const DEFAULT_WARMUP_TIMEOUT_MS = 120_000;
@@ -48,6 +49,7 @@ export async function runPerformanceBench(
     const warmup = await withTimeout(
       generateStream(model, WARMUP_PROMPT, undefined, {
         num_predict: 32,
+        think: options.think,
       }),
       warmupTimeoutMs,
       "Model warmup",
@@ -91,7 +93,7 @@ export async function runPerformanceBench(
                 }
               },
             },
-            { num_predict: 256 }
+            { num_predict: 256, think: options.think }
           ),
           promptTimeoutMs,
           "Performance benchmark",

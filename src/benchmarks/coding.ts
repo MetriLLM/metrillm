@@ -410,7 +410,7 @@ async function runTestsIsolated(
   );
 }
 
-export async function runCodingBench(model: string): Promise<CategoryResult> {
+export async function runCodingBench(model: string, opts?: { think?: boolean }): Promise<CategoryResult> {
   const spinner = createSpinner("Running coding benchmark...");
   spinner.start();
 
@@ -445,7 +445,7 @@ Reply with ONLY the function code, no explanation.`;
       const startTime = Date.now();
       try {
         const result = await withTimeout(
-          generate(model, prompt, { temperature: 0, num_predict: 2048 }),
+          generate(model, prompt, { temperature: 0, num_predict: 2048, think: opts?.think }),
           120_000,
           "Coding task",
           abortOngoingRequests

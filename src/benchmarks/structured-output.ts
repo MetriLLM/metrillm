@@ -306,7 +306,7 @@ export function validateStructuredOutputResponse(response: string, q: SOQuestion
   }
 }
 
-export async function runStructuredOutputBench(model: string): Promise<CategoryResult> {
+export async function runStructuredOutputBench(model: string, opts?: { think?: boolean }): Promise<CategoryResult> {
   const spinner = createSpinner("Running structured output benchmark...");
   spinner.start();
 
@@ -321,7 +321,7 @@ export async function runStructuredOutputBench(model: string): Promise<CategoryR
       const startTime = Date.now();
       try {
         const result = await withTimeout(
-          generate(model, q.prompt, { temperature: 0, num_predict: 1024 }),
+          generate(model, q.prompt, { temperature: 0, num_predict: 1024, think: opts?.think }),
           60_000,
           "Structured output task",
           abortOngoingRequests

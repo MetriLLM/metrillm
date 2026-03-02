@@ -6,6 +6,7 @@ export interface GenerateOptions {
   temperature?: number;
   num_predict?: number;
   keep_alive?: KeepAliveValue;
+  think?: boolean;
 }
 
 export interface LLMRuntime {

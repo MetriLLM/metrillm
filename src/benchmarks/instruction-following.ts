@@ -194,7 +194,7 @@ export function validateInstructionFollowingResponse(response: string, q: IFQues
   }
 }
 
-export async function runInstructionFollowingBench(model: string): Promise<CategoryResult> {
+export async function runInstructionFollowingBench(model: string, opts?: { think?: boolean }): Promise<CategoryResult> {
   const spinner = createSpinner("Running instruction following benchmark...");
   spinner.start();
 
@@ -211,7 +211,7 @@ export async function runInstructionFollowingBench(model: string): Promise<Categ
       const startTime = Date.now();
       try {
         const result = await withTimeout(
-          generate(model, prompt, { temperature: 0, num_predict: 1024 }),
+          generate(model, prompt, { temperature: 0, num_predict: 1024, think: opts?.think }),
           60_000,
           "Instruction following task",
           abortOngoingRequests

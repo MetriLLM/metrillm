@@ -95,7 +95,7 @@ export function validateMultilingualResponse(response: string, q: MLQuestion): b
   }
 }
 
-export async function runMultilingualBench(model: string): Promise<CategoryResult> {
+export async function runMultilingualBench(model: string, opts?: { think?: boolean }): Promise<CategoryResult> {
   const spinner = createSpinner("Running multilingual benchmark...");
   spinner.start();
 
@@ -110,7 +110,7 @@ export async function runMultilingualBench(model: string): Promise<CategoryResul
       const startTime = Date.now();
       try {
         const result = await withTimeout(
-          generate(model, q.prompt, { temperature: 0, num_predict: 1024 }),
+          generate(model, q.prompt, { temperature: 0, num_predict: 1024, think: opts?.think }),
           60_000,
           "Multilingual task",
           abortOngoingRequests

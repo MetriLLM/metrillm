@@ -106,6 +106,8 @@ program
   .option("--keep-alive <duration>", "Ollama keep_alive value (seconds or duration string, e.g. 2m)")
   .option("--unload-after-bench", "Unload model(s) after benchmark completion")
   .option("--no-unload-after-bench", "Do not unload model(s) after benchmark completion")
+  .option("--thinking", "Enable thinking mode (extended reasoning for supported models)")
+  .option("--no-thinking", "Disable thinking mode")
   .option("--json", "Output results as JSON to stdout (no UI)")
   .option("--export <format>", "Export results: json | csv | md")
   .option("--out <dir>", "Export output directory (default: exports)")
@@ -171,6 +173,11 @@ program
       await saveTelemetryConsent(opts.telemetry);
     }
 
+    const thinkingOption =
+      typeof opts.thinking === "boolean"
+        ? opts.thinking
+        : undefined;
+
     const outcome = await benchCommand({
       model: opts.model,
       perfOnly: opts.perfOnly,
@@ -183,6 +190,7 @@ program
       json: Boolean(opts.json),
       keepAlive: keepAlive ?? undefined,
       unloadAfterBench,
+      thinking: thinkingOption,
     });
 
     if (exportFormat && !opts.json) {

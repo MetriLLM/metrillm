@@ -77,7 +77,7 @@ export function setDefaultKeepAlive(keepAlive?: KeepAliveValue): void {
 export async function generate(
   model: string,
   prompt: string,
-  options?: { temperature?: number; num_predict?: number; keep_alive?: KeepAliveValue }
+  options?: { temperature?: number; num_predict?: number; keep_alive?: KeepAliveValue; think?: boolean }
 ): Promise<GenerateResult> {
   return generateStream(model, prompt, undefined, options);
 }
@@ -91,7 +91,7 @@ export async function generateStream(
   model: string,
   prompt: string,
   callbacks?: StreamCallbacks,
-  options?: { temperature?: number; num_predict?: number; keep_alive?: KeepAliveValue }
+  options?: { temperature?: number; num_predict?: number; keep_alive?: KeepAliveValue; think?: boolean }
 ): Promise<GenerateResult> {
   const stream = await withTimeout(
     client.generate({
@@ -99,6 +99,7 @@ export async function generateStream(
       prompt,
       stream: true,
       keep_alive: options?.keep_alive ?? defaultKeepAlive,
+      ...(options?.think ? { think: true } : {}),
       options: {
         temperature: options?.temperature ?? 0,
         num_predict: options?.num_predict ?? 512,

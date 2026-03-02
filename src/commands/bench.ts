@@ -20,6 +20,7 @@ import { resolveSubmitterForShare } from "../ui/submitter-prompt.js";
 import { openUrl } from "../utils.js";
 import { showTelemetryNotice, trackBenchStarted, trackBenchCompleted, trackBenchShared, flushTelemetry } from "../core/telemetry.js";
 import { supportsUnicode } from "../ui/terminal.js";
+import { promptThinkingMode } from "../ui/thinking-prompt.js";
 import type { BenchResult, HardwareInfo, ModelInfo, OllamaModel, QualityMetrics, RunMetadata } from "../types.js";
 
 const BENCHMARK_SPEC_VERSION = "0.2.0";
@@ -38,6 +39,7 @@ export interface BenchOptions {
   json?: boolean;        // output JSON only, no UI
   keepAlive?: string | number; // forwarded to Ollama keep_alive
   unloadAfterBench?: boolean;  // unload model after each model benchmark lifecycle
+  thinking?: boolean;  // undefined = interactive prompt, true/false = CLI override
 }
 
 export interface BenchOutcome {
@@ -135,6 +137,17 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
 
   setRuntimeKeepAlive(options.keepAlive);
 
+  // Resolve thinking mode
+  let thinkEnabled: boolean | undefined;
+  if (options.thinking !== undefined) {
+    thinkEnabled = options.thinking;
+  } else if (!silent && !options.ciNoMenu) {
+    thinkEnabled = await promptThinkingMode();
+  }
+  if (!silent && thinkEnabled) {
+    infoMsg("Thinking mode enabled — models that support it will use extended reasoning.");
+  }
+
   try {
     // Run benchmarks for each model
     const results: BenchResult[] = [];
@@ -169,6 +182,7 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
           promptTimeoutMs: options.perfPromptTimeoutMs,
           minSuccessfulPrompts: options.perfMinSuccessfulPrompts,
           failOnPromptError: options.perfStrict,
+          think: thinkEnabled,
         });
         const perf = perfResult.metrics;
         const thinkingDetected = perfResult.thinkingDetected;
@@ -177,23 +191,25 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
         // Quality benchmarks (unless --perf-only)
         let quality: QualityMetrics | null = null;
         if (!options.perfOnly) {
+          const qualityOpts = thinkEnabled ? { think: thinkEnabled } : undefined;
+
           if (!silent) stepHeader("Quality Benchmark — Reasoning");
-          const reasoning = await runReasoningBench(modelName);
+          const reasoning = await runReasoningBench(modelName, qualityOpts);
 
           if (!silent) stepHeader("Quality Benchmark — Math");
-          const math = await runMathBench(modelName);
+          const math = await runMathBench(modelName, qualityOpts);
 
           if (!silent) stepHeader("Quality Benchmark — Coding");
-          const coding = await runCodingBench(modelName);
+          const coding = await runCodingBench(modelName, qualityOpts);
 
           if (!silent) stepHeader("Quality Benchmark — Instruction Following");
-          const instructionFollowing = await runInstructionFollowingBench(modelName);
+          const instructionFollowing = await runInstructionFollowingBench(modelName, qualityOpts);
 
           if (!silent) stepHeader("Quality Benchmark — Structured Output");
-          const structuredOutput = await runStructuredOutputBench(modelName);
+          const structuredOutput = await runStructuredOutputBench(modelName, qualityOpts);
 
           if (!silent) stepHeader("Quality Benchmark — Multilingual");
-          const multilingual = await runMultilingualBench(modelName);
+          const multilingual = await runMultilingualBench(modelName, qualityOpts);
 
           quality = { reasoning, math, coding, instructionFollowing, structuredOutput, multilingual };
         }

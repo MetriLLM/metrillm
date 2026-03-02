@@ -6,7 +6,7 @@ import mathData from "../datasets/math.json" with { type: "json" };
 
 const problems = mathData as MathProblem[];
 
-export async function runMathBench(model: string): Promise<CategoryResult> {
+export async function runMathBench(model: string, opts?: { think?: boolean }): Promise<CategoryResult> {
   const spinner = createSpinner("Running math benchmark...");
   spinner.start();
 
@@ -27,7 +27,7 @@ Answer:`;
       const startTime = Date.now();
       try {
         const result = await withTimeout(
-          generate(model, prompt, { temperature: 0, num_predict: 1024 }),
+          generate(model, prompt, { temperature: 0, num_predict: 1024, think: opts?.think }),
           60_000,
           "Math problem",
           abortOngoingRequests
