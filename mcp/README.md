@@ -1,31 +1,27 @@
 # MetriLLM MCP Server
 
-Serveur [MCP](https://modelcontextprotocol.io) (Model Context Protocol) pour [MetriLLM](https://github.com/MetriLLM/metrillm) — benchmark de LLMs locaux directement depuis Claude Code, Cursor, Windsurf, Continue.dev ou tout client MCP compatible.
+[![npm version](https://img.shields.io/npm/v/metrillm-mcp)](https://www.npmjs.com/package/metrillm-mcp)
 
-## Installation
+[MCP](https://modelcontextprotocol.io) (Model Context Protocol) server for [MetriLLM](https://github.com/MetriLLM/metrillm) — benchmark local LLMs directly from Claude Code, Cursor, Windsurf, Continue.dev, or any MCP-compatible client.
 
-```bash
-cd mcp
-npm install
-npm run build
-```
+## Quick Start
 
 ### Claude Code
 
 ```bash
-claude mcp add metrillm -- node /chemin/vers/metrillm/mcp/dist/index.js
+claude mcp add metrillm -- npx metrillm-mcp@latest
 ```
 
 ### Claude Desktop
 
-Ajouter dans `claude_desktop_config.json` :
+Add to `claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
     "metrillm": {
-      "command": "node",
-      "args": ["/chemin/vers/metrillm/mcp/dist/index.js"]
+      "command": "npx",
+      "args": ["metrillm-mcp@latest"]
     }
   }
 }
@@ -33,37 +29,36 @@ Ajouter dans `claude_desktop_config.json` :
 
 ### Cursor / Windsurf / Continue.dev
 
-Ajouter dans la configuration MCP de l'éditeur :
+Add to your editor's MCP configuration:
 
 ```json
 {
   "mcpServers": {
     "metrillm": {
-      "command": "node",
-      "args": ["/chemin/vers/metrillm/mcp/dist/index.js"]
+      "command": "npx",
+      "args": ["metrillm-mcp@latest"]
     }
   }
 }
 ```
 
-## Prérequis
+## Prerequisites
 
 - Node.js >= 20
-- [Ollama](https://ollama.com) installé et en cours d'exécution (`ollama serve`)
-- Au moins un modèle disponible (`ollama pull llama3.2:3b`)
+- [Ollama](https://ollama.com) installed and running (`ollama serve`)
+- At least one model available (`ollama pull llama3.2:3b`)
 
-## Tools disponibles
+## Available Tools
 
 ### `list_models`
 
-Liste tous les modèles LLM disponibles localement.
+List all locally available LLM models.
 
-**Paramètres :**
-| Param | Type | Défaut | Description |
+| Param | Type | Default | Description |
 |---|---|---|---|
-| `runtime` | `"ollama"` | `"ollama"` | Runtime d'inférence |
+| `runtime` | `"ollama"` | `"ollama"` | Inference runtime |
 
-**Exemple de réponse :**
+**Example response:**
 ```json
 {
   "models": [
@@ -75,16 +70,15 @@ Liste tous les modèles LLM disponibles localement.
 
 ### `run_benchmark`
 
-Lance un benchmark complet (performance + qualité) sur un modèle local.
+Run a full benchmark (performance + quality) on a local model.
 
-**Paramètres :**
-| Param | Type | Défaut | Description |
+| Param | Type | Default | Description |
 |---|---|---|---|
-| `model` | `string` | *(requis)* | Nom du modèle (ex: `"llama3.2:3b"`) |
-| `runtime` | `"ollama"` | `"ollama"` | Runtime d'inférence |
-| `perfOnly` | `boolean` | `false` | Si `true`, mesure uniquement la performance (pas de qualité) |
+| `model` | `string` | *(required)* | Model name (e.g. `"llama3.2:3b"`) |
+| `runtime` | `"ollama"` | `"ollama"` | Inference runtime |
+| `perfOnly` | `boolean` | `false` | If `true`, measure performance only (skip quality) |
 
-**Exemple de réponse :**
+**Example response:**
 ```json
 {
   "success": true,
@@ -103,50 +97,52 @@ Lance un benchmark complet (performance + qualité) sur un modèle local.
 
 ### `get_results`
 
-Récupère les résultats de benchmarks précédents stockés localement.
+Retrieve previous benchmark results stored locally.
 
-**Paramètres :**
-| Param | Type | Défaut | Description |
+| Param | Type | Default | Description |
 |---|---|---|---|
-| `model` | `string` | *(optionnel)* | Filtre par nom de modèle (sous-chaîne) |
-| `runtime` | `"ollama"` | `"ollama"` | Runtime d'inférence |
+| `model` | `string` | *(optional)* | Filter by model name (substring match) |
+| `runtime` | `"ollama"` | `"ollama"` | Inference runtime |
 
 ### `share_result`
 
-Upload un résultat vers le leaderboard public MetriLLM.
+Upload a result to the public MetriLLM leaderboard.
 
-**Paramètres :**
 | Param | Type | Description |
 |---|---|---|
-| `resultFile` | `string` | Chemin absolu vers le fichier JSON de résultat |
+| `resultFile` | `string` | Absolute path to the result JSON file |
 
-**Variables d'environnement requises :**
+**Required environment variables:**
 - `METRILLM_SUPABASE_URL`
 - `METRILLM_SUPABASE_ANON_KEY`
 - `METRILLM_PUBLIC_RESULT_BASE_URL`
 
 ## Architecture
 
-Le serveur MCP est un wrapper mince autour de la logique existante du CLI MetriLLM :
+The MCP server is a thin wrapper around the existing MetriLLM CLI logic:
 
 ```
-mcp/src/index.ts  → Point d'entrée MCP (stdio transport)
-mcp/src/tools.ts  → Définitions des tools + appels vers le CLI
+mcp/src/index.ts  → MCP entry point (stdio transport)
+mcp/src/tools.ts  → Tool definitions + calls to CLI modules
     ↓
-../src/core/      → Logique CLI réutilisée directement
-../src/commands/  → Commandes CLI (bench, list)
+../src/core/      → CLI logic reused directly
+../src/commands/  → CLI commands (bench, list)
 ```
 
-Aucune duplication de code — le MCP importe directement les modules du CLI.
+No code duplication — the MCP server imports CLI modules directly.
 
-## Runtimes supportés
+## Supported Runtimes
 
 | Runtime | Status |
 |---|---|
-| Ollama | Supporté |
-| LM Studio | Prévu |
-| MLX | Prévu |
-| llama.cpp | Prévu |
-| vLLM | Prévu |
+| Ollama | Supported |
+| LM Studio | Planned |
+| MLX | Planned |
+| llama.cpp | Planned |
+| vLLM | Planned |
 
-Le paramètre `runtime` est présent sur chaque tool pour préparer le multi-runtime. Les runtimes non encore implémentés retournent une erreur claire.
+The `runtime` parameter is present on every tool to prepare for multi-runtime support. Unimplemented runtimes return a clear error.
+
+## License
+
+[Apache License 2.0](../LICENSE)

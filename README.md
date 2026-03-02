@@ -119,6 +119,58 @@ You'll get:
 
 [Compare your results on the leaderboard &rarr;](https://metrillm.dev)
 
+## MCP Server
+
+Use MetriLLM from Claude Code, Cursor, Windsurf, or any MCP client — no CLI needed.
+
+```bash
+# Claude Code
+claude mcp add metrillm -- npx metrillm-mcp@latest
+
+# Claude Desktop / Cursor / Windsurf — add to MCP config:
+# { "command": "npx", "args": ["metrillm-mcp@latest"] }
+```
+
+| Tool | Description |
+|------|-------------|
+| `list_models` | List locally available LLM models |
+| `run_benchmark` | Run full benchmark (performance + quality) on a model |
+| `get_results` | Retrieve previous benchmark results |
+| `share_result` | Upload a result to the public leaderboard |
+
+[Full MCP documentation &rarr;](mcp/README.md)
+
+## Claude Code & Cursor Plugins
+
+Pre-built plugins with skills and agents for deeper IDE integration.
+
+**Skills:**
+- `/benchmark` — Run a benchmark interactively from your editor
+- `metrillm-guide` — Contextual guidance on model selection and results
+
+**Agent:**
+- `benchmark-advisor` — Analyzes your hardware and recommends models
+
+**Install:**
+```bash
+# Claude Code
+cp -r plugins/claude-code/.claude/* ~/.claude/
+
+# Cursor
+cp -r plugins/cursor/.cursor/* ~/.cursor/
+```
+
+See [Claude Code plugin](plugins/claude-code/README.md) and [Cursor plugin](plugins/cursor/README.md) for details.
+
+## Integrations
+
+| Integration | Package | Status | Docs |
+|-------------|---------|--------|------|
+| CLI | [`metrillm`](https://www.npmjs.com/package/metrillm) | Stable | [Usage](#usage) |
+| MCP Server | [`metrillm-mcp`](https://www.npmjs.com/package/metrillm-mcp) | Stable | [MCP docs](mcp/README.md) |
+| Claude Code plugin | — | Stable | [Plugin docs](plugins/claude-code/README.md) |
+| Cursor plugin | — | Stable | [Plugin docs](plugins/cursor/README.md) |
+
 ## Development
 
 ```bash

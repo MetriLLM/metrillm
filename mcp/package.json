@@ -26,6 +26,15 @@
   ],
   "author": "The Blue House, Cyril Guilleminot",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MetriLLM/metrillm.git",
+    "directory": "mcp"
+  },
+  "homepage": "https://github.com/MetriLLM/metrillm/tree/main/mcp#readme",
+  "bugs": {
+    "url": "https://github.com/MetriLLM/metrillm/issues"
+  },
   "engines": {
     "node": ">=20"
   },
