@@ -1,6 +1,9 @@
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  resolve: {
+    extensions: [".ts", ".js", ".mjs"],
+  },
   test: {
     include: ["tests/**/*.test.ts"],
     globals: true,
@@ -14,7 +17,7 @@ export default defineConfig({
         statements: 47,
       },
       include: ["src/**/*.ts"],
-      exclude: ["src/datasets/**"],
+      exclude: ["src/datasets/**", "src/**/*.d.ts"],
     },
   },
 });
