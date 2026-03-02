@@ -56,7 +56,7 @@ Run a single test by name: `npx vitest run -t "test name pattern"`
 
 ## Database
 
-Supabase (PostgreSQL) with RLS — public read + public insert, immutable rows. Table `benchmarks` with indexed columns for leaderboard queries. Deduplication via `raw_log_hash` unique constraint. The anon key is embedded in `src/core/uploader.ts`.
+Supabase (PostgreSQL) with RLS — public read + public insert, immutable rows. Table `benchmarks` with indexed columns for leaderboard queries. Deduplication via `raw_log_hash` unique constraint. Upload credentials are provided via env vars (`METRILLM_SUPABASE_URL`, `METRILLM_SUPABASE_ANON_KEY`).
 
 ## Companion repo
 
