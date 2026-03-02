@@ -27,6 +27,7 @@ describe("telemetry", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    process.env.METRILLM_POSTHOG_KEY = "phc_test_key";
     posthogCtorMock.mockImplementation(function MockPostHog(this: Record<string, unknown>) {
       this.capture = captureMock;
       this.shutdown = shutdownMock;

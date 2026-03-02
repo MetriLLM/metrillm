@@ -3,7 +3,7 @@ import { arch, cpus, platform, totalmem } from "node:os";
 import { PostHog } from "posthog-node";
 import { loadConfig, saveConfig } from "./store.js";
 
-const POSTHOG_API_KEY = "phc_qapPj4PqTJCY4Og6OVCH1nfwsjWJ7fLpFeTyUakdJk3";
+const POSTHOG_API_KEY = process.env.METRILLM_POSTHOG_KEY ?? "";
 const POSTHOG_HOST = "https://eu.i.posthog.com";
 
 let client: PostHog | null = null;
@@ -19,6 +19,7 @@ function getDistinctId(): string {
 }
 
 async function isEnabled(): Promise<boolean> {
+  if (!POSTHOG_API_KEY) return false;
   if (consent !== undefined) return consent;
   const config = await loadConfig();
   consent = config.telemetry !== false;
