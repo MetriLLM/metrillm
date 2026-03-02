@@ -61,8 +61,8 @@ const COPYRIGHT = "\u00A9 2026 MetriLLM";
 const PROJECT_URL =
   process.env.METRILLM_PROJECT_URL ??
   "https://github.com/MetriLLM/metrillm";
-const DASHBOARD_URL =
-  process.env.METRILLM_DASHBOARD_URL ??
+const LEADERBOARD_URL =
+  process.env.METRILLM_LEADERBOARD_URL ??
   "https://metrillm.dev";
 
 export function printBanner(): void {
@@ -77,5 +77,5 @@ export function printBanner(): void {
   );
   console.log(chalk.dim(`  ${COPYRIGHT}`));
   console.log(chalk.dim(`  Source: ${PROJECT_URL}`));
-  console.log(chalk.dim(`  Dashboard: ${DASHBOARD_URL}\n`));
+  console.log(chalk.dim(`  Leaderboard: ${LEADERBOARD_URL}\n`));
 }

@@ -9,6 +9,7 @@ import { infoMsg, createSpinner } from "./progress.js";
 import { exportBenchResults, type ExportFormat } from "../core/exporter.js";
 import { loadConfig, saveConfig, type MetriLLMConfig } from "../core/store.js";
 import { saveTelemetryConsent } from "../core/telemetry.js";
+import { printBanner } from "./banner.js";
 import type { BenchResult } from "../types.js";
 import { errorMsg, successMsg, warnMsg } from "./progress.js";
 import { printGuruMeditation } from "./guru-meditation.js";
@@ -614,6 +615,8 @@ export async function runSettingsMenu(deps: SettingsMenuDeps = {}): Promise<void
   const waitForAcknowledge = deps.waitForAcknowledge ?? waitForContinue;
 
   while (true) {
+    console.clear();
+    printBanner();
     const config = await loadUserConfig();
     const autoShareEnabled = config.autoShare === true;
     const telemetryEnabled = config.telemetry === true;
@@ -692,8 +695,15 @@ export async function runSettingsMenu(deps: SettingsMenuDeps = {}): Promise<void
 
 export async function runInteractiveMenu(): Promise<void> {
   let lastResults: BenchResult[] = [];
+  let firstRun = true;
 
   while (true) {
+    if (firstRun) {
+      firstRun = false;
+    } else {
+      console.clear();
+      printBanner();
+    }
     const mainChoice = await selectOption(
       "Main Menu",
       mainMenuOptions(),
