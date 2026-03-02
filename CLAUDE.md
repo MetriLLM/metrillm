@@ -60,7 +60,7 @@ Supabase (PostgreSQL) with RLS — public read + public insert, immutable rows. 
 
 ## Companion repo
 
-The public leaderboard website lives in a separate private repo: `MetriLLM/metrillm-web` (Astro SSR + React + Tailwind, deployed on Netlify at https://metrillm.dev). Types in `src/types.ts` are shared — changes here must be mirrored there.
+The public leaderboard website lives in a separate repo: `MetriLLM/metrillm-web` (Astro SSR + React + Tailwind, deployed at https://metrillm.dev). Types in `src/types.ts` are shared — changes here must be mirrored there.
 
 ## Coding benchmark security
 

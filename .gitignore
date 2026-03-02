@@ -5,7 +5,11 @@ node_modules/
 dist/
 *.tgz
 .DS_Store
+.playwright-mcp/
+src/**/*.js
+src/**/*.d.ts
 coverage/
 exports/
-supabase/.temp/
+supabase/
+.claude/
 docs_projet/
