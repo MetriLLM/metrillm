@@ -44,6 +44,8 @@ jobs:
         run: npm ci
 
       - name: Typecheck + coverage + build
+        env:
+          METRILLM_POSTHOG_KEY: ${{ secrets.METRILLM_POSTHOG_KEY }}
         run: npm run ci:verify
 
   security-audit:
