@@ -142,16 +142,34 @@ claude mcp add metrillm -- npx metrillm-mcp@latest
 
 [Full MCP documentation &rarr;](mcp/README.md)
 
-## Claude Code & Cursor Plugins
+## Skills
 
-Pre-built plugins with skills and agents for deeper IDE integration.
+Slash commands that work inside AI coding assistants — no server needed, just a Markdown file.
 
-**Skills:**
-- `/benchmark` — Run a benchmark interactively from your editor
-- `metrillm-guide` — Contextual guidance on model selection and results
+| Skill | Trigger | Description |
+|-------|---------|-------------|
+| `/benchmark` | User-invoked | Run a full benchmark interactively |
+| `metrillm-guide` | Auto-invoked | Contextual guidance on model selection and results |
 
-**Agent:**
-- `benchmark-advisor` — Analyzes your hardware and recommends models
+Skills are included in the [plugins](#plugins) below, or can be installed standalone:
+
+```bash
+# Claude Code
+cp -r plugins/claude-code/skills/* ~/.claude/skills/
+
+# Cursor
+cp -r plugins/cursor/skills/* ~/.cursor/skills/
+```
+
+## Plugins
+
+Pre-built bundles (MCP + skills + agents) for deeper IDE integration.
+
+| Component | Description |
+|-----------|-------------|
+| MCP config | Auto-connects to `metrillm-mcp` server |
+| Skills | `/benchmark` + `metrillm-guide` |
+| Agent | `benchmark-advisor` — analyzes your hardware and recommends models |
 
 **Install:**
 ```bash
@@ -170,6 +188,7 @@ See [Claude Code plugin](plugins/claude-code/README.md) and [Cursor plugin](plug
 |-------------|---------|--------|------|
 | CLI | [`metrillm`](https://www.npmjs.com/package/metrillm) | Stable | [Usage](#usage) |
 | MCP Server | [`metrillm-mcp`](https://www.npmjs.com/package/metrillm-mcp) | Stable | [MCP docs](mcp/README.md) |
+| Skills | — | Stable | [Skills](#skills) |
 | Claude Code plugin | — | Stable | [Plugin docs](plugins/claude-code/README.md) |
 | Cursor plugin | — | Stable | [Plugin docs](plugins/cursor/README.md) |
 
