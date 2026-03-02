@@ -103,19 +103,21 @@ Hardware is auto-detected and scoring adapts to your tier (Entry/Balanced/High-E
 
 [Full methodology &rarr;](https://metrillm.dev/methodology)
 
-## Submit Your Result
+## Share Your Results
 
-Every benchmark you share enriches the public leaderboard. No account needed.
+Every benchmark you share enriches the [public leaderboard](https://metrillm.dev). No account needed — pick the method that fits your workflow:
 
-```bash
-metrillm bench --share
-```
+| Method | Command / Action | Best for |
+|--------|-----------------|----------|
+| **CLI** | `metrillm bench --share` | Terminal users |
+| **MCP** | Call `share_result` tool | AI coding assistants |
+| **Plugin** | `/benchmark` skill with share option | Claude Code / Cursor |
 
-You'll get:
-- A public URL for your result
-- Your rank: "Top X% globally, Top Y% on [your CPU]"
-- A share card for social media
-- A challenge link to send to friends
+All methods produce the same result:
+- A **public URL** for your benchmark
+- Your **rank**: "Top X% globally, Top Y% on [your CPU]"
+- A **share card** for social media
+- A **challenge link** to send to friends
 
 [Compare your results on the leaderboard &rarr;](https://metrillm.dev)
 
