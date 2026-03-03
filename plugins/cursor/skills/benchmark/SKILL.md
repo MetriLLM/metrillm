@@ -52,7 +52,7 @@ The benchmark produces a JSON result with:
 | `performance.ttft` | Time to first token in ms. <500ms = responsive |
 | `performance.memoryUsedGB` | RAM/VRAM consumed during inference |
 | `fitness.verdict` | EXCELLENT / GOOD / MARGINAL / NOT RECOMMENDED |
-| `fitness.globalScore` | 0-100 composite score (40% perf + 60% quality) |
+| `fitness.globalScore` | 0-100 composite score (30% perf + 70% quality) |
 | `fitness.interpretation` | Human-readable summary of the verdict |
 
 Present the results in a clear, concise format. Highlight the verdict prominently.

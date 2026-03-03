@@ -213,7 +213,7 @@ export function printSummaryTable(results: BenchResult[]): void {
 
   console.log(
     chalk.dim(
-      "Global = 40% Hardware Fit + 60% Quality. Hardware Fit = host compatibility. Quality = model capability."
+      "Global = 30% Hardware Fit + 70% Quality. Hardware Fit = host compatibility. Quality = model capability."
     )
   );
 

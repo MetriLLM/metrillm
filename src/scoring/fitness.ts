@@ -37,9 +37,9 @@ export function computeFitness(
 
   const hardwareFitScore = Math.round(performanceScore.total);
 
-  // Global score: 40% HW + 60% Quality (null if quality absent)
+  // Global score: 30% HW + 70% Quality (null if quality absent)
   const globalScore = qualityScore
-    ? clamp(Math.round(0.4 * hardwareFitScore + 0.6 * qualityScore.total), 0, 100)
+    ? clamp(Math.round(0.3 * hardwareFitScore + 0.7 * qualityScore.total), 0, 100)
     : null;
 
   // Category labels from effective scores (with time penalties applied)

@@ -43,7 +43,7 @@ Run a single test by name: `npx vitest run -t "test name pattern"`
 **Scoring system**:
 - Performance score (0-100): speed (40pts) + TTFT (30pts) + memory (30pts), hardware-adaptive tuning by profile (ENTRY/BALANCED/HIGH-END)
 - Quality score (0-100): weighted categories — reasoning/coding/instruction=20pts, structured-output/math=15pts, multilingual=10pts. Time penalties for slow responses.
-- Global score: 40% performance + 60% quality
+- Global score: 30% performance + 70% quality
 - Verdicts: EXCELLENT (>=80) | GOOD (>=60) | MARGINAL (>=40) | NOT RECOMMENDED (<40 or disqualified)
 
 **Key directories**:

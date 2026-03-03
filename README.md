@@ -27,7 +27,7 @@ npx metrillm@latest bench
 
 - **Performance metrics**: tokens/sec, time to first token, memory usage, load time
 - **Quality evaluation**: reasoning, coding, math, instruction following, structured output, multilingual (14 prompts, 6 categories)
-- **Global score** (0-100): 40% hardware fit + 60% quality
+- **Global score** (0-100): 30% hardware fit + 70% quality
 - **Verdict**: EXCELLENT / GOOD / MARGINAL / NOT RECOMMENDED
 - **One-click share**: `--share` uploads your result and gives you a public URL + leaderboard rank
 
@@ -132,7 +132,7 @@ For very large models, tune timeout flags:
 - Reasoning: 20pts | Coding: 20pts | Instruction Following: 20pts
 - Structured Output: 15pts | Math: 15pts | Multilingual: 10pts
 
-**Global Score** = 40% Hardware Fit + 60% Quality
+**Global Score** = 30% Hardware Fit + 70% Quality
 
 Hardware is auto-detected and scoring adapts to your tier (Entry/Balanced/High-End). A model hitting 10 tok/s on a 8GB machine scores differently than on a 64GB rig.
 

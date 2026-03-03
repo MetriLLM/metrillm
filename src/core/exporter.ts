@@ -99,7 +99,7 @@ function toMarkdown(results: BenchResult[]): string {
   lines.push("");
   const allHaveGlobal = results.every((r) => r.fitness.globalScore !== null);
   lines.push(allHaveGlobal
-    ? "_Method: Global = 40% Hardware Fit + 60% Quality. Hardware Fit based on Speed + TTFT + Memory._"
+    ? "_Method: Global = 30% Hardware Fit + 70% Quality. Hardware Fit based on Speed + TTFT + Memory._"
     : "_Method: Hardware Fit is based on Speed + TTFT + Memory. Global is shown only when quality is available._");
   lines.push("");
   lines.push(

@@ -238,7 +238,7 @@ export function printVerdict(model: string, fitness: FitnessResult): void {
   sectionStart("C) Global Score", globalBorder);
   if (fitness.globalScore !== null) {
     sectionText(
-      "Formula: Global = 40% Hardware Fit + 60% Quality.",
+      "Formula: Global = 30% Hardware Fit + 70% Quality.",
       globalBorder,
       chalk.white
     );

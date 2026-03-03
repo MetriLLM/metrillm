@@ -314,7 +314,7 @@ describe("computeFitness", () => {
     const perf = makePerf({ tokensPerSecond: 80, ttft: 300, memoryPercent: 20 });
     const quality = makeQuality(100, 100, 100, 100, 100, 100);
     const fitness = computeFitness(perf, quality);
-    // HW = 100, Quality = 100 → Global = 0.4*100 + 0.6*100 = 100
+    // HW = 100, Quality = 100 → Global = 0.3*100 + 0.7*100 = 100
     expect(fitness.globalScore).toBe(100);
   });
 
@@ -494,9 +494,9 @@ describe("computeFitness", () => {
     // HW = 100, Quality weak → global < 80 → might not be EXCELLENT
     const weakQuality = makeQuality(0, 0, 0, 0, 0, 0);
     const fitness = computeFitness(perf, weakQuality);
-    // globalScore = 0.4*100 + 0.6*0 = 40 → MARGINAL
-    expect(fitness.verdict).toBe("MARGINAL");
-    expect(fitness.globalScore).toBe(40);
+    // globalScore = 0.3*100 + 0.7*0 = 30 → NOT RECOMMENDED
+    expect(fitness.verdict).toBe("NOT RECOMMENDED");
+    expect(fitness.globalScore).toBe(30);
   });
 
   it("verdict uses hardwareFitScore when quality is null", () => {
