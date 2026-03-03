@@ -4,7 +4,7 @@ import { withTimeout } from "../utils.js";
 
 const client = new Ollama();
 const DEFAULT_OLLAMA_HOST = "http://127.0.0.1:11434";
-const OLLAMA_INIT_TIMEOUT_MS = 15_000;
+const OLLAMA_INIT_TIMEOUT_MS = 120_000;
 const STREAM_STALL_TIMEOUT_MS = 30_000;
 
 function getOllamaBaseUrl(): string {
