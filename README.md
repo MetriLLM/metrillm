@@ -107,6 +107,19 @@ metrillm bench --export json
 metrillm bench --export csv
 ```
 
+## Upload Configuration (CLI + MCP)
+
+By default, production builds upload shared results to the official MetriLLM leaderboard (`https://metrillm.dev`).
+
+- No CI secret injection is required for standard releases.
+- Local/dev runs use the same default behavior.
+- Self-hosted or staging deployments can override endpoints with:
+  - `METRILLM_SUPABASE_URL`
+  - `METRILLM_SUPABASE_ANON_KEY`
+  - `METRILLM_PUBLIC_RESULT_BASE_URL`
+
+If these variables are set to placeholder values (from templates), MetriLLM falls back to official defaults.
+
 ## Runtime Backends
 
 | Backend | Flag | Default URL | Required env |
@@ -124,8 +137,8 @@ For very large models, tune timeout flags:
 ## How Scoring Works
 
 **Hardware Fit Score** (0-100) — how well the model runs on your machine:
-- Speed: 40% (tokens/sec relative to your hardware tier)
-- TTFT: 30% (time to first token)
+- Speed: 50% (tokens/sec relative to your hardware tier)
+- TTFT: 20% (time to first token)
 - Memory: 30% (RAM efficiency)
 
 **Quality Score** (0-100) — how well the model answers:

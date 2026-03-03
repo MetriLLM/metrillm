@@ -40,8 +40,10 @@ export interface OllamaRunningModel {
 // ── Performance metrics ──────────────────────────────────
 export interface PerformanceMetrics {
   tokensPerSecond: number;
+  firstChunkMs?: number; // ms — network/runtime latency until first streamed chunk
   ttft: number; // ms — time to first token
   loadTime: number; // ms — model load time
+  loadTimeAvailable?: boolean; // false when runtime cannot report model load duration
   totalTokens: number;
   promptTokens: number;
   completionTokens: number;
@@ -112,8 +114,8 @@ export interface CodingTest {
 // ── Scoring ──────────────────────────────────────────────
 export interface PerformanceScore {
   total: number; // 0-100
-  speed: number; // 0-40
-  ttft: number; // 0-30
+  speed: number; // 0-50
+  ttft: number; // 0-20
   memory: number; // 0-30
 }
 
@@ -187,6 +189,7 @@ export interface ModelInfo {
   parameterSize?: string;  // e.g. "8B"
   quantization?: string;   // e.g. "Q4_0"
   family?: string;         // e.g. "llama"
+  // True when benchmark ran in thinking mode, false when run in non-thinking mode.
   thinkingDetected?: boolean;
 }
 

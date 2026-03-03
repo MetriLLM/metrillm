@@ -142,7 +142,7 @@ export function printVerdict(model: string, fitness: FitnessResult): void {
   );
   sectionText(`Active profile: ${fitness.tuning.profile}`, fitBorder, chalk.white);
   sectionText(
-    "Formula: Speed (/40) + TTFT (/30) + Memory (/30) = Hardware Fit (/100).",
+    "Formula: Speed (/50) + TTFT (/20) + Memory (/30) = Hardware Fit (/100).",
     fitBorder
   );
   sectionText(
@@ -160,7 +160,7 @@ export function printVerdict(model: string, fitness: FitnessResult): void {
   sectionText("", fitBorder);
   scoreRow("Performance", fitness.performanceScore.total, fitBorder);
   sectionText(
-    `  Breakdown: Speed ${fitness.performanceScore.speed}/40  TTFT ${fitness.performanceScore.ttft}/30  Memory ${fitness.performanceScore.memory}/30`,
+    `  Breakdown: Speed ${fitness.performanceScore.speed}/50  TTFT ${fitness.performanceScore.ttft}/20  Memory ${fitness.performanceScore.memory}/30`,
     fitBorder
   );
   scoreRow("Hardware Fit", fitness.hardwareFitScore, fitBorder);

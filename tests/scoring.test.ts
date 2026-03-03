@@ -88,8 +88,8 @@ describe("computePerformanceScore", () => {
       ttft: 300,
       memoryPercent: 20,
     }));
-    expect(score.speed).toBe(40);
-    expect(score.ttft).toBe(30);
+    expect(score.speed).toBe(50);
+    expect(score.ttft).toBe(20);
     expect(score.memory).toBe(30);
     expect(score.total).toBe(100);
   });
@@ -113,10 +113,10 @@ describe("computePerformanceScore", () => {
       memoryPercent: 60,
     }));
     // Without explicit hardware, uses default mid-range tuning
-    expect(score.speed).toBeGreaterThanOrEqual(25);
-    expect(score.speed).toBeLessThanOrEqual(40);
-    expect(score.ttft).toBeGreaterThanOrEqual(20);
-    expect(score.ttft).toBeLessThanOrEqual(30);
+    expect(score.speed).toBeGreaterThanOrEqual(30);
+    expect(score.speed).toBeLessThanOrEqual(50);
+    expect(score.ttft).toBeGreaterThanOrEqual(13);
+    expect(score.ttft).toBeLessThanOrEqual(20);
     expect(score.memory).toBeGreaterThanOrEqual(15);
     expect(score.memory).toBeLessThanOrEqual(25);
   });

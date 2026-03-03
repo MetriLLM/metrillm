@@ -83,26 +83,26 @@ export function deriveHardwareFitTuning(hardware?: HardwareInfo): HardwareFitTun
 }
 
 function scoreSpeed(tps: number, tuning: HardwareFitTuning): number {
-  if (tps >= tuning.speed.excellent) return 40;
+  if (tps >= tuning.speed.excellent) return 50;
   if (tps >= tuning.speed.good) {
-    return lerp(tps, tuning.speed.good, tuning.speed.excellent, 25, 40);
+    return lerp(tps, tuning.speed.good, tuning.speed.excellent, 30, 50);
   }
   if (tps >= tuning.speed.marginal) {
-    return lerp(tps, tuning.speed.marginal, tuning.speed.good, 10, 25);
+    return lerp(tps, tuning.speed.marginal, tuning.speed.good, 12, 30);
   }
-  return lerp(tps, 0, tuning.speed.marginal, 0, 10);
+  return lerp(tps, 0, tuning.speed.marginal, 0, 12);
 }
 
 // For TTFT: lower is better, so score decreases as TTFT increases
 function scoreTTFT(ttft: number, tuning: HardwareFitTuning): number {
-  if (ttft <= tuning.ttft.excellentMs) return 30;
+  if (ttft <= tuning.ttft.excellentMs) return 20;
   if (ttft <= tuning.ttft.goodMs) {
-    return lerp(ttft, tuning.ttft.excellentMs, tuning.ttft.goodMs, 30, 20);
+    return lerp(ttft, tuning.ttft.excellentMs, tuning.ttft.goodMs, 20, 13);
   }
   if (ttft <= tuning.ttft.marginalMs) {
-    return lerp(ttft, tuning.ttft.goodMs, tuning.ttft.marginalMs, 20, 10);
+    return lerp(ttft, tuning.ttft.goodMs, tuning.ttft.marginalMs, 13, 6);
   }
-  return lerp(ttft, tuning.ttft.marginalMs, tuning.ttft.hardMaxMs, 10, 0);
+  return lerp(ttft, tuning.ttft.marginalMs, tuning.ttft.hardMaxMs, 6, 0);
 }
 
 // For memory: lower usage is better, so score decreases as usage increases
