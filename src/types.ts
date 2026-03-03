@@ -204,6 +204,8 @@ export interface BenchEnvironment {
   thermalPressureAfter?: "nominal" | "moderate" | "heavy" | "critical" | "unknown";
   swapDeltaGB?: number;
   batteryPowered?: boolean;
+  cpuAvgLoad?: number;
+  cpuPeakLoad?: number;
 }
 
 // ── Bench result ─────────────────────────────────────────

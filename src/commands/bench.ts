@@ -213,7 +213,7 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
         });
         const perf = perfResult.metrics;
         const benchEnvironment: BenchEnvironment | undefined = perfResult.benchEnvironment;
-        if (!silent) printPerformanceTable(perf);
+        if (!silent) printPerformanceTable(perf, benchEnvironment);
 
         // Quality benchmarks (unless --perf-only)
         let quality: QualityMetrics | null = null;

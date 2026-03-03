@@ -564,6 +564,28 @@ describe("computeFitness", () => {
     const fitness = computeFitness(perf, null, undefined, benchEnv);
     expect(fitness.warnings.some((w) => w.includes("battery power"))).toBe(false);
   });
+
+  it("adds high CPU load warning when cpuAvgLoad > 90%", () => {
+    const perf = makePerf({ tokensPerSecond: 80, ttft: 300, memoryPercent: 20 });
+    const benchEnv: BenchEnvironment = { cpuAvgLoad: 95.2 };
+    const fitness = computeFitness(perf, null, undefined, benchEnv);
+    expect(fitness.warnings.some((w) => w.includes("High CPU load"))).toBe(true);
+    expect(fitness.warnings.some((w) => w.includes("95%"))).toBe(true);
+  });
+
+  it("does not add CPU load warning when cpuAvgLoad <= 90%", () => {
+    const perf = makePerf({ tokensPerSecond: 80, ttft: 300, memoryPercent: 20 });
+    const benchEnv: BenchEnvironment = { cpuAvgLoad: 85.0 };
+    const fitness = computeFitness(perf, null, undefined, benchEnv);
+    expect(fitness.warnings.some((w) => w.includes("High CPU load"))).toBe(false);
+  });
+
+  it("does not add CPU load warning when cpuAvgLoad is undefined", () => {
+    const perf = makePerf({ tokensPerSecond: 80, ttft: 300, memoryPercent: 20 });
+    const benchEnv: BenchEnvironment = {};
+    const fitness = computeFitness(perf, null, undefined, benchEnv);
+    expect(fitness.warnings.some((w) => w.includes("High CPU load"))).toBe(false);
+  });
 });
 
 // ── Time penalty tests ─────────────────────────────────────

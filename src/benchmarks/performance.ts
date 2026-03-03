@@ -1,5 +1,5 @@
 import { abortOngoingRequests, generateStream, listModels, listRunningModels, getRuntimeName } from "../core/runtime.js";
-import { getMemoryUsage, detectThermalPressure, detectBatteryPowered, getSwapUsedGB } from "../core/hardware.js";
+import { getMemoryUsage, detectThermalPressure, detectBatteryPowered, getSwapUsedGB, getCpuLoad } from "../core/hardware.js";
 import type { PerformanceMetrics, BenchEnvironment } from "../types.js";
 import { avg, stddev, withTimeout, hasThinkingContent, estimateTokenCount } from "../utils.js";
 import { createSpinner, subStep } from "../ui/progress.js";
@@ -115,6 +115,7 @@ export async function runPerformanceBench(
     let failedPrompts = 0;
     let thinkingDetected = false;
     let totalThinkingTokens = 0;
+    const cpuLoadSamples: number[] = [];
 
     for (let i = 0; i < BENCH_PROMPTS.length; i++) {
       spinner.start(`Running performance test ${i + 1}/${BENCH_PROMPTS.length}...`);
@@ -180,6 +181,10 @@ export async function runPerformanceBench(
         subStep(
           `  Prompt ${i + 1}: ${tps.toFixed(1)} tok/s, first chunk ${firstChunkTime ?? "?"}ms, TTFT ${firstTokenTime ?? "?"}ms`
         );
+
+        // Sample CPU load after each prompt
+        const cpuSample = await optionalProbe(() => getCpuLoad(), -1);
+        if (cpuSample >= 0) cpuLoadSamples.push(cpuSample);
       } catch (err) {
         failedPrompts++;
         const message = err instanceof Error ? err.message : String(err);
@@ -232,11 +237,21 @@ export async function runPerformanceBench(
       swapBeforeResult.available && swapAfterResult.available
         ? +(swapAfterResult.value - swapBeforeResult.value).toFixed(2)
         : undefined;
+    // CPU load metrics from prompt samples
+    const cpuAvgLoad = cpuLoadSamples.length > 0
+      ? +(cpuLoadSamples.reduce((a, b) => a + b, 0) / cpuLoadSamples.length).toFixed(1)
+      : undefined;
+    const cpuPeakLoad = cpuLoadSamples.length > 0
+      ? +Math.max(...cpuLoadSamples).toFixed(1)
+      : undefined;
+
     const benchEnvironment: BenchEnvironment = {
       thermalPressureBefore: thermalBefore,
       thermalPressureAfter: thermalAfter,
       ...(swapDeltaGB !== undefined && swapDeltaGB > 0 ? { swapDeltaGB } : {}),
       ...(batteryPowered != null ? { batteryPowered } : {}),
+      ...(cpuAvgLoad !== undefined ? { cpuAvgLoad } : {}),
+      ...(cpuPeakLoad !== undefined ? { cpuPeakLoad } : {}),
     };
 
     return {

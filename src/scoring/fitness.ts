@@ -183,6 +183,12 @@ export function computeFitness(
     );
   }
 
+  if (benchEnv?.cpuAvgLoad != null && benchEnv.cpuAvgLoad > 90) {
+    warnings.push(
+      `High CPU load during inference (avg ${benchEnv.cpuAvgLoad.toFixed(0)}%). System may feel unresponsive — GPU-accelerated runtimes (MLX) can reduce CPU pressure.`
+    );
+  }
+
   return {
     verdict,
     globalScore,

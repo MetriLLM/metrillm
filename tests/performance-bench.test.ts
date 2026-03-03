@@ -53,6 +53,7 @@ vi.mock("../src/core/hardware.js", () => ({
   detectThermalPressure: vi.fn(async () => "nominal"),
   detectBatteryPowered: vi.fn(async () => undefined),
   getSwapUsedGB: vi.fn(async () => 0),
+  getCpuLoad: vi.fn(async () => 45.0),
 }));
 
 vi.mock("../src/core/lm-studio-client.js", () => ({
@@ -256,6 +257,32 @@ describe("runPerformanceBench", () => {
     });
     expect(result.benchEnvironment?.batteryPowered).toBeUndefined();
     expect(result.benchEnvironment?.swapDeltaGB).toBeUndefined();
+  });
+
+  it("reports cpuAvgLoad and cpuPeakLoad in benchEnvironment", async () => {
+    generatePlan = ["ok", "ok", "ok", "ok", "ok", "ok"];
+
+    const result = await runPerformanceBench("test-model", {
+      failOnPromptError: false,
+      minSuccessfulPrompts: 3,
+    });
+
+    expect(result.benchEnvironment?.cpuAvgLoad).toBe(45.0);
+    expect(result.benchEnvironment?.cpuPeakLoad).toBe(45.0);
+  });
+
+  it("omits cpuAvgLoad when all CPU probes fail", async () => {
+    generatePlan = ["ok", "ok", "ok", "ok", "ok", "ok"];
+    const getCpuLoadMock = vi.mocked(hardware.getCpuLoad);
+    getCpuLoadMock.mockResolvedValue(-1);
+
+    const result = await runPerformanceBench("test-model", {
+      failOnPromptError: false,
+      minSuccessfulPrompts: 3,
+    });
+
+    expect(result.benchEnvironment?.cpuAvgLoad).toBeUndefined();
+    expect(result.benchEnvironment?.cpuPeakLoad).toBeUndefined();
   });
 
   it("does not report swap delta when pre-bench swap probe fails but post-bench probe succeeds", async () => {

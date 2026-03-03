@@ -51,6 +51,7 @@ vi.mock("systeminformation", () => ({
     })),
     memLayout: vi.fn(async () => [{ type: "DDR5" }]),
     cpuCurrentSpeed: vi.fn(async () => ({ avg: 3.0 })),
+    currentLoad: vi.fn(async () => ({ currentLoad: 42.5 })),
     battery: vi.fn(async () => ({
       hasBattery: true,
       acConnected: true,
@@ -261,6 +262,27 @@ describe("detectThermalPressure", () => {
 
     const { detectThermalPressure } = await import("../src/core/hardware.js");
     expect(await detectThermalPressure()).toBe("unknown");
+  });
+});
+
+describe("getCpuLoad", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns CPU load percentage from systeminformation", async () => {
+    const { getCpuLoad } = await import("../src/core/hardware.js");
+    const load = await getCpuLoad();
+    expect(load).toBe(42.5);
+  });
+
+  it("returns -1 when currentLoad throws", async () => {
+    const si = await import("systeminformation");
+    vi.mocked(si.default.currentLoad).mockRejectedValueOnce(new Error("probe failed"));
+
+    const { getCpuLoad } = await import("../src/core/hardware.js");
+    const load = await getCpuLoad();
+    expect(load).toBe(-1);
   });
 });
 

@@ -189,6 +189,15 @@ export async function getHardwareInfo(): Promise<HardwareInfo> {
   };
 }
 
+export async function getCpuLoad(): Promise<number> {
+  try {
+    const load = await si.currentLoad();
+    return +load.currentLoad.toFixed(1);
+  } catch {
+    return -1;
+  }
+}
+
 export async function getMemoryUsage(): Promise<{
   usedGB: number;
   totalGB: number;

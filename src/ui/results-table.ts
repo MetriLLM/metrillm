@@ -1,6 +1,7 @@
 import Table from "cli-table3";
 import chalk from "chalk";
 import type {
+  BenchEnvironment,
   BenchResult,
   HardwareInfo,
   PerformanceMetrics,
@@ -102,7 +103,7 @@ export function printHardwareTable(hw: HardwareInfo): void {
   console.log(table.toString());
 }
 
-export function printPerformanceTable(perf: PerformanceMetrics): void {
+export function printPerformanceTable(perf: PerformanceMetrics, benchEnvironment?: BenchEnvironment): void {
   const table = new Table({
     head: [chalk.bold("Metric"), chalk.bold("Value")],
     style: { head: [], border: [] },
@@ -165,6 +166,17 @@ export function printPerformanceTable(perf: PerformanceMetrics): void {
     table.push([
       chalk.magenta("Thinking Tokens (est.)"),
       chalk.magenta(`~${perf.thinkingTokensEstimate} tokens`),
+    ]);
+  }
+
+  if (benchEnvironment?.cpuAvgLoad != null && benchEnvironment.cpuAvgLoad >= 0) {
+    const cpuColor = benchEnvironment.cpuAvgLoad < 50 ? chalk.green
+      : benchEnvironment.cpuAvgLoad < 80 ? chalk.yellow
+      : chalk.red;
+    table.push([
+      "CPU Load During Bench",
+      cpuColor(`avg ${benchEnvironment.cpuAvgLoad.toFixed(0)}%` +
+        (benchEnvironment.cpuPeakLoad != null ? ` (peak ${benchEnvironment.cpuPeakLoad.toFixed(0)}%)` : "")),
     ]);
   }
 
