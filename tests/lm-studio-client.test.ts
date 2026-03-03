@@ -397,4 +397,21 @@ describe("lm-studio-client thinking toggle passthrough", () => {
       reasoning: { effort: "low" },
     });
   });
+
+  it("fails fast when non-thinking mode still returns plain-text thinking traces", async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({
+      choices: [{ message: { content: "Thinking Process:\n1. analyze\n2. answer" } }],
+      usage: { prompt_tokens: 10, completion_tokens: 20 },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("../src/core/lm-studio-client.js");
+
+    await expect(
+      client.generate("model-a", "prompt", { think: false })
+    ).rejects.toThrow(/still emitted thinking content/i);
+    await expect(
+      client.generate("model-a", "prompt", { think: false })
+    ).rejects.toThrow(/\{%- set enable_thinking = false %\}/);
+  });
 });

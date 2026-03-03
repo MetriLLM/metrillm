@@ -89,6 +89,28 @@ interface LMStudioThinkingConfig {
   };
 }
 
+function hasThinkingLeakText(response: string): boolean {
+  return /^\s*(?:thinking|reasoning|thought)\s+process\s*:/i.test(response);
+}
+
+function assertThinkingModeRespected(
+  model: string,
+  think: boolean | undefined,
+  response: string,
+  reasoning: string
+): void {
+  if (think !== false) return;
+  if (reasoning.trim().length > 0 || /<think(?:ing)?[\s>]/i.test(response) || hasThinkingLeakText(response)) {
+    throw new Error(
+      [
+        `LM Studio model "${model}" still emitted thinking content while non-thinking mode is requested.`,
+        "In LM Studio, add this at the top of the model chat template: {%- set enable_thinking = false %}.",
+        "Then eject/reload the model and run the benchmark again.",
+      ].join(" ")
+    );
+  }
+}
+
 function buildThinkingConfig(think?: boolean): Partial<LMStudioThinkingConfig> {
   if (think === undefined) return {};
   const effort = think ? "high" : "low";
@@ -747,6 +769,7 @@ export async function generate(
     const choice = extractChoice(payload);
     const response = extractContent(choice);
     const reasoning = extractReasoning(choice);
+    assertThinkingModeRespected(model, options?.think, response, reasoning);
     const usage = extractUsage(payload);
     const totalDuration = Math.max(0, Date.now() - start) * 1e6;
 
@@ -921,6 +944,7 @@ export async function generateStream(
       evalCount: usage?.completion_tokens ?? 0,
       evalDuration: Math.max(1, evalDurationMs) * 1e6,
     };
+    assertThinkingModeRespected(model, options?.think, fullResponse, fullThinking);
 
     callbacks?.onDone?.(result);
     return result;

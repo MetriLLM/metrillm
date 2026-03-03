@@ -423,6 +423,10 @@ describe("hasThinkingContent", () => {
     expect(hasThinkingContent("<thinking>reasoning</thinking>\nAnswer")).toBe(true);
   });
 
+  it("returns true when response starts with plain-text reasoning header", () => {
+    expect(hasThinkingContent("Thinking Process:\n1) analyze\n2) answer")).toBe(true);
+  });
+
   it("returns false for normal response without thinking", () => {
     expect(hasThinkingContent("Just a normal answer")).toBe(false);
   });
