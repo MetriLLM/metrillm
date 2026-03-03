@@ -43,6 +43,7 @@ export async function listModels(): Promise<OllamaModel[]> {
     parameterSize: m.details?.parameter_size,
     quantization: m.details?.quantization_level,
     family: m.details?.family,
+    modelFormat: "gguf",
   }));
 }
 

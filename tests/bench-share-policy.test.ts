@@ -161,7 +161,7 @@ describe("bench share policy", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     setRuntimeByNameMock.mockReturnValue("ollama");
-    listModelsMock.mockResolvedValue([{ name: "test-model", size: 123 }]);
+    listModelsMock.mockResolvedValue([{ name: "test-model", size: 123, modelFormat: "gguf" }]);
     getRuntimeVersionMock.mockResolvedValue("0.5.12");
     getHardwareInfoMock.mockResolvedValue({
       cpu: "CPU",
@@ -316,5 +316,21 @@ describe("bench share policy", () => {
       "test-model",
       expect.objectContaining({ timeoutMs: 240_000 })
     );
+  });
+
+  it("uses per-model modelFormat metadata when available", async () => {
+    listModelsMock.mockResolvedValueOnce([{ name: "test-model", size: 123, modelFormat: "mlx" }]);
+
+    await benchCommand({
+      model: "test-model",
+      perfOnly: false,
+      share: false,
+      setExitCode: false,
+      ciNoMenu: true,
+    });
+
+    expect(saveResultMock).toHaveBeenCalledTimes(1);
+    const savedResult = saveResultMock.mock.calls[0]?.[0];
+    expect(savedResult?.metadata?.modelFormat).toBe("mlx");
   });
 });

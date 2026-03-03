@@ -283,7 +283,7 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
             promptPackVersion: PROMPT_PACK_VERSION,
             runtimeVersion,
             runtimeBackend: getRuntimeName(),
-            modelFormat: getRuntimeModelFormat(),
+            modelFormat: matchedModel?.modelFormat ?? getRuntimeModelFormat(),
           },
         };
         const rawLogHash = createHash("sha256")

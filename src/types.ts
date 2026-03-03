@@ -28,6 +28,7 @@ export interface OllamaModel {
   quantization?: string;
   family?: string;
   runtimeStatus?: string;
+  modelFormat?: string;
 }
 
 export interface OllamaRunningModel {

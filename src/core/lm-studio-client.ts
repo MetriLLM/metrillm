@@ -500,6 +500,7 @@ export async function listModels(): Promise<OllamaModel[]> {
         ?? inferParameterSizeFromModelId(id),
       quantization: asNonEmptyString(apiModel?.quantization),
       runtimeStatus: asNonEmptyString(apiModel?.state),
+      modelFormat: asNonEmptyString(apiModel?.compatibility_type),
       family:
         asNonEmptyString(apiModel?.arch)
         ?? asNonEmptyString(apiModel?.type)

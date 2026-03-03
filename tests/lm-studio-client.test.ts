@@ -70,6 +70,7 @@ describe("lm-studio-client metadata mapping", () => {
         parameterSize: "20B",
         quantization: "MXFP4",
         runtimeStatus: undefined,
+        modelFormat: undefined,
         family: "gpt_oss",
       },
       {
@@ -78,6 +79,7 @@ describe("lm-studio-client metadata mapping", () => {
         parameterSize: "30B",
         quantization: "4bit",
         runtimeStatus: undefined,
+        modelFormat: undefined,
         family: "qwen3_moe",
       },
     ]);
@@ -109,6 +111,7 @@ describe("lm-studio-client metadata mapping", () => {
         parameterSize: "7B",
         quantization: undefined,
         runtimeStatus: undefined,
+        modelFormat: undefined,
         family: undefined,
       },
     ]);
@@ -215,6 +218,7 @@ describe("lm-studio-client metadata mapping", () => {
         parameterSize: "24B",
         quantization: "4bit",
         runtimeStatus: "not-loaded",
+        modelFormat: "mlx",
         family: "mistral3",
       },
     ]);
