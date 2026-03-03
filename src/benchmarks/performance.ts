@@ -3,6 +3,7 @@ import { getMemoryUsage, detectThermalPressure, detectBatteryPowered, getSwapUse
 import type { PerformanceMetrics, BenchEnvironment } from "../types.js";
 import { avg, stddev, withTimeout, hasThinkingContent, estimateTokenCount } from "../utils.js";
 import { createSpinner, subStep } from "../ui/progress.js";
+import { withBenchmarkProfile } from "./profile.js";
 
 const WARMUP_PROMPT = "Say hello in one word.";
 
@@ -74,9 +75,11 @@ export async function runPerformanceBench(
     // Warmup run (also measures load time)
     const warmup = await withTimeout(
       generateStream(model, WARMUP_PROMPT, undefined, {
-        num_predict: 32,
-        think: options.think,
-        stall_timeout_ms: options.streamStallTimeoutMs,
+        ...withBenchmarkProfile({
+          num_predict: 32,
+          think: options.think,
+          stall_timeout_ms: options.streamStallTimeoutMs,
+        }),
       }),
       warmupTimeoutMs,
       "Model warmup",
@@ -141,11 +144,11 @@ export async function runPerformanceBench(
                 }
               },
             },
-            {
+            withBenchmarkProfile({
               num_predict: 256,
               think: options.think,
               stall_timeout_ms: options.streamStallTimeoutMs,
-            }
+            })
           ),
           promptTimeoutMs,
           "Performance benchmark",

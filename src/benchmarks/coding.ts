@@ -6,6 +6,7 @@ import vm from "node:vm";
 import { spawn } from "node:child_process";
 import { Worker } from "node:worker_threads";
 import codingData from "../datasets/coding.json" with { type: "json" };
+import { withBenchmarkProfile } from "./profile.js";
 
 const VALID_IDENTIFIER_RE = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
 const tasks = codingData as CodingTask[];
@@ -450,7 +451,7 @@ Reply with ONLY the function code, no explanation.`;
       const startTime = Date.now();
       try {
         const result = await withTimeout(
-          generate(model, prompt, { temperature: 0, num_predict: 2048, think: opts?.think }),
+          generate(model, prompt, withBenchmarkProfile({ num_predict: 2048, think: opts?.think })),
           timeoutMs,
           "Coding task",
           abortOngoingRequests

@@ -75,16 +75,53 @@ export function setDefaultKeepAlive(keepAlive?: KeepAliveValue): void {
   defaultKeepAlive = keepAlive;
 }
 
+interface OllamaRequestOptions {
+  temperature?: number;
+  top_p?: number;
+  seed?: number;
+  num_predict?: number;
+  keep_alive?: KeepAliveValue;
+  think?: boolean;
+  stall_timeout_ms?: number;
+}
+
+function hasSamplingOverrides(options?: OllamaRequestOptions): boolean {
+  return options?.top_p !== undefined || options?.seed !== undefined;
+}
+
+function isUnsupportedSamplingOptionError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  const lower = message.toLowerCase();
+  const mentionsSampling = /\b(seed|top_p|topp)\b/.test(lower);
+  if (!mentionsSampling) return false;
+  return /unrecognized|unknown|not support|unsupported|invalid|unexpected|additional|extra/.test(lower);
+}
+
+function buildGenerateRequest(
+  model: string,
+  prompt: string,
+  options: OllamaRequestOptions | undefined,
+  includeSampling: boolean
+): Record<string, unknown> {
+  return {
+    model,
+    prompt,
+    stream: true,
+    keep_alive: options?.keep_alive ?? defaultKeepAlive,
+    ...(options?.think !== undefined ? { think: options.think } : {}),
+    options: {
+      temperature: options?.temperature ?? 0,
+      ...(includeSampling && options?.top_p !== undefined ? { top_p: options.top_p } : {}),
+      ...(includeSampling && options?.seed !== undefined ? { seed: options.seed } : {}),
+      num_predict: options?.num_predict ?? 512,
+    },
+  };
+}
+
 export async function generate(
   model: string,
   prompt: string,
-  options?: {
-    temperature?: number;
-    num_predict?: number;
-    keep_alive?: KeepAliveValue;
-    think?: boolean;
-    stall_timeout_ms?: number;
-  }
+  options?: OllamaRequestOptions
 ): Promise<GenerateResult> {
   return generateStream(model, prompt, undefined, options);
 }
@@ -99,29 +136,25 @@ export async function generateStream(
   model: string,
   prompt: string,
   callbacks?: StreamCallbacks,
-  options?: {
-    temperature?: number;
-    num_predict?: number;
-    keep_alive?: KeepAliveValue;
-    think?: boolean;
-    stall_timeout_ms?: number;
-  }
+  options?: OllamaRequestOptions
 ): Promise<GenerateResult> {
-  const stream = await withTimeout(
-    client.generate({
-      model,
-      prompt,
-      stream: true,
-      keep_alive: options?.keep_alive ?? defaultKeepAlive,
-      ...(options?.think !== undefined ? { think: options.think } : {}),
-      options: {
-        temperature: options?.temperature ?? 0,
-        num_predict: options?.num_predict ?? 512,
-      },
-    }),
-    OLLAMA_INIT_TIMEOUT_MS,
-    "Ollama generate initialization"
-  );
+  const initializeStream = (includeSampling: boolean) =>
+    withTimeout(
+      client.generate(buildGenerateRequest(model, prompt, options, includeSampling)),
+      OLLAMA_INIT_TIMEOUT_MS,
+      "Ollama generate initialization"
+    );
+
+  let stream: Awaited<ReturnType<typeof initializeStream>>;
+  try {
+    stream = await initializeStream(true);
+  } catch (err) {
+    if (hasSamplingOverrides(options) && isUnsupportedSamplingOptionError(err)) {
+      stream = await initializeStream(false);
+    } else {
+      throw err;
+    }
+  }
 
   let fullResponse = "";
   let fullThinking = "";

@@ -270,6 +270,13 @@ describe("bench share policy", () => {
     expect(uploadBenchResultMock).toHaveBeenCalledTimes(1);
     const savedResult = saveResultMock.mock.calls[0]?.[0];
     expect(savedResult?.modelInfo?.thinkingDetected).toBe(false);
+    expect(savedResult?.metadata?.benchmarkProfile).toMatchObject({
+      version: "v1",
+      sampling: { temperature: 0, topP: 1, seed: 42 },
+      thinkingMode: "disabled",
+      contextWindowTokens: null,
+      contextPolicy: "runtime-default",
+    });
   });
 
   it("forwards timeout overrides to performance and quality benchmarks", async () => {

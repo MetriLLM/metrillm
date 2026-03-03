@@ -3,6 +3,7 @@ import type { CategoryResult, ReasoningQuestion, QuestionResult } from "../types
 import { extractChoice, stripThinkTags, toBenchmarkFailureLabel, withTimeout } from "../utils.js";
 import { createSpinner } from "../ui/progress.js";
 import reasoningData from "../datasets/reasoning.json" with { type: "json" };
+import { withBenchmarkProfile } from "./profile.js";
 
 const questions = reasoningData as ReasoningQuestion[];
 const DEFAULT_REASONING_TIMEOUT_MS = 120_000;
@@ -33,7 +34,7 @@ Answer:`;
       const startTime = Date.now();
       try {
         const result = await withTimeout(
-          generate(model, prompt, { temperature: 0, num_predict: 1024, think: opts?.think }),
+          generate(model, prompt, withBenchmarkProfile({ num_predict: 1024, think: opts?.think })),
           timeoutMs,
           "Reasoning question",
           abortOngoingRequests

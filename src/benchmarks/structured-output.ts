@@ -3,6 +3,7 @@ import type { CategoryResult, QuestionResult } from "../types.js";
 import { stripThinkTags, toBenchmarkFailureLabel, withTimeout } from "../utils.js";
 import { createSpinner } from "../ui/progress.js";
 import soData from "../datasets/structured-output.json" with { type: "json" };
+import { withBenchmarkProfile } from "./profile.js";
 
 export interface SOQuestion {
   id: number;
@@ -326,7 +327,7 @@ export async function runStructuredOutputBench(
       const startTime = Date.now();
       try {
         const result = await withTimeout(
-          generate(model, q.prompt, { temperature: 0, num_predict: 1024, think: opts?.think }),
+          generate(model, q.prompt, withBenchmarkProfile({ num_predict: 1024, think: opts?.think })),
           timeoutMs,
           "Structured output task",
           abortOngoingRequests

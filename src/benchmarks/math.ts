@@ -3,6 +3,7 @@ import type { CategoryResult, MathProblem, QuestionResult } from "../types.js";
 import { extractNumber, stripThinkTags, toBenchmarkFailureLabel, withTimeout } from "../utils.js";
 import { createSpinner } from "../ui/progress.js";
 import mathData from "../datasets/math.json" with { type: "json" };
+import { withBenchmarkProfile } from "./profile.js";
 
 const problems = mathData as MathProblem[];
 const DEFAULT_MATH_TIMEOUT_MS = 120_000;
@@ -32,7 +33,7 @@ Answer:`;
       const startTime = Date.now();
       try {
         const result = await withTimeout(
-          generate(model, prompt, { temperature: 0, num_predict: 1024, think: opts?.think }),
+          generate(model, prompt, withBenchmarkProfile({ num_predict: 1024, think: opts?.think })),
           timeoutMs,
           "Math problem",
           abortOngoingRequests

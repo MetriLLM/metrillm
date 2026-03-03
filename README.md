@@ -134,6 +134,13 @@ For very large models, tune timeout flags:
 - `--coding-timeout-ms` (default `240000`)
 - `--lm-studio-stream-stall-timeout-ms` (default `180000`, `0` disables stall timeout)
 
+Benchmark Profile v1 (applied to all benchmark prompts):
+- `temperature=0`
+- `top_p=1`
+- `seed=42`
+- `thinking` follows your benchmark mode (`--thinking` / `--no-thinking`)
+- Context window stays runtime default (`context=runtime-default`) and is recorded as such in metadata.
+
 LM Studio non-thinking guard:
 - When benchmark mode requests non-thinking (`--no-thinking` or default), MetriLLM now aborts if the model still emits reasoning traces (for result comparability).
 - To disable it in LM Studio for affected models, put this at the top of the model chat template: `{%- set enable_thinking = false %}` then eject/reload the model.

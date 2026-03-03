@@ -3,6 +3,7 @@ import type { CategoryResult, QuestionResult } from "../types.js";
 import { stripThinkTags, toBenchmarkFailureLabel, withTimeout } from "../utils.js";
 import { createSpinner } from "../ui/progress.js";
 import ifData from "../datasets/instruction-following.json" with { type: "json" };
+import { withBenchmarkProfile } from "./profile.js";
 
 export interface IFQuestion {
   id: number;
@@ -216,7 +217,7 @@ export async function runInstructionFollowingBench(
       const startTime = Date.now();
       try {
         const result = await withTimeout(
-          generate(model, prompt, { temperature: 0, num_predict: 1024, think: opts?.think }),
+          generate(model, prompt, withBenchmarkProfile({ num_predict: 1024, think: opts?.think })),
           timeoutMs,
           "Instruction following task",
           abortOngoingRequests

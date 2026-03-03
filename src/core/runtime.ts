@@ -5,6 +5,8 @@ import * as lmStudioClient from "./lm-studio-client.js";
 
 export interface GenerateOptions {
   temperature?: number;
+  top_p?: number;
+  seed?: number;
   num_predict?: number;
   keep_alive?: KeepAliveValue;
   think?: boolean;

@@ -33,6 +33,7 @@ import { showTelemetryNotice, trackBenchStarted, trackBenchCompleted, trackBench
 import { supportsUnicode } from "../ui/terminal.js";
 import { promptThinkingMode } from "../ui/thinking-prompt.js";
 import type { BenchResult, BenchEnvironment, HardwareInfo, ModelInfo, OllamaModel, QualityMetrics, RunMetadata } from "../types.js";
+import { buildBenchmarkProfileMetadata, BENCHMARK_PROFILE_VERSION } from "../benchmarks/profile.js";
 
 const BENCHMARK_SPEC_VERSION = "0.2.0";
 const PROMPT_PACK_VERSION = "0.1.0";
@@ -173,6 +174,11 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
   if (!silent && thinkEnabled) {
     infoMsg("Thinking mode enabled — models that support it will use extended reasoning.");
   }
+  if (!silent) {
+    infoMsg(
+      `Benchmark profile ${BENCHMARK_PROFILE_VERSION}: temperature=0, top_p=1, seed=42, context=runtime default.`
+    );
+  }
 
   try {
     // Run benchmarks for each model
@@ -286,6 +292,7 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
             runtimeVersion,
             runtimeBackend: getRuntimeName(),
             modelFormat: matchedModel?.modelFormat ?? getRuntimeModelFormat(),
+            benchmarkProfile: buildBenchmarkProfileMetadata(thinkEnabled),
           },
         };
         const rawLogHash = createHash("sha256")

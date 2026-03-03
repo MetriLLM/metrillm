@@ -3,6 +3,7 @@ import type { CategoryResult, QuestionResult } from "../types.js";
 import { extractNumber, stripThinkTags, toBenchmarkFailureLabel, withTimeout } from "../utils.js";
 import { createSpinner } from "../ui/progress.js";
 import mlData from "../datasets/multilingual.json" with { type: "json" };
+import { withBenchmarkProfile } from "./profile.js";
 
 interface MLQuestion {
   id: number;
@@ -115,7 +116,7 @@ export async function runMultilingualBench(
       const startTime = Date.now();
       try {
         const result = await withTimeout(
-          generate(model, q.prompt, { temperature: 0, num_predict: 1024, think: opts?.think }),
+          generate(model, q.prompt, withBenchmarkProfile({ num_predict: 1024, think: opts?.think })),
           timeoutMs,
           "Multilingual task",
           abortOngoingRequests

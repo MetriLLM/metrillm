@@ -89,6 +89,16 @@ interface LMStudioThinkingConfig {
   };
 }
 
+interface LMStudioRequestOptions {
+  temperature?: number;
+  top_p?: number;
+  seed?: number;
+  num_predict?: number;
+  keep_alive?: KeepAliveValue;
+  think?: boolean;
+  stall_timeout_ms?: number;
+}
+
 function hasThinkingLeakText(response: string): boolean {
   return /^\s*(?:thinking|thought)\s+process\s*:/i.test(response);
 }
@@ -118,6 +128,38 @@ function buildThinkingConfig(think?: boolean): Partial<LMStudioThinkingConfig> {
     include_reasoning: think,
     reasoning_effort: effort,
     reasoning: { effort },
+  };
+}
+
+function hasSamplingOverrides(options?: LMStudioRequestOptions): boolean {
+  return options?.top_p !== undefined || options?.seed !== undefined;
+}
+
+function isUnsupportedSamplingMessage(status: number, text: string): boolean {
+  if (status !== 400 && status !== 422) return false;
+  const lower = text.toLowerCase();
+  const mentionsSampling = /\b(seed|top_p|topp)\b/.test(lower);
+  if (!mentionsSampling) return false;
+  return /unrecognized|unknown|not support|unsupported|invalid|unexpected|additional|extra/.test(lower);
+}
+
+function buildChatCompletionBody(
+  model: string,
+  prompt: string,
+  options: LMStudioRequestOptions | undefined,
+  stream: boolean,
+  includeSampling: boolean
+): Record<string, unknown> {
+  return {
+    model,
+    messages: [{ role: "user", content: prompt }],
+    temperature: options?.temperature ?? 0,
+    ...(includeSampling && options?.top_p !== undefined ? { top_p: options.top_p } : {}),
+    ...(includeSampling && options?.seed !== undefined ? { seed: options.seed } : {}),
+    max_tokens: options?.num_predict ?? 512,
+    stream,
+    ...(stream ? { stream_options: { include_usage: true } } : {}),
+    ...buildThinkingConfig(options?.think),
   };
 }
 
@@ -732,13 +774,7 @@ export function setDefaultKeepAlive(keepAlive?: KeepAliveValue): void {
 export async function generate(
   model: string,
   prompt: string,
-  options?: {
-    temperature?: number;
-    num_predict?: number;
-    keep_alive?: KeepAliveValue;
-    think?: boolean;
-    stall_timeout_ms?: number;
-  }
+  options?: LMStudioRequestOptions
 ): Promise<GenerateResult> {
   const start = Date.now();
   const controller = new AbortController();
@@ -746,20 +782,23 @@ export async function generate(
   try {
     const baseUrl = getLMStudioBaseUrl();
     const url = new URL("/v1/chat/completions", baseUrl);
-    const resp = await fetch(url, {
-      method: "POST",
-      headers: getLMStudioHeaders(),
-      body: JSON.stringify({
-        model,
-        messages: [{ role: "user", content: prompt }],
-        temperature: options?.temperature ?? 0,
-        max_tokens: options?.num_predict ?? 512,
-        stream: false,
-        ...buildThinkingConfig(options?.think),
-      }),
-      signal: controller.signal,
-    });
+    const doRequest = (includeSampling: boolean) =>
+      fetch(url, {
+        method: "POST",
+        headers: getLMStudioHeaders(),
+        body: JSON.stringify(buildChatCompletionBody(model, prompt, options, false, includeSampling)),
+        signal: controller.signal,
+      });
 
+    let resp = await doRequest(true);
+    if (!resp.ok) {
+      const body = await resp.text().catch(() => "");
+      if (hasSamplingOverrides(options) && isUnsupportedSamplingMessage(resp.status, body)) {
+        resp = await doRequest(false);
+      } else {
+        throw new Error(`LM Studio generate failed (${resp.status} ${resp.statusText}) ${body}`.trim());
+      }
+    }
     if (!resp.ok) {
       const body = await resp.text().catch(() => "");
       throw new Error(`LM Studio generate failed (${resp.status} ${resp.statusText}) ${body}`.trim());
@@ -801,13 +840,7 @@ export async function generateStream(
   model: string,
   prompt: string,
   callbacks?: StreamCallbacks,
-  options?: {
-    temperature?: number;
-    num_predict?: number;
-    keep_alive?: KeepAliveValue;
-    think?: boolean;
-    stall_timeout_ms?: number;
-  }
+  options?: LMStudioRequestOptions
 ): Promise<GenerateResult> {
   const start = Date.now();
   const controller = new AbortController();
@@ -831,21 +864,23 @@ export async function generateStream(
   try {
     resetStallTimer();
 
-    const resp = await fetch(url, {
-      method: "POST",
-      headers: getLMStudioHeaders(),
-      body: JSON.stringify({
-        model,
-        messages: [{ role: "user", content: prompt }],
-        temperature: options?.temperature ?? 0,
-        max_tokens: options?.num_predict ?? 512,
-        stream: true,
-        stream_options: { include_usage: true },
-        ...buildThinkingConfig(options?.think),
-      }),
-      signal: controller.signal,
-    });
+    const doRequest = (includeSampling: boolean) =>
+      fetch(url, {
+        method: "POST",
+        headers: getLMStudioHeaders(),
+        body: JSON.stringify(buildChatCompletionBody(model, prompt, options, true, includeSampling)),
+        signal: controller.signal,
+      });
 
+    let resp = await doRequest(true);
+    if (!resp.ok) {
+      const body = await resp.text().catch(() => "");
+      if (hasSamplingOverrides(options) && isUnsupportedSamplingMessage(resp.status, body)) {
+        resp = await doRequest(false);
+      } else {
+        throw new Error(`LM Studio stream failed (${resp.status} ${resp.statusText}) ${body}`.trim());
+      }
+    }
     if (!resp.ok) {
       const body = await resp.text().catch(() => "");
       throw new Error(`LM Studio stream failed (${resp.status} ${resp.statusText}) ${body}`.trim());

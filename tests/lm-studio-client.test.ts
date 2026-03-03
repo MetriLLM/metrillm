@@ -360,6 +360,92 @@ describe("lm-studio-client thinking toggle passthrough", () => {
     expect(capturedBodies[2]).not.toHaveProperty("reasoning");
   });
 
+  it("forwards top_p and seed when provided", async () => {
+    let capturedBody: Record<string, unknown> | null = null;
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const rawBody = typeof init?.body === "string" ? init.body : "{}";
+      capturedBody = JSON.parse(rawBody) as Record<string, unknown>;
+      return jsonResponse({
+        choices: [{ message: { content: "OK" } }],
+        usage: { prompt_tokens: 3, completion_tokens: 1 },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("../src/core/lm-studio-client.js");
+    await client.generate("model-a", "prompt", { top_p: 1, seed: 42 });
+
+    expect(capturedBody).toMatchObject({
+      top_p: 1,
+      seed: 42,
+    });
+  });
+
+  it("retries without top_p/seed when backend rejects sampling options (non-stream)", async () => {
+    const capturedBodies: Record<string, unknown>[] = [];
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const rawBody = typeof init?.body === "string" ? init.body : "{}";
+      const parsed = JSON.parse(rawBody) as Record<string, unknown>;
+      capturedBodies.push(parsed);
+      if (capturedBodies.length === 1) {
+        return jsonResponse({ error: "Unrecognized key(s) in object: 'seed'" }, 400);
+      }
+      return jsonResponse({
+        choices: [{ message: { content: "OK" } }],
+        usage: { prompt_tokens: 3, completion_tokens: 1 },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("../src/core/lm-studio-client.js");
+    const result = await client.generate("model-a", "prompt", { top_p: 1, seed: 42 });
+
+    expect(result.response).toBe("OK");
+    expect(capturedBodies).toHaveLength(2);
+    expect(capturedBodies[0]).toMatchObject({ top_p: 1, seed: 42 });
+    expect(capturedBodies[1]).not.toHaveProperty("top_p");
+    expect(capturedBodies[1]).not.toHaveProperty("seed");
+  });
+
+  it("retries stream request without top_p/seed when backend rejects sampling options", async () => {
+    const capturedBodies: Record<string, unknown>[] = [];
+    const encoder = new TextEncoder();
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const rawBody = typeof init?.body === "string" ? init.body : "{}";
+      const parsed = JSON.parse(rawBody) as Record<string, unknown>;
+      capturedBodies.push(parsed);
+      if (capturedBodies.length === 1) {
+        return jsonResponse({ error: "Unexpected key 'top_p'" }, 400);
+      }
+      const sse =
+        "data: {\"choices\":[{\"delta\":{\"content\":\"OK\"}}]}\n\n" +
+        "data: [DONE]\n\n";
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(encoder.encode(sse));
+            controller.close();
+          },
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "text/event-stream" },
+        }
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("../src/core/lm-studio-client.js");
+    const result = await client.generateStream("model-a", "prompt", undefined, { top_p: 1, seed: 42 });
+
+    expect(result.response).toBe("OK");
+    expect(capturedBodies).toHaveLength(2);
+    expect(capturedBodies[0]).toMatchObject({ top_p: 1, seed: 42, stream: true });
+    expect(capturedBodies[1]).toMatchObject({ stream: true });
+    expect(capturedBodies[1]).not.toHaveProperty("top_p");
+    expect(capturedBodies[1]).not.toHaveProperty("seed");
+  });
+
   it("sends thinking config when generateStream() receives think=false", async () => {
     let capturedBody: Record<string, unknown> | null = null;
     const encoder = new TextEncoder();

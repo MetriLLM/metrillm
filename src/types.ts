@@ -181,7 +181,20 @@ export interface RunMetadata {
   runtimeVersion: string;    // Ollama version (e.g. "0.5.12")
   runtimeBackend?: string;   // "ollama" | "lm-studio" | "mlx" | "llamacpp" | "vllm"
   modelFormat?: string;      // "gguf" | "mlx" | "safetensors" | "onnx"
+  benchmarkProfile?: BenchmarkProfileMetadata;
   rawLogHash: string;        // SHA-256 hex digest of the serialised result (excl. this field)
+}
+
+export interface BenchmarkProfileMetadata {
+  version: string;
+  sampling: {
+    temperature: number;
+    topP: number;
+    seed: number;
+  };
+  thinkingMode: "enabled" | "disabled";
+  contextWindowTokens: number | null;
+  contextPolicy: "runtime-default";
 }
 
 // ── Model info ──────────────────────────────────────────
