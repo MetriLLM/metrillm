@@ -750,6 +750,10 @@ export async function generate(
     const usage = extractUsage(payload);
     const totalDuration = Math.max(0, Date.now() - start) * 1e6;
 
+    // Non-streaming: we cannot separate prompt processing from generation,
+    // so evalDuration falls back to totalDuration. This path is only used
+    // by quality benchmarks (not tok/s measurement). The streaming path
+    // (generateStream) uses first/last token timing for accurate evalDuration.
     return {
       response,
       ...(reasoning ? { thinking: reasoning } : {}),
@@ -836,6 +840,8 @@ export async function generateStream(
     let fullThinking = "";
     let usage: LMStudioUsage | undefined;
     let firstChunkSeen = false;
+    let firstTokenTime: number | null = null;
+    let lastTokenTime: number | null = null;
 
     const processDataLine = (rawLine: string) => {
       const line = rawLine.trim();
@@ -864,6 +870,9 @@ export async function generateStream(
         fullThinking += reasoning;
       }
       if (content) {
+        const now = Date.now();
+        if (firstTokenTime === null) firstTokenTime = now;
+        lastTokenTime = now;
         fullResponse += content;
         callbacks?.onToken?.(content);
       }
@@ -896,15 +905,21 @@ export async function generateStream(
     }
 
     const totalDuration = Math.max(0, Date.now() - start) * 1e6;
+    // evalDuration = time between first and last content token (pure generation).
+    // Falls back to totalDuration when we couldn't track tokens (e.g. single token).
+    const evalDurationMs =
+      firstTokenTime !== null && lastTokenTime !== null && lastTokenTime > firstTokenTime
+        ? lastTokenTime - firstTokenTime
+        : Date.now() - start;
     const result: GenerateResult = {
       response: fullResponse,
       ...(fullThinking ? { thinking: fullThinking } : {}),
       totalDuration,
       loadDuration: 0,
       promptEvalCount: usage?.prompt_tokens ?? 0,
-      promptEvalDuration: 0,
+      promptEvalDuration: firstTokenTime !== null ? (firstTokenTime - start) * 1e6 : 0,
       evalCount: usage?.completion_tokens ?? 0,
-      evalDuration: totalDuration,
+      evalDuration: Math.max(1, evalDurationMs) * 1e6,
     };
 
     callbacks?.onDone?.(result);
