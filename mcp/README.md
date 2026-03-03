@@ -114,7 +114,9 @@ Upload a result to the public MetriLLM leaderboard.
 |---|---|---|
 | `resultFile` | `string` | Absolute path to the result JSON file |
 
-**Required environment variables:**
+Uses official MetriLLM upload defaults out of the box.
+
+Optional overrides for self-hosted/staging deployments:
 - `METRILLM_SUPABASE_URL`
 - `METRILLM_SUPABASE_ANON_KEY`
 - `METRILLM_PUBLIC_RESULT_BASE_URL`

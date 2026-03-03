@@ -1,36 +1,62 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { BenchResult } from "../types.js";
 
+const SUPABASE_URL_DEFAULT = "https://phvvzbgasxobjzjnkewf.supabase.co";
+// Public anon key for the official read/insert-only leaderboard project (RLS enforced).
+const SUPABASE_ANON_KEY_DEFAULT =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBodnZ6Ymdhc3hvYmp6am5rZXdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyOTMxNTksImV4cCI6MjA4Nzg2OTE1OX0.-Wn0V8f-Uv_x_krNUnjmFRcqfAOPQEVc_Qx1kZ2ppgk";
 const SUPABASE_URL_PLACEHOLDER = "https://YOUR_SUPABASE_PROJECT.supabase.co";
+const SUPABASE_URL_PLACEHOLDER_ALT = "https://your-project.supabase.co";
 const SUPABASE_ANON_KEY_PLACEHOLDER = "YOUR_SUPABASE_ANON_KEY";
+const SUPABASE_ANON_KEY_PLACEHOLDER_ALT = "your-supabase-anon-key";
+const PUBLIC_RESULT_BASE_URL_DEFAULT = "https://metrillm.dev";
 const PUBLIC_RESULT_BASE_URL_PLACEHOLDER = "https://YOUR_DASHBOARD_DOMAIN";
+const PUBLIC_RESULT_BASE_URL_PLACEHOLDER_ALT = "https://your-dashboard-domain";
 
 function resolveUploaderConfig(): {
   supabaseUrl: string;
   supabaseAnonKey: string;
   publicResultBaseUrl: string;
 } {
+  const configuredPublicBaseUrl = process.env.METRILLM_PUBLIC_RESULT_BASE_URL?.trim();
+  const publicResultBaseUrl =
+    !configuredPublicBaseUrl || hasPlaceholder(configuredPublicBaseUrl)
+      ? PUBLIC_RESULT_BASE_URL_DEFAULT
+      : configuredPublicBaseUrl;
+
   return {
-    supabaseUrl: process.env.METRILLM_SUPABASE_URL ?? SUPABASE_URL_PLACEHOLDER,
-    supabaseAnonKey: process.env.METRILLM_SUPABASE_ANON_KEY ?? SUPABASE_ANON_KEY_PLACEHOLDER,
-    publicResultBaseUrl:
-      process.env.METRILLM_PUBLIC_RESULT_BASE_URL ?? PUBLIC_RESULT_BASE_URL_PLACEHOLDER,
+    supabaseUrl:
+      !process.env.METRILLM_SUPABASE_URL || hasPlaceholder(process.env.METRILLM_SUPABASE_URL)
+        ? SUPABASE_URL_DEFAULT
+        : process.env.METRILLM_SUPABASE_URL,
+    supabaseAnonKey:
+      !process.env.METRILLM_SUPABASE_ANON_KEY || hasPlaceholder(process.env.METRILLM_SUPABASE_ANON_KEY)
+        ? SUPABASE_ANON_KEY_DEFAULT
+        : process.env.METRILLM_SUPABASE_ANON_KEY,
+    publicResultBaseUrl,
   };
 }
 
 function hasPlaceholder(value: string): boolean {
-  return value.includes("YOUR_");
+  const normalized = value.trim();
+  if (normalized.length === 0) return true;
+  return [
+    SUPABASE_URL_PLACEHOLDER,
+    SUPABASE_URL_PLACEHOLDER_ALT,
+    SUPABASE_ANON_KEY_PLACEHOLDER,
+    SUPABASE_ANON_KEY_PLACEHOLDER_ALT,
+    PUBLIC_RESULT_BASE_URL_PLACEHOLDER,
+    PUBLIC_RESULT_BASE_URL_PLACEHOLDER_ALT,
+  ].some((placeholder) => placeholder.toLowerCase() === normalized.toLowerCase());
 }
 
 function assertUploaderConfig(config: {
   supabaseUrl: string;
   supabaseAnonKey: string;
-  publicResultBaseUrl: string;
 }): void {
   const missing: string[] = [];
-  if (hasPlaceholder(config.supabaseUrl)) missing.push("METRILLM_SUPABASE_URL");
-  if (hasPlaceholder(config.supabaseAnonKey)) missing.push("METRILLM_SUPABASE_ANON_KEY");
-  if (hasPlaceholder(config.publicResultBaseUrl)) missing.push("METRILLM_PUBLIC_RESULT_BASE_URL");
+  if (!config.supabaseUrl.trim()) missing.push("METRILLM_SUPABASE_URL");
+  if (!config.supabaseAnonKey.trim()) missing.push("METRILLM_SUPABASE_ANON_KEY");
   if (missing.length > 0) {
     throw new Error(
       `Upload is not configured. Set these variables first: ${missing.join(", ")}`

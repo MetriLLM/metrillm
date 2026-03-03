@@ -91,6 +91,7 @@ describe("uploadBenchResult", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    delete process.env.NODE_ENV;
     process.env.METRILLM_SUPABASE_URL = "https://example.supabase.co";
     process.env.METRILLM_SUPABASE_ANON_KEY = "anon-key";
     process.env.METRILLM_PUBLIC_RESULT_BASE_URL = "https://metrillm.dev";
@@ -133,6 +134,52 @@ describe("uploadBenchResult", () => {
     });
   });
 
+  it("uses embedded official upload defaults when Supabase env vars are missing", async () => {
+    delete process.env.METRILLM_SUPABASE_URL;
+    delete process.env.METRILLM_SUPABASE_ANON_KEY;
+    singleMock.mockResolvedValueOnce({ data: { id: "row-defaults" }, error: null });
+    const { uploadBenchResult } = await import("../src/core/uploader.js");
+
+    const out = await uploadBenchResult(sampleResult());
+
+    expect(createClientMock).toHaveBeenCalledWith(
+      "https://phvvzbgasxobjzjnkewf.supabase.co",
+      expect.stringContaining("eyJhbGciOiJIUzI1Ni")
+    );
+    expect(out.url).toBe("https://metrillm.dev/result/row-defaults");
+  });
+
+  it("treats placeholder Supabase env vars as unconfigured and falls back to embedded defaults", async () => {
+    process.env.METRILLM_SUPABASE_URL = "https://your-project.supabase.co";
+    process.env.METRILLM_SUPABASE_ANON_KEY = "your-supabase-anon-key";
+    singleMock.mockResolvedValueOnce({ data: { id: "row-placeholder-fallback" }, error: null });
+    const { uploadBenchResult } = await import("../src/core/uploader.js");
+
+    const out = await uploadBenchResult(sampleResult());
+
+    expect(createClientMock).toHaveBeenCalledWith(
+      "https://phvvzbgasxobjzjnkewf.supabase.co",
+      expect.stringContaining("eyJhbGciOiJIUzI1Ni")
+    );
+    expect(out.url).toBe("https://metrillm.dev/result/row-placeholder-fallback");
+  });
+
+  it("persists explicit non-thinking mode as false", async () => {
+    singleMock.mockResolvedValueOnce({ data: { id: "row-false" }, error: null });
+    const { uploadBenchResult } = await import("../src/core/uploader.js");
+
+    await uploadBenchResult({
+      ...sampleResult(),
+      modelInfo: {
+        ...sampleResult().modelInfo,
+        thinkingDetected: false,
+      },
+    });
+
+    const inserted = insertMock.mock.calls[0][0] as Record<string, unknown>;
+    expect(inserted.thinking_detected).toBe(false);
+  });
+
   it("uses configured public base URL and trims trailing slash", async () => {
     process.env.METRILLM_PUBLIC_RESULT_BASE_URL = "https://example.test/";
     singleMock.mockResolvedValueOnce({ data: { id: "row-2" }, error: null });
@@ -140,6 +187,35 @@ describe("uploadBenchResult", () => {
 
     const out = await uploadBenchResult(sampleResult());
     expect(out.url).toBe("https://example.test/result/row-2");
+  });
+
+  it("falls back to metrillm.dev when public URL env is a placeholder", async () => {
+    process.env.METRILLM_PUBLIC_RESULT_BASE_URL = "https://your-dashboard-domain";
+    singleMock.mockResolvedValueOnce({ data: { id: "row-placeholder" }, error: null });
+    const { uploadBenchResult } = await import("../src/core/uploader.js");
+
+    const out = await uploadBenchResult(sampleResult());
+    expect(out.url).toBe("https://metrillm.dev/result/row-placeholder");
+  });
+
+  it("keeps configured public URL in production", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.METRILLM_PUBLIC_RESULT_BASE_URL = "https://example.test/";
+    singleMock.mockResolvedValueOnce({ data: { id: "row-prod" }, error: null });
+    const { uploadBenchResult } = await import("../src/core/uploader.js");
+
+    const out = await uploadBenchResult(sampleResult());
+    expect(out.url).toBe("https://example.test/result/row-prod");
+  });
+
+  it("falls back to metrillm.dev in production when public URL env is a placeholder", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.METRILLM_PUBLIC_RESULT_BASE_URL = "https://YOUR_DASHBOARD_DOMAIN";
+    singleMock.mockResolvedValueOnce({ data: { id: "row-prod-placeholder" }, error: null });
+    const { uploadBenchResult } = await import("../src/core/uploader.js");
+
+    const out = await uploadBenchResult(sampleResult());
+    expect(out.url).toBe("https://metrillm.dev/result/row-prod-placeholder");
   });
 
   it("upserts submitter lead when profile is provided", async () => {
