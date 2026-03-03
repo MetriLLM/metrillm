@@ -52,7 +52,8 @@ npx metrillm@latest bench
 
 ## Install
 
-> Requires [Node 20+](https://nodejs.org/) and [Ollama](https://ollama.com/) running.
+> Requires [Node 20+](https://nodejs.org/) and a local runtime:
+> [Ollama](https://ollama.com/) or [LM Studio](https://lmstudio.ai/).
 
 ```bash
 # Run directly (no install)
@@ -60,6 +61,16 @@ npx metrillm@latest bench
 
 # Or install globally
 npm i -g metrillm
+metrillm bench
+
+# Homebrew (no global npm install)
+# One-liner install (without pre-tapping):
+brew install MetriLLM/metrillm/metrillm
+
+# Or one-time tap for short install command:
+brew tap MetriLLM/metrillm
+# Then:
+brew install metrillm
 metrillm bench
 
 # Alternative package managers
@@ -75,6 +86,9 @@ metrillm bench
 
 # Benchmark a specific model
 metrillm bench --model gemma3:4b
+
+# Benchmark with LM Studio backend
+metrillm bench --backend lm-studio --model qwen3-8b
 
 # Benchmark all installed models
 metrillm bench --all
@@ -92,6 +106,20 @@ metrillm bench --all --unload-after-bench
 metrillm bench --export json
 metrillm bench --export csv
 ```
+
+## Runtime Backends
+
+| Backend | Flag | Default URL | Required env |
+|---|---|---|---|
+| Ollama | `--backend ollama` | `http://127.0.0.1:11434` | `OLLAMA_HOST` (optional) |
+| LM Studio | `--backend lm-studio` | `http://127.0.0.1:1234` | `LM_STUDIO_BASE_URL` (optional), `LM_STUDIO_API_KEY` (optional), `LM_STUDIO_STREAM_STALL_TIMEOUT_MS` (optional) |
+
+For very large models, tune timeout flags:
+- `--perf-warmup-timeout-ms` (default `300000`)
+- `--perf-prompt-timeout-ms` (default `120000`)
+- `--quality-timeout-ms` (default `120000`)
+- `--coding-timeout-ms` (default `240000`)
+- `--lm-studio-stream-stall-timeout-ms` (default `180000`, `0` disables stall timeout)
 
 ## How Scoring Works
 
@@ -206,6 +234,26 @@ npm ci
 npm run ci:verify     # typecheck + tests + build
 npm run dev           # run from source
 npm run test:watch    # vitest watch mode
+```
+
+## Homebrew Formula Maintenance
+
+The tap formula lives in `Formula/metrillm.rb`.
+
+```bash
+# Refresh Formula/metrillm.rb with latest npm tarball + sha256
+./scripts/update-homebrew-formula.sh
+
+# Or pin a specific version
+./scripts/update-homebrew-formula.sh 0.1.1
+```
+
+After updating the formula, commit and push so users can install/update with:
+
+```bash
+brew tap MetriLLM/metrillm
+brew install metrillm
+brew upgrade metrillm
 ```
 
 ## Contributing

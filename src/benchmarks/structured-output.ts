@@ -13,6 +13,7 @@ export interface SOQuestion {
 }
 
 const questions = soData as SOQuestion[];
+const DEFAULT_STRUCTURED_OUTPUT_TIMEOUT_MS = 120_000;
 
 interface JsonParseResult {
   ok: boolean;
@@ -306,12 +307,16 @@ export function validateStructuredOutputResponse(response: string, q: SOQuestion
   }
 }
 
-export async function runStructuredOutputBench(model: string, opts?: { think?: boolean }): Promise<CategoryResult> {
+export async function runStructuredOutputBench(
+  model: string,
+  opts?: { think?: boolean; timeoutMs?: number }
+): Promise<CategoryResult> {
   const spinner = createSpinner("Running structured output benchmark...");
   spinner.start();
 
   const details: QuestionResult[] = [];
   let correct = 0;
+  const timeoutMs = opts?.timeoutMs ?? DEFAULT_STRUCTURED_OUTPUT_TIMEOUT_MS;
 
   try {
     for (let i = 0; i < questions.length; i++) {
@@ -322,7 +327,7 @@ export async function runStructuredOutputBench(model: string, opts?: { think?: b
       try {
         const result = await withTimeout(
           generate(model, q.prompt, { temperature: 0, num_predict: 1024, think: opts?.think }),
-          60_000,
+          timeoutMs,
           "Structured output task",
           abortOngoingRequests
         );

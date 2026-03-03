@@ -5,13 +5,18 @@ import { createSpinner } from "../ui/progress.js";
 import reasoningData from "../datasets/reasoning.json" with { type: "json" };
 
 const questions = reasoningData as ReasoningQuestion[];
+const DEFAULT_REASONING_TIMEOUT_MS = 120_000;
 
-export async function runReasoningBench(model: string, opts?: { think?: boolean }): Promise<CategoryResult> {
+export async function runReasoningBench(
+  model: string,
+  opts?: { think?: boolean; timeoutMs?: number }
+): Promise<CategoryResult> {
   const spinner = createSpinner("Running reasoning benchmark...");
   spinner.start();
 
   const details: QuestionResult[] = [];
   let correct = 0;
+  const timeoutMs = opts?.timeoutMs ?? DEFAULT_REASONING_TIMEOUT_MS;
 
   try {
     for (let i = 0; i < questions.length; i++) {
@@ -29,7 +34,7 @@ Answer:`;
       try {
         const result = await withTimeout(
           generate(model, prompt, { temperature: 0, num_predict: 1024, think: opts?.think }),
-          60_000,
+          timeoutMs,
           "Reasoning question",
           abortOngoingRequests
         );

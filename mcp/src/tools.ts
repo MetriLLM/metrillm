@@ -2,20 +2,25 @@ import { z } from "zod";
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { homedir } from "node:os";
-import { listModels } from "../../src/core/runtime.js";
+import {
+  listModels,
+  getRuntimeDisplayName,
+  getRuntimeModelInstallHint,
+  setRuntimeByName,
+} from "../../src/core/runtime.js";
 import { benchCommand } from "../../src/commands/bench.js";
 import { uploadBenchResult } from "../../src/core/uploader.js";
 import type { BenchResult } from "../../src/types.js";
 
 // ── Schemas ──
 
-const SUPPORTED_RUNTIMES = ["ollama"] as const;
+const SUPPORTED_RUNTIMES = ["ollama", "lm-studio"] as const;
 
 const runtimeSchema = z
   .enum(SUPPORTED_RUNTIMES)
   .optional()
   .default("ollama")
-  .describe("Inference runtime to use. Currently only 'ollama' is supported.");
+  .describe("Inference runtime to use (ollama | lm-studio).");
 
 export const listModelsSchema = z.object({
   runtime: runtimeSchema,
@@ -80,7 +85,7 @@ export const toolDefinitions = [
 // ── Helpers ──
 
 function assertRuntime(runtime: string): void {
-  if (runtime !== "ollama") {
+  if (!SUPPORTED_RUNTIMES.includes(runtime as (typeof SUPPORTED_RUNTIMES)[number])) {
     throw new Error(
       `Runtime "${runtime}" is not yet supported. Currently supported: ${SUPPORTED_RUNTIMES.join(", ")}. ` +
         "New runtimes will be added as they become available in the MetriLLM CLI."
@@ -89,6 +94,14 @@ function assertRuntime(runtime: string): void {
 }
 
 const RESULTS_DIR = join(homedir(), ".metrillm", "results");
+
+function normalizeResultRuntimeBackend(result: BenchResult): "ollama" | "lm-studio" {
+  const runtimeBackend = result.metadata?.runtimeBackend?.trim().toLowerCase();
+  if (runtimeBackend === "lm-studio") return "lm-studio";
+  if (runtimeBackend === "ollama") return "ollama";
+  // Legacy result files (before runtime metadata) are Ollama-only.
+  return "ollama";
+}
 
 // ── Mutex for benchmark serialization ──
 // The CLI uses a singleton runtime — concurrent benchmarks would corrupt results.
@@ -107,25 +120,30 @@ export async function handleListModels(
   args: z.infer<typeof listModelsSchema>
 ): Promise<string> {
   assertRuntime(args.runtime);
+  return withBenchLock(async () => {
+    setRuntimeByName(args.runtime);
+    const runtimeDisplayName = getRuntimeDisplayName(args.runtime);
+    const runtimeModelHint = getRuntimeModelInstallHint(args.runtime);
 
-  const models = await listModels();
+    const models = await listModels();
 
-  if (models.length === 0) {
+    if (models.length === 0) {
+      return JSON.stringify({
+        models: [],
+        message: `No models found on ${runtimeDisplayName}. ${runtimeModelHint}`,
+      });
+    }
+
     return JSON.stringify({
-      models: [],
-      message: "No models found. Pull one with: ollama pull <model>",
+      models: models.map((m) => ({
+        name: m.name,
+        size: m.size,
+        parameterSize: m.parameterSize ?? null,
+        quantization: m.quantization ?? null,
+        family: m.family ?? null,
+      })),
+      count: models.length,
     });
-  }
-
-  return JSON.stringify({
-    models: models.map((m) => ({
-      name: m.name,
-      size: m.size,
-      parameterSize: m.parameterSize ?? null,
-      quantization: m.quantization ?? null,
-      family: m.family ?? null,
-    })),
-    count: models.length,
   });
 }
 
@@ -133,10 +151,13 @@ export async function handleRunBenchmark(
   args: z.infer<typeof runBenchmarkSchema>
 ): Promise<string> {
   assertRuntime(args.runtime);
+  const runtimeDisplayName = getRuntimeDisplayName(args.runtime);
 
   return withBenchLock(async () => {
+  setRuntimeByName(args.runtime);
   const outcome = await benchCommand({
     model: args.model,
+    backend: args.runtime,
     perfOnly: args.perfOnly,
     json: true, // suppress all UI output
     share: false, // never auto-share from MCP
@@ -154,7 +175,7 @@ export async function handleRunBenchmark(
   if (outcome.results.length === 0) {
     return JSON.stringify({
       success: false,
-      error: "No results produced. Is Ollama running? Is the model pulled?",
+      error: `No results produced. Is ${runtimeDisplayName} running?`,
     });
   }
 
@@ -209,6 +230,11 @@ export async function handleGetResults(
     try {
       const content = await readFile(join(RESULTS_DIR, file), "utf8");
       const result = JSON.parse(content) as BenchResult;
+
+      const resultRuntime = normalizeResultRuntimeBackend(result);
+      if (resultRuntime !== args.runtime) {
+        continue;
+      }
 
       if (args.model && !result.model.toLowerCase().includes(args.model.toLowerCase())) {
         continue;

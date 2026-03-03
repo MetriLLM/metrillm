@@ -14,6 +14,7 @@ import type { BenchResult } from "../types.js";
 import { errorMsg, successMsg, warnMsg } from "./progress.js";
 import { printGuruMeditation } from "./guru-meditation.js";
 import { promptAndSaveSubmitterProfile } from "./submitter-prompt.js";
+import { getRuntimeDisplayName, type RuntimeBackend } from "../core/runtime.js";
 
 interface MenuOption<T> {
   label: string;
@@ -57,8 +58,20 @@ function renderMenu<T>(
   selectedIndex: number,
   config: SelectOptions = {},
   typedChoice = "",
-  lastRenderedLines = 0
+  lastRenderedRows = 0
 ): number {
+  const terminalWidth = Math.max(20, output.columns ?? 80);
+  const stripAnsi = (value: string): string => value.replace(/\x1b\[[0-9;]*[A-Za-z]/g, "");
+  const lineRowCount = (line: string): number => {
+    const visibleLength = Math.max(0, stripAnsi(line).length);
+    if (visibleLength === 0) return 1;
+
+    const wrappedRows = Math.ceil(visibleLength / terminalWidth);
+    // At exact width boundaries, many TTYs autowrap before '\n',
+    // so this printed line consumes one extra terminal row.
+    return visibleLength % terminalWidth === 0 ? wrappedRows + 1 : wrappedRows;
+  };
+
   const lines: string[] = [];
   lines.push(chalk.bold.cyan(title));
   if (config.subtitle) {
@@ -86,24 +99,26 @@ function renderMenu<T>(
   }
 
   // Move cursor up to overwrite previous frame (except first render)
-  if (lastRenderedLines > 0) {
-    output.write(`\x1b[${lastRenderedLines}A`);
+  if (lastRenderedRows > 0) {
+    output.write(`\x1b[${lastRenderedRows}A`);
   }
 
+  let renderedRows = 0;
   for (const line of lines) {
     output.write(line + "\x1b[K\n");
+    renderedRows += lineRowCount(line);
   }
 
-  // Clear leftover lines from previous render (e.g. typedChoice disappeared)
-  for (let i = lines.length; i < lastRenderedLines; i++) {
+  // Clear leftover rows from previous render (e.g. typedChoice disappears).
+  for (let i = renderedRows; i < lastRenderedRows; i++) {
     output.write("\x1b[K\n");
   }
-  // Move cursor back up to end of current content if we wrote extra blank lines
-  if (lastRenderedLines > lines.length) {
-    output.write(`\x1b[${lastRenderedLines - lines.length}A`);
+  // Move cursor back up to the end of current content after cleanup rows.
+  if (lastRenderedRows > renderedRows) {
+    output.write(`\x1b[${lastRenderedRows - renderedRows}A`);
   }
 
-  return lines.length;
+  return renderedRows;
 }
 
 async function promptText(prompt: string): Promise<string | null> {
@@ -148,7 +163,7 @@ async function selectWithArrows<T>(
   return new Promise((resolve) => {
     let index = 0;
     let typedChoice = "";
-    let lastRenderedLines = 0;
+    let lastRenderedRows = 0;
     const allowEscape = config.allowEscape !== false;
     const previousRawMode = input.isTTY ? input.isRaw : false;
     const maxDigits = Math.max(1, String(options.length).length);
@@ -162,7 +177,7 @@ async function selectWithArrows<T>(
     };
 
     const render = () => {
-      lastRenderedLines = renderMenu(title, options, index, config, typedChoice, lastRenderedLines);
+      lastRenderedRows = renderMenu(title, options, index, config, typedChoice, lastRenderedRows);
     };
 
     const resolveByNumber = (choice: number) => {
@@ -429,13 +444,22 @@ async function exportLastResults(results: BenchResult[]): Promise<void> {
 }
 
 function printQuickCommands(): void {
+  const defaultBackend = "ollama";
+  const backendExamples = [
+    `metrillm list --backend ${defaultBackend}`,
+    "metrillm list --backend lm-studio",
+    `metrillm bench --backend ${defaultBackend} --model <model-name>`,
+    "metrillm bench --backend lm-studio --model <model-name>",
+  ];
+
   console.log(chalk.bold("\nUseful Commands"));
   console.log(chalk.dim("  Use these commands if you want to skip the interactive menu."));
-  console.log("  metrillm list");
-  console.log("  metrillm bench --model <model-name>");
-  console.log("  metrillm bench --model <model-name> --perf-only");
-  console.log("  metrillm bench --model <model-name> --perf-prompt-timeout-ms 90000");
-  console.log("  metrillm bench --model <model-name> --export json --out exports");
+  for (const command of backendExamples) {
+    console.log(`  ${command}`);
+  }
+  console.log("  metrillm bench --backend lm-studio --model <model-name> --perf-only");
+  console.log("  metrillm bench --backend lm-studio --model <model-name> --perf-prompt-timeout-ms 90000");
+  console.log("  metrillm bench --backend lm-studio --model <model-name> --export json --out exports");
   console.log("  metrillm --ci-no-menu");
   console.log("  metrillm bench");
   console.log("  metrillm menu");
@@ -448,7 +472,7 @@ function mainMenuOptions(): MenuOption<
     {
       label: "List available models",
       value: "list",
-      hint: "Show installed Ollama models and their load status.",
+      hint: "Show installed runtime models and their load status.",
     },
     {
       label: "Benchmark one model",
@@ -500,6 +524,7 @@ export type NextActionSelection = "rerun" | "export" | "menu" | "quit" | null;
 export type PostBenchmarkAction = "rerun" | "menu" | "quit";
 export type SettingsSelection =
   | "toggle-auto-share"
+  | "set-runtime-backend"
   | "edit-submitter-profile"
   | "clear-submitter-profile"
   | "toggle-telemetry"
@@ -513,24 +538,37 @@ interface SettingsMenuDeps {
   selectSettingsAction?: (
     autoShareEnabled: boolean,
     telemetryEnabled: boolean,
-    hasSubmitterProfile: boolean
+    hasSubmitterProfile: boolean,
+    runtimeBackend: RuntimeBackend
   ) => Promise<SettingsSelection>;
+  selectRuntimeBackend?: (currentBackend: RuntimeBackend) => Promise<RuntimeBackend | null>;
   promptSubmitterProfile?: () => Promise<{ nickname: string; email: string } | null>;
   waitForAcknowledge?: (message?: string) => Promise<void>;
+}
+
+function resolveConfiguredBackend(config: MetriLLMConfig): RuntimeBackend {
+  return config.runtimeBackend === "lm-studio" ? "lm-studio" : "ollama";
 }
 
 function settingsMenuOptions(
   autoShareEnabled: boolean,
   telemetryEnabled: boolean,
-  hasSubmitterProfile: boolean
+  hasSubmitterProfile: boolean,
+  runtimeBackend: RuntimeBackend
 ): MenuOption<
   Exclude<SettingsSelection, null>
 >[] {
+  const runtimeDisplayName = getRuntimeDisplayName(runtimeBackend);
   return [
     {
       label: `Auto-share full benchmarks: ${autoShareEnabled ? "ON" : "OFF"}`,
       value: "toggle-auto-share",
       hint: autoShareEnabled ? "Disable to ask before each upload." : "Enable to share results automatically after each benchmark.",
+    },
+    {
+      label: `Runtime backend: ${runtimeDisplayName}`,
+      value: "set-runtime-backend",
+      hint: "Choose which local runtime is used by menu list/bench actions.",
     },
     {
       label: `Benchmark profile: ${hasSubmitterProfile ? "SET" : "NOT SET"}`,
@@ -557,13 +595,36 @@ function settingsMenuOptions(
 async function defaultSelectSettingsAction(
   autoShareEnabled: boolean,
   telemetryEnabled: boolean,
-  hasSubmitterProfile: boolean
+  hasSubmitterProfile: boolean,
+  runtimeBackend: RuntimeBackend
 ): Promise<SettingsSelection> {
   return selectOption(
     "Settings",
-    settingsMenuOptions(autoShareEnabled, telemetryEnabled, hasSubmitterProfile),
+    settingsMenuOptions(autoShareEnabled, telemetryEnabled, hasSubmitterProfile, runtimeBackend),
     {
       subtitle: "Manage preferences. Esc to return to main menu.",
+      allowEscape: true,
+    }
+  );
+}
+
+async function defaultSelectRuntimeBackend(currentBackend: RuntimeBackend): Promise<RuntimeBackend | null> {
+  return selectOption<RuntimeBackend>(
+    "Runtime Backend",
+    [
+      {
+        label: "Ollama",
+        value: "ollama",
+        hint: "Use models managed by Ollama.",
+      },
+      {
+        label: "LM Studio",
+        value: "lm-studio",
+        hint: "Use models served by LM Studio local server.",
+      },
+    ],
+    {
+      subtitle: `Current: ${getRuntimeDisplayName(currentBackend)}. Esc to cancel.`,
       allowEscape: true,
     }
   );
@@ -613,6 +674,7 @@ export async function runSettingsMenu(deps: SettingsMenuDeps = {}): Promise<void
   const promptSubmitterProfile = deps.promptSubmitterProfile
     ?? (() => promptAndSaveSubmitterProfile({ loadUserConfig, saveUserConfig }));
   const waitForAcknowledge = deps.waitForAcknowledge ?? waitForContinue;
+  const selectRuntimeBackend = deps.selectRuntimeBackend ?? defaultSelectRuntimeBackend;
 
   while (true) {
     console.clear();
@@ -621,11 +683,13 @@ export async function runSettingsMenu(deps: SettingsMenuDeps = {}): Promise<void
     const autoShareEnabled = config.autoShare === true;
     const telemetryEnabled = config.telemetry === true;
     const hasSubmitterProfile = Boolean(config.submitterNickname && config.submitterEmail);
+    const runtimeBackend = resolveConfiguredBackend(config);
     const action =
       (await (deps.selectSettingsAction ?? defaultSelectSettingsAction)(
         autoShareEnabled,
         telemetryEnabled,
-        hasSubmitterProfile
+        hasSubmitterProfile,
+        runtimeBackend
       )) ?? null;
 
     if (!action || action === "back") {
@@ -639,6 +703,27 @@ export async function runSettingsMenu(deps: SettingsMenuDeps = {}): Promise<void
         successMsg(`Auto-share ${nextAutoShare === true ? "enabled" : "disabled"}.`);
       } catch (err) {
         errorMsg("Could not update auto-share setting.");
+        if (err instanceof Error) errorMsg(err.message);
+      }
+      await waitForAcknowledge("Press Enter to continue...");
+      continue;
+    }
+
+    if (action === "set-runtime-backend") {
+      const selectedBackend = await selectRuntimeBackend(runtimeBackend);
+      if (!selectedBackend) {
+        continue;
+      }
+      if (selectedBackend === runtimeBackend) {
+        infoMsg(`Runtime backend unchanged: ${getRuntimeDisplayName(runtimeBackend)}.`);
+        await waitForAcknowledge("Press Enter to continue...");
+        continue;
+      }
+      try {
+        await saveUserConfig({ ...config, runtimeBackend: selectedBackend });
+        successMsg(`Runtime backend set to ${getRuntimeDisplayName(selectedBackend)}.`);
+      } catch (err) {
+        errorMsg("Could not update runtime backend setting.");
         if (err instanceof Error) errorMsg(err.message);
       }
       await waitForAcknowledge("Press Enter to continue...");
@@ -698,6 +783,10 @@ export async function runInteractiveMenu(): Promise<void> {
   let firstRun = true;
 
   while (true) {
+    const config = await loadConfig();
+    const menuBackend = resolveConfiguredBackend(config);
+    const runtimeDisplayName = getRuntimeDisplayName(menuBackend);
+
     if (firstRun) {
       firstRun = false;
     } else {
@@ -709,7 +798,7 @@ export async function runInteractiveMenu(): Promise<void> {
       mainMenuOptions(),
       {
         subtitle:
-          "Goal: estimate real-world fit. Global verdict combines Hardware Fit + Task Quality; quality stays directional (dataset-based).",
+          `Goal: estimate real-world fit. Backend: ${runtimeDisplayName}. Global verdict combines Hardware Fit + Task Quality; quality stays directional (dataset-based).`,
         allowEscape: false,
       }
     );
@@ -721,7 +810,7 @@ export async function runInteractiveMenu(): Promise<void> {
     }
 
     if (mainChoice === "list") {
-      await listCommand({ setExitCode: false });
+      await listCommand({ setExitCode: false, backend: menuBackend });
       await waitForContinue("Press Enter to return to menu...");
       continue;
     }
@@ -771,9 +860,9 @@ export async function runInteractiveMenu(): Promise<void> {
     }
 
     if (mainChoice === "bench-one") {
-      const listing = await listCommand({ setExitCode: false });
+      const listing = await listCommand({ setExitCode: false, backend: menuBackend });
       if (!listing.reachable) {
-        await waitForContinue("Cannot reach Ollama. Press Enter to return...");
+        await waitForContinue(`Cannot reach ${runtimeDisplayName}. Press Enter to return...`);
         continue;
       }
       if (listing.models.length === 0) {
@@ -831,6 +920,7 @@ export async function runInteractiveMenu(): Promise<void> {
           model: selectedModel,
           perfOnly,
           setExitCode: false,
+          backend: menuBackend,
         });
 
         if (results.length > 0) {
@@ -896,6 +986,7 @@ export async function runInteractiveMenu(): Promise<void> {
         const { results } = await benchCommand({
           perfOnly,
           setExitCode: false,
+          backend: menuBackend,
         });
 
         if (results.length > 0) {

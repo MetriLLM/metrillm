@@ -151,4 +151,37 @@ describe("runSettingsMenu", () => {
     expect(saveTelemetryPref).not.toHaveBeenCalled();
     expect(waitForAcknowledge).toHaveBeenCalledTimes(1);
   });
+
+  it("updates runtime backend from settings", async () => {
+    let config: MetriLLMConfig = { autoShare: "ask", telemetry: false, runtimeBackend: "ollama" };
+    const sequence = ["set-runtime-backend", "back"] as const;
+    let idx = 0;
+
+    const loadUserConfig = vi.fn(async () => config);
+    const saveUserConfig = vi.fn(async (next: MetriLLMConfig) => {
+      config = next;
+    });
+    const saveTelemetryPref = vi.fn(async (_value: boolean) => {});
+    const selectSettingsAction = vi.fn(async () => sequence[idx++] ?? null);
+    const selectRuntimeBackend = vi.fn(async () => "lm-studio" as const);
+    const waitForAcknowledge = vi.fn(async () => {});
+
+    await runSettingsMenu({
+      loadUserConfig,
+      saveUserConfig,
+      saveTelemetryPref,
+      selectSettingsAction,
+      selectRuntimeBackend,
+      waitForAcknowledge,
+    });
+
+    expect(selectRuntimeBackend).toHaveBeenCalledWith("ollama");
+    expect(saveUserConfig).toHaveBeenCalledWith({
+      autoShare: "ask",
+      telemetry: false,
+      runtimeBackend: "lm-studio",
+    });
+    expect(saveTelemetryPref).not.toHaveBeenCalled();
+    expect(waitForAcknowledge).toHaveBeenCalledTimes(1);
+  });
 });

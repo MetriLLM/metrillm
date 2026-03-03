@@ -9,6 +9,14 @@ const {
   unloadModelMock,
   setDefaultKeepAliveMock,
   abortOngoingRequestsMock,
+  lmStudioGenerateMock,
+  lmStudioGenerateStreamMock,
+  lmStudioListModelsMock,
+  lmStudioListRunningModelsMock,
+  getLMStudioVersionMock,
+  lmStudioUnloadModelMock,
+  lmStudioSetDefaultKeepAliveMock,
+  lmStudioAbortOngoingRequestsMock,
 } = vi.hoisted(() => ({
   generateMock: vi.fn(),
   generateStreamMock: vi.fn(),
@@ -18,6 +26,14 @@ const {
   unloadModelMock: vi.fn(),
   setDefaultKeepAliveMock: vi.fn(),
   abortOngoingRequestsMock: vi.fn(),
+  lmStudioGenerateMock: vi.fn(),
+  lmStudioGenerateStreamMock: vi.fn(),
+  lmStudioListModelsMock: vi.fn(),
+  lmStudioListRunningModelsMock: vi.fn(),
+  getLMStudioVersionMock: vi.fn(),
+  lmStudioUnloadModelMock: vi.fn(),
+  lmStudioSetDefaultKeepAliveMock: vi.fn(),
+  lmStudioAbortOngoingRequestsMock: vi.fn(),
 }));
 
 vi.mock("../src/core/ollama-client.js", () => ({
@@ -29,6 +45,17 @@ vi.mock("../src/core/ollama-client.js", () => ({
   unloadModel: unloadModelMock,
   setDefaultKeepAlive: setDefaultKeepAliveMock,
   abortOngoingRequests: abortOngoingRequestsMock,
+}));
+
+vi.mock("../src/core/lm-studio-client.js", () => ({
+  generate: lmStudioGenerateMock,
+  generateStream: lmStudioGenerateStreamMock,
+  listModels: lmStudioListModelsMock,
+  listRunningModels: lmStudioListRunningModelsMock,
+  getLMStudioVersion: getLMStudioVersionMock,
+  unloadModel: lmStudioUnloadModelMock,
+  setDefaultKeepAlive: lmStudioSetDefaultKeepAliveMock,
+  abortOngoingRequests: lmStudioAbortOngoingRequestsMock,
 }));
 
 describe("runtime proxy", () => {
@@ -106,5 +133,37 @@ describe("runtime proxy", () => {
     expect(custom.unloadModel).toHaveBeenCalledWith("m");
     expect(custom.setKeepAlive).toHaveBeenCalledWith("1m");
     expect(custom.abort).toHaveBeenCalled();
+  });
+
+  it("switches runtime via setRuntimeByName", async () => {
+    lmStudioGenerateMock.mockResolvedValueOnce({ response: "lm-ok" });
+    lmStudioGenerateStreamMock.mockResolvedValueOnce({ response: "lm-stream-ok" });
+    lmStudioListModelsMock.mockResolvedValueOnce([{ name: "qwen3" }]);
+    lmStudioListRunningModelsMock.mockResolvedValueOnce([{ name: "qwen3" }]);
+    getLMStudioVersionMock.mockResolvedValueOnce("unknown");
+
+    const runtime = await import("../src/core/runtime.js");
+    runtime.setRuntimeByName("lm-studio");
+
+    expect(runtime.getRuntimeName()).toBe("lm-studio");
+    expect(runtime.getRuntimeModelFormat()).toBe("gguf");
+
+    await runtime.generate("m", "p");
+    await runtime.generateStream("m", "p");
+    await runtime.listModels();
+    await runtime.listRunningModels();
+    await runtime.getRuntimeVersion();
+    await runtime.unloadModel("m");
+    runtime.setRuntimeKeepAlive("2m");
+    runtime.abortOngoingRequests();
+
+    expect(lmStudioGenerateMock).toHaveBeenCalled();
+    expect(lmStudioGenerateStreamMock).toHaveBeenCalled();
+    expect(lmStudioListModelsMock).toHaveBeenCalled();
+    expect(lmStudioListRunningModelsMock).toHaveBeenCalled();
+    expect(getLMStudioVersionMock).toHaveBeenCalled();
+    expect(lmStudioUnloadModelMock).toHaveBeenCalledWith("m");
+    expect(lmStudioSetDefaultKeepAliveMock).toHaveBeenCalledWith("2m");
+    expect(lmStudioAbortOngoingRequestsMock).toHaveBeenCalled();
   });
 });

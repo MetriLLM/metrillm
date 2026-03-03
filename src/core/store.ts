@@ -13,6 +13,7 @@ export interface MetriLLMConfig {
   telemetry?: boolean;        // true = opt-in, false = opt-out, undefined = not yet decided
   submitterNickname?: string;
   submitterEmail?: string;
+  runtimeBackend?: "ollama" | "lm-studio";
 }
 
 const DEFAULT_CONFIG: MetriLLMConfig = {
@@ -21,6 +22,13 @@ const DEFAULT_CONFIG: MetriLLMConfig = {
 
 async function ensureDirs(): Promise<void> {
   await mkdir(RESULTS_DIR, { recursive: true });
+}
+
+function parseRuntimeBackend(value: unknown): MetriLLMConfig["runtimeBackend"] | undefined {
+  if (value === "ollama" || value === "lm-studio") {
+    return value;
+  }
+  return undefined;
 }
 
 function resultFilename(result: BenchResult): string {
@@ -77,7 +85,15 @@ export async function loadConfig(): Promise<MetriLLMConfig> {
       && isValidEmail(parsed.submitterEmail)
       ? normalizeEmail(parsed.submitterEmail)
       : undefined;
-    return { ...DEFAULT_CONFIG, autoShare, telemetry, submitterNickname, submitterEmail };
+    const runtimeBackend = parseRuntimeBackend(parsed.runtimeBackend);
+    return {
+      ...DEFAULT_CONFIG,
+      autoShare,
+      telemetry,
+      submitterNickname,
+      submitterEmail,
+      runtimeBackend,
+    };
   } catch {
     return { ...DEFAULT_CONFIG };
   }

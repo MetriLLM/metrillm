@@ -25,10 +25,11 @@ export interface PerformanceBenchOptions {
   minSuccessfulPrompts?: number;
   failOnPromptError?: boolean;
   think?: boolean;
+  streamStallTimeoutMs?: number;
 }
 
-const DEFAULT_WARMUP_TIMEOUT_MS = 120_000;
-const DEFAULT_PROMPT_TIMEOUT_MS = 60_000;
+const DEFAULT_WARMUP_TIMEOUT_MS = 300_000;
+const DEFAULT_PROMPT_TIMEOUT_MS = 120_000;
 
 export async function runPerformanceBench(
   model: string,
@@ -50,6 +51,7 @@ export async function runPerformanceBench(
       generateStream(model, WARMUP_PROMPT, undefined, {
         num_predict: 32,
         think: options.think,
+        stall_timeout_ms: options.streamStallTimeoutMs,
       }),
       warmupTimeoutMs,
       "Model warmup",
@@ -93,7 +95,11 @@ export async function runPerformanceBench(
                 }
               },
             },
-            { num_predict: 256, think: options.think }
+            {
+              num_predict: 256,
+              think: options.think,
+              stall_timeout_ms: options.streamStallTimeoutMs,
+            }
           ),
           promptTimeoutMs,
           "Performance benchmark",

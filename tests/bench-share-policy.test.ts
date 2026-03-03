@@ -11,6 +11,7 @@ const {
   listModelsMock,
   getRuntimeVersionMock,
   setRuntimeKeepAliveMock,
+  setRuntimeByNameMock,
   unloadModelMock,
   getHardwareInfoMock,
   runPerformanceBenchMock,
@@ -30,6 +31,7 @@ const {
   listModelsMock: vi.fn(),
   getRuntimeVersionMock: vi.fn(),
   setRuntimeKeepAliveMock: vi.fn(),
+  setRuntimeByNameMock: vi.fn(),
   unloadModelMock: vi.fn(),
   getHardwareInfoMock: vi.fn(),
   runPerformanceBenchMock: vi.fn(),
@@ -50,7 +52,14 @@ const {
 vi.mock("../src/core/runtime.js", () => ({
   listModels: listModelsMock,
   getRuntimeVersion: getRuntimeVersionMock,
+  setRuntimeByName: setRuntimeByNameMock,
   getRuntimeName: () => "ollama",
+  getRuntimeDisplayName: () => "Ollama",
+  getRuntimeModelInstallHint: () => "Pull one with: ollama pull <model>",
+  getRuntimeSetupHints: () => [
+    "Start it with:  ollama serve",
+    "Install it at:  https://ollama.com",
+  ],
   getRuntimeModelFormat: () => "gguf",
   setRuntimeKeepAlive: setRuntimeKeepAliveMock,
   unloadModel: unloadModelMock,
@@ -151,6 +160,7 @@ import { benchCommand } from "../src/commands/bench.js";
 describe("bench share policy", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    setRuntimeByNameMock.mockReturnValue("ollama");
     listModelsMock.mockResolvedValue([{ name: "test-model", size: 123 }]);
     getRuntimeVersionMock.mockResolvedValue("0.5.12");
     getHardwareInfoMock.mockResolvedValue({
@@ -241,6 +251,7 @@ describe("bench share policy", () => {
     expect(promptShareMock).not.toHaveBeenCalled();
     expect(uploadBenchResultMock).not.toHaveBeenCalled();
     expect(openUrlMock).not.toHaveBeenCalled();
+    expect(setRuntimeByNameMock).not.toHaveBeenCalled();
     expect(warnMsgMock).toHaveBeenCalledWith(
       "Sharing is not available in performance-only mode. Run a full benchmark to upload results."
     );
@@ -255,6 +266,55 @@ describe("bench share policy", () => {
       ciNoMenu: false,
     });
 
+    expect(setRuntimeByNameMock).not.toHaveBeenCalled();
     expect(uploadBenchResultMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("forwards timeout overrides to performance and quality benchmarks", async () => {
+    await benchCommand({
+      model: "test-model",
+      perfOnly: false,
+      share: false,
+      setExitCode: false,
+      ciNoMenu: true,
+      perfWarmupTimeoutMs: 500_000,
+      perfPromptTimeoutMs: 180_000,
+      qualityTimeoutMs: 240_000,
+      codingTimeoutMs: 360_000,
+      lmStudioStreamStallTimeoutMs: 210_000,
+    });
+
+    expect(runPerformanceBenchMock).toHaveBeenCalledWith(
+      "test-model",
+      expect.objectContaining({
+        warmupTimeoutMs: 500_000,
+        promptTimeoutMs: 180_000,
+        streamStallTimeoutMs: 210_000,
+      })
+    );
+    expect(runReasoningBenchMock).toHaveBeenCalledWith(
+      "test-model",
+      expect.objectContaining({ timeoutMs: 240_000 })
+    );
+    expect(runMathBenchMock).toHaveBeenCalledWith(
+      "test-model",
+      expect.objectContaining({ timeoutMs: 240_000 })
+    );
+    expect(runCodingBenchMock).toHaveBeenCalledWith(
+      "test-model",
+      expect.objectContaining({ timeoutMs: 360_000 })
+    );
+    expect(runInstructionFollowingBenchMock).toHaveBeenCalledWith(
+      "test-model",
+      expect.objectContaining({ timeoutMs: 240_000 })
+    );
+    expect(runStructuredOutputBenchMock).toHaveBeenCalledWith(
+      "test-model",
+      expect.objectContaining({ timeoutMs: 240_000 })
+    );
+    expect(runMultilingualBenchMock).toHaveBeenCalledWith(
+      "test-model",
+      expect.objectContaining({ timeoutMs: 240_000 })
+    );
   });
 });

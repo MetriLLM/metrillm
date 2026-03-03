@@ -5,13 +5,18 @@ import { createSpinner } from "../ui/progress.js";
 import mathData from "../datasets/math.json" with { type: "json" };
 
 const problems = mathData as MathProblem[];
+const DEFAULT_MATH_TIMEOUT_MS = 120_000;
 
-export async function runMathBench(model: string, opts?: { think?: boolean }): Promise<CategoryResult> {
+export async function runMathBench(
+  model: string,
+  opts?: { think?: boolean; timeoutMs?: number }
+): Promise<CategoryResult> {
   const spinner = createSpinner("Running math benchmark...");
   spinner.start();
 
   const details: QuestionResult[] = [];
   let correct = 0;
+  const timeoutMs = opts?.timeoutMs ?? DEFAULT_MATH_TIMEOUT_MS;
 
   try {
     for (let i = 0; i < problems.length; i++) {
@@ -28,7 +33,7 @@ Answer:`;
       try {
         const result = await withTimeout(
           generate(model, prompt, { temperature: 0, num_predict: 1024, think: opts?.think }),
-          60_000,
+          timeoutMs,
           "Math problem",
           abortOngoingRequests
         );

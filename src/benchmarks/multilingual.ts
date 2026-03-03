@@ -15,6 +15,7 @@ interface MLQuestion {
 }
 
 const questions = mlData as MLQuestion[];
+const DEFAULT_MULTILINGUAL_TIMEOUT_MS = 120_000;
 
 const NEGATION_PATTERNS: RegExp[] = [
   /\b(?:not|never|no|non|pas|nicht|kein|keine|ningun|ninguna|nunca|jamas)\b/u,
@@ -95,12 +96,16 @@ export function validateMultilingualResponse(response: string, q: MLQuestion): b
   }
 }
 
-export async function runMultilingualBench(model: string, opts?: { think?: boolean }): Promise<CategoryResult> {
+export async function runMultilingualBench(
+  model: string,
+  opts?: { think?: boolean; timeoutMs?: number }
+): Promise<CategoryResult> {
   const spinner = createSpinner("Running multilingual benchmark...");
   spinner.start();
 
   const details: QuestionResult[] = [];
   let correct = 0;
+  const timeoutMs = opts?.timeoutMs ?? DEFAULT_MULTILINGUAL_TIMEOUT_MS;
 
   try {
     for (let i = 0; i < questions.length; i++) {
@@ -111,7 +116,7 @@ export async function runMultilingualBench(model: string, opts?: { think?: boole
       try {
         const result = await withTimeout(
           generate(model, q.prompt, { temperature: 0, num_predict: 1024, think: opts?.think }),
-          60_000,
+          timeoutMs,
           "Multilingual task",
           abortOngoingRequests
         );

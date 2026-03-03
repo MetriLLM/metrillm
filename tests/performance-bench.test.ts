@@ -57,9 +57,11 @@ vi.mock("../src/ui/progress.js", () => ({
 }));
 
 import { runPerformanceBench } from "../src/benchmarks/performance.js";
+import * as ollamaClient from "../src/core/ollama-client.js";
 
 describe("runPerformanceBench", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     generatePlan = [];
     thinkingPlan = [];
     memoryPlan = [
@@ -137,5 +139,25 @@ describe("runPerformanceBench", () => {
 
     expect(result.thinkingDetected).toBe(false);
     expect(result.metrics.thinkingTokensEstimate).toBeUndefined();
+  });
+
+  it("forwards stream stall timeout to runtime generate calls", async () => {
+    generatePlan = ["ok", "ok", "ok", "ok", "ok", "ok"];
+    thinkingPlan = [];
+
+    await runPerformanceBench("test-model", {
+      failOnPromptError: false,
+      minSuccessfulPrompts: 3,
+      streamStallTimeoutMs: 180_000,
+    });
+
+    const generateStreamMock = vi.mocked(ollamaClient.generateStream);
+    expect(generateStreamMock).toHaveBeenCalled();
+    expect(
+      generateStreamMock.mock.calls.every((call) => {
+        const options = call[3];
+        return options?.stall_timeout_ms === 180_000;
+      })
+    ).toBe(true);
   });
 });

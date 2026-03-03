@@ -1,0 +1,749 @@
+import os from "node:os";
+import path from "node:path";
+import { promises as fs } from "node:fs";
+import type { Dirent } from "node:fs";
+import type { OllamaModel, OllamaRunningModel } from "../types.js";
+import type { GenerateResult, KeepAliveValue, StreamCallbacks } from "./ollama-client.js";
+
+const DEFAULT_LM_STUDIO_BASE_URL = "http://127.0.0.1:1234";
+const LM_STUDIO_INIT_TIMEOUT_MS = 15_000;
+const LM_STUDIO_METADATA_TIMEOUT_MS = 2_000;
+const DEFAULT_STREAM_STALL_TIMEOUT_MS = 180_000;
+const DEFAULT_LM_STUDIO_HOME_DIR = path.join(os.homedir(), ".lmstudio");
+const DEFAULT_LM_STUDIO_MODELS_DIR = path.join(DEFAULT_LM_STUDIO_HOME_DIR, "models");
+const LM_STUDIO_HOME_DIR_ENV = "LM_STUDIO_HOME_DIR";
+const LM_STUDIO_MODELS_DIR_ENV = "LM_STUDIO_MODELS_DIR";
+
+let defaultKeepAlive: KeepAliveValue | undefined;
+const activeAbortControllers = new Set<AbortController>();
+const directorySizeCache = new Map<string, number>();
+const modelDefinitionCache = new Map<string, LMStudioModelDefinition | null>();
+
+interface LMStudioModelListResponse {
+  data?: Array<{ id?: string }>;
+}
+
+interface LMStudioApiModel {
+  id?: string;
+  arch?: string;
+  type?: string;
+  publisher?: string;
+  compatibility_type?: string;
+  quantization?: string;
+  state?: string;
+  size?: number;
+  size_bytes?: number;
+  model_size_bytes?: number;
+  file_size_bytes?: number;
+  bytes?: number;
+}
+
+interface LMStudioApiModelListResponse {
+  data?: LMStudioApiModel[];
+}
+
+interface LMStudioModelSource {
+  user: string;
+  repo: string;
+}
+
+interface LMStudioModelDefinition {
+  parameterSize?: string;
+  sources: LMStudioModelSource[];
+}
+
+interface LMStudioUsage {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+}
+
+interface LMStudioChoice {
+  delta?: {
+    content?: string;
+    reasoning_content?: string;
+    reasoning?: string;
+  };
+  message?: {
+    content?: string;
+    reasoning_content?: string;
+    reasoning?: string;
+  };
+}
+
+interface LMStudioChatCompletionChunk {
+  usage?: LMStudioUsage;
+  choices?: LMStudioChoice[];
+}
+
+function parseNonNegativeInt(value: string): number | null {
+  if (!/^\d+$/.test(value)) return null;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isSafeInteger(parsed) || parsed < 0) return null;
+  return parsed;
+}
+
+function resolveStreamStallTimeoutMs(override?: number): number | undefined {
+  if (override !== undefined) {
+    if (!Number.isFinite(override) || override < 0) return DEFAULT_STREAM_STALL_TIMEOUT_MS;
+    return override === 0 ? undefined : Math.trunc(override);
+  }
+
+  const configured = process.env.LM_STUDIO_STREAM_STALL_TIMEOUT_MS?.trim();
+  if (!configured) return DEFAULT_STREAM_STALL_TIMEOUT_MS;
+  const parsed = parseNonNegativeInt(configured);
+  if (parsed === null) return DEFAULT_STREAM_STALL_TIMEOUT_MS;
+  return parsed === 0 ? undefined : parsed;
+}
+
+function getLMStudioBaseUrl(): string {
+  const configured = process.env.LM_STUDIO_BASE_URL?.trim();
+  if (!configured) return DEFAULT_LM_STUDIO_BASE_URL;
+  const candidate = /^https?:\/\//i.test(configured) ? configured : `http://${configured}`;
+  try {
+    return new URL(candidate).toString();
+  } catch {
+    return DEFAULT_LM_STUDIO_BASE_URL;
+  }
+}
+
+function getLMStudioHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  const apiKey = process.env.LM_STUDIO_API_KEY?.trim();
+  if (apiKey) {
+    headers.Authorization = `Bearer ${apiKey}`;
+  }
+  return headers;
+}
+
+function extractUsage(payload: unknown): LMStudioUsage | undefined {
+  if (typeof payload !== "object" || payload === null) return undefined;
+  const usage = (payload as { usage?: LMStudioUsage }).usage;
+  if (!usage) return undefined;
+  return usage;
+}
+
+function extractChoice(payload: unknown): LMStudioChoice | undefined {
+  if (typeof payload !== "object" || payload === null) return undefined;
+  const choices = (payload as LMStudioChatCompletionChunk).choices;
+  if (!choices || choices.length === 0) return undefined;
+  return choices[0];
+}
+
+function extractContent(choice: LMStudioChoice | undefined): string {
+  const content = choice?.delta?.content ?? choice?.message?.content;
+  return typeof content === "string" ? content : "";
+}
+
+function extractReasoning(choice: LMStudioChoice | undefined): string {
+  const reasoning =
+    choice?.delta?.reasoning_content ??
+    choice?.delta?.reasoning ??
+    choice?.message?.reasoning_content ??
+    choice?.message?.reasoning;
+  return typeof reasoning === "string" ? reasoning : "";
+}
+
+function asNonEmptyString(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function stripOptionalQuotes(value: string): string {
+  const trimmed = value.trim();
+  return trimmed.replace(/^["']|["']$/g, "").trim();
+}
+
+function normalizeToken(value: string | undefined): string {
+  return (value ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function getLMStudioHomeDir(): string {
+  const fromEnv = process.env[LM_STUDIO_HOME_DIR_ENV]?.trim();
+  if (!fromEnv) return DEFAULT_LM_STUDIO_HOME_DIR;
+  if (fromEnv.startsWith("~")) {
+    return path.join(os.homedir(), fromEnv.slice(1));
+  }
+  return fromEnv;
+}
+
+async function pathIsDirectory(targetPath: string): Promise<boolean> {
+  try {
+    const stat = await fs.stat(targetPath);
+    return stat.isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+async function loadHubModelDefinition(modelId: string): Promise<LMStudioModelDefinition | null> {
+  if (modelDefinitionCache.has(modelId)) {
+    return modelDefinitionCache.get(modelId) ?? null;
+  }
+
+  const [publisher, modelName] = modelId.split("/", 2);
+  if (!publisher || !modelName) {
+    modelDefinitionCache.set(modelId, null);
+    return null;
+  }
+
+  const yamlPath = path.join(getLMStudioHomeDir(), "hub", "models", publisher, modelName, "model.yaml");
+  let content = "";
+  try {
+    content = await fs.readFile(yamlPath, "utf8");
+  } catch {
+    modelDefinitionCache.set(modelId, null);
+    return null;
+  }
+
+  const sourcePattern = /user:\s*([^\n#]+?)\s*(?:\r?\n)\s*repo:\s*([^\n#]+?)\s*(?:\r?\n|$)/g;
+  const sourceMap = new Map<string, LMStudioModelSource>();
+  let sourceMatch: RegExpExecArray | null = null;
+  while ((sourceMatch = sourcePattern.exec(content)) !== null) {
+    const user = stripOptionalQuotes(sourceMatch[1] ?? "");
+    const repo = stripOptionalQuotes(sourceMatch[2] ?? "");
+    if (!user || !repo) continue;
+    sourceMap.set(`${user}/${repo}`, { user, repo });
+  }
+
+  const paramsPattern = /paramsStrings:\s*(?:\r?\n)\s*-\s*([^\n#]+)/;
+  const paramsMatch = paramsPattern.exec(content);
+  const parameterSize = paramsMatch?.[1] ? stripOptionalQuotes(paramsMatch[1]) : undefined;
+
+  const definition: LMStudioModelDefinition = {
+    parameterSize: parameterSize || undefined,
+    sources: Array.from(sourceMap.values()),
+  };
+  modelDefinitionCache.set(modelId, definition);
+  return definition;
+}
+
+async function readDirectorySizeBytes(dirPath: string): Promise<number> {
+  const cached = directorySizeCache.get(dirPath);
+  if (cached !== undefined) return cached;
+
+  let total = 0;
+  const queue: string[] = [dirPath];
+  while (queue.length > 0) {
+    const current = queue.pop();
+    if (!current) continue;
+
+    let entries: Dirent[] = [];
+    try {
+      entries = await fs.readdir(current, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+
+    for (const entry of entries) {
+      if (entry.isSymbolicLink()) continue;
+      const fullPath = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        queue.push(fullPath);
+        continue;
+      }
+      if (!entry.isFile()) continue;
+      try {
+        const stat = await fs.stat(fullPath);
+        total += stat.size;
+      } catch {
+        // Ignore transient file read errors.
+      }
+    }
+  }
+
+  directorySizeCache.set(dirPath, total);
+  return total;
+}
+
+function scoreModelSourceCandidate(
+  source: LMStudioModelSource,
+  modelId: string,
+  apiModel: LMStudioApiModel | undefined
+): number {
+  const repoToken = normalizeToken(source.repo);
+  let score = 0;
+
+  const quantToken = normalizeToken(apiModel?.quantization);
+  if (quantToken && repoToken.includes(quantToken)) score += 8;
+
+  const compatibilityToken = normalizeToken(apiModel?.compatibility_type);
+  if (compatibilityToken && repoToken.includes(compatibilityToken)) score += 4;
+
+  const [, shortModelName] = modelId.split("/", 2);
+  const modelToken = normalizeToken(shortModelName ?? modelId);
+  if (modelToken && repoToken.includes(modelToken)) score += 2;
+
+  return score;
+}
+
+async function resolveModelsRootDir(): Promise<string> {
+  const fromEnv = process.env[LM_STUDIO_MODELS_DIR_ENV]?.trim();
+  if (fromEnv) {
+    if (fromEnv.startsWith("~")) {
+      return path.join(os.homedir(), fromEnv.slice(1));
+    }
+    return fromEnv;
+  }
+
+  const settingsCandidates = [
+    path.join(getLMStudioHomeDir(), "settings.json"),
+    path.join(os.homedir(), "Library", "Application Support", "LM Studio", "settings.json"),
+  ];
+  for (const settingsPath of settingsCandidates) {
+    try {
+      const content = await fs.readFile(settingsPath, "utf8");
+      const parsed = JSON.parse(content) as { downloadsFolder?: unknown };
+      const downloadsFolder = asNonEmptyString(parsed.downloadsFolder);
+      if (downloadsFolder) {
+        return downloadsFolder.startsWith("~")
+          ? path.join(os.homedir(), downloadsFolder.slice(1))
+          : downloadsFolder;
+      }
+    } catch {
+      // Try next location.
+    }
+  }
+
+  return DEFAULT_LM_STUDIO_MODELS_DIR;
+}
+
+async function resolveLocalModelMetadata(
+  modelId: string,
+  apiModel: LMStudioApiModel | undefined,
+  modelsRootDir: string
+): Promise<{ size: number; parameterSize?: string }> {
+  const definition = await loadHubModelDefinition(modelId);
+  if (!definition) {
+    return { size: 0, parameterSize: undefined };
+  }
+
+  const installedSources: Array<LMStudioModelSource & { fullPath: string }> = [];
+  for (const source of definition.sources) {
+    const fullPath = path.join(modelsRootDir, source.user, source.repo);
+    if (await pathIsDirectory(fullPath)) {
+      installedSources.push({ ...source, fullPath });
+    }
+  }
+
+  if (installedSources.length === 0) {
+    return { size: 0, parameterSize: definition.parameterSize };
+  }
+
+  installedSources.sort((a, b) => {
+    const diff =
+      scoreModelSourceCandidate(b, modelId, apiModel)
+      - scoreModelSourceCandidate(a, modelId, apiModel);
+    if (diff !== 0) return diff;
+    return a.repo.localeCompare(b.repo);
+  });
+
+  let bestSize = 0;
+  for (const source of installedSources) {
+    const size = await readDirectorySizeBytes(source.fullPath);
+    if (size > bestSize) bestSize = size;
+    if (size > 0) {
+      return { size, parameterSize: definition.parameterSize };
+    }
+  }
+
+  return { size: bestSize, parameterSize: definition.parameterSize };
+}
+
+function parseSizeBytes(model: LMStudioApiModel | undefined): number {
+  if (!model) return 0;
+  const candidates = [
+    model.size_bytes,
+    model.model_size_bytes,
+    model.file_size_bytes,
+    model.bytes,
+    model.size,
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate !== "number" || !Number.isFinite(candidate)) continue;
+    if (candidate > 0) return Math.trunc(candidate);
+  }
+  return 0;
+}
+
+function normalizeModelNumber(value: string): string {
+  return value.replace(/\.0+$/, "");
+}
+
+function inferParameterSizeFromModelId(modelId: string): string | undefined {
+  const id = modelId.toLowerCase();
+
+  const mixtureMatch = id.match(/\b(\d+(?:\.\d+)?)\s*[x*]\s*(\d+(?:\.\d+)?)\s*b\b/);
+  if (mixtureMatch) {
+    const experts = normalizeModelNumber(mixtureMatch[1] ?? "");
+    const perExpert = normalizeModelNumber(mixtureMatch[2] ?? "");
+    if (experts && perExpert) return `${experts}x${perExpert}B`;
+  }
+
+  const billionMatch = id.match(/\b(\d+(?:\.\d+)?)\s*b\b/);
+  if (billionMatch?.[1]) {
+    return `${normalizeModelNumber(billionMatch[1])}B`;
+  }
+
+  const millionMatch = id.match(/\b(\d+(?:\.\d+)?)\s*m\b/);
+  if (millionMatch?.[1]) {
+    return `${normalizeModelNumber(millionMatch[1])}M`;
+  }
+
+  return undefined;
+}
+
+function isLoadedState(state: string | undefined): boolean {
+  if (!state) return false;
+  const normalized = state.trim().toLowerCase();
+  if (!normalized || normalized.includes("not-loaded")) return false;
+  if (normalized === "loaded" || normalized === "ready") return true;
+  return normalized.includes("loaded");
+}
+
+async function fetchApiModels(): Promise<LMStudioApiModel[] | null> {
+  try {
+    const resp = await fetchWithTimeout(
+      "/api/v0/models",
+      { method: "GET", headers: getLMStudioHeaders() },
+      LM_STUDIO_METADATA_TIMEOUT_MS,
+      "LM Studio API metadata"
+    );
+    if (!resp.ok) return null;
+    const payload = (await resp.json()) as LMStudioApiModelListResponse;
+    return Array.isArray(payload.data) ? payload.data : [];
+  } catch {
+    return null;
+  }
+}
+
+async function fetchWithTimeout(
+  path: string,
+  init: RequestInit,
+  timeoutMs: number,
+  label: string
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const baseUrl = getLMStudioBaseUrl();
+  try {
+    const url = new URL(path, baseUrl);
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error(`${label} timed out after ${timeoutMs}ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export async function getLMStudioVersion(): Promise<string> {
+  try {
+    const resp = await fetchWithTimeout(
+      "/v1/models",
+      { method: "GET", headers: getLMStudioHeaders() },
+      5_000,
+      "LM Studio version check"
+    );
+    if (!resp.ok) return "unknown";
+    const fromHeader = resp.headers.get("x-lmstudio-version");
+    if (fromHeader && fromHeader.trim()) return fromHeader.trim();
+    return "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
+export async function listModels(): Promise<OllamaModel[]> {
+  const resp = await fetchWithTimeout(
+    "/v1/models",
+    { method: "GET", headers: getLMStudioHeaders() },
+    LM_STUDIO_INIT_TIMEOUT_MS,
+    "LM Studio list models"
+  );
+  if (!resp.ok) {
+    throw new Error(`LM Studio list models failed (${resp.status} ${resp.statusText})`);
+  }
+  const data = (await resp.json()) as LMStudioModelListResponse;
+  const ids = (data.data ?? [])
+    .map((m) => m.id?.trim())
+    .filter((id): id is string => Boolean(id));
+
+  const apiModels = await fetchApiModels();
+  const apiById = new Map<string, LMStudioApiModel>();
+  for (const model of apiModels ?? []) {
+    const id = asNonEmptyString(model.id);
+    if (!id) continue;
+    apiById.set(id, model);
+  }
+
+  const modelsRootDir = await resolveModelsRootDir();
+  const localMetadataById = new Map<string, { size: number; parameterSize?: string }>();
+  for (const id of ids) {
+    const localMetadata = await resolveLocalModelMetadata(id, apiById.get(id), modelsRootDir);
+    localMetadataById.set(id, localMetadata);
+  }
+
+  return ids.map((id) => {
+    const apiModel = apiById.get(id);
+    const localMetadata = localMetadataById.get(id);
+    const apiSize = parseSizeBytes(apiModel);
+    return {
+      name: id,
+      size: apiSize > 0 ? apiSize : (localMetadata?.size ?? 0),
+      parameterSize:
+        localMetadata?.parameterSize
+        ?? inferParameterSizeFromModelId(id),
+      quantization: asNonEmptyString(apiModel?.quantization),
+      runtimeStatus: asNonEmptyString(apiModel?.state),
+      family:
+        asNonEmptyString(apiModel?.arch)
+        ?? asNonEmptyString(apiModel?.type)
+        ?? asNonEmptyString(apiModel?.publisher),
+    };
+  });
+}
+
+export async function listRunningModels(): Promise<OllamaRunningModel[]> {
+  const apiModels = await fetchApiModels();
+  if (!apiModels) return [];
+
+  return apiModels
+    .filter((model) => isLoadedState(model.state))
+    .map((model) => ({
+      name: model.id ?? "",
+      size: parseSizeBytes(model),
+      vramUsed: 0,
+    }))
+    .filter((model) => model.name.trim().length > 0);
+}
+
+export function setDefaultKeepAlive(keepAlive?: KeepAliveValue): void {
+  // No-op for LM Studio today (kept for runtime interface parity).
+  defaultKeepAlive = keepAlive;
+  void defaultKeepAlive;
+}
+
+export async function generate(
+  model: string,
+  prompt: string,
+  options?: {
+    temperature?: number;
+    num_predict?: number;
+    keep_alive?: KeepAliveValue;
+    think?: boolean;
+    stall_timeout_ms?: number;
+  }
+): Promise<GenerateResult> {
+  const start = Date.now();
+  const controller = new AbortController();
+  activeAbortControllers.add(controller);
+  try {
+    const baseUrl = getLMStudioBaseUrl();
+    const url = new URL("/v1/chat/completions", baseUrl);
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: getLMStudioHeaders(),
+      body: JSON.stringify({
+        model,
+        messages: [{ role: "user", content: prompt }],
+        temperature: options?.temperature ?? 0,
+        max_tokens: options?.num_predict ?? 512,
+        stream: false,
+      }),
+      signal: controller.signal,
+    });
+
+    if (!resp.ok) {
+      const body = await resp.text().catch(() => "");
+      throw new Error(`LM Studio generate failed (${resp.status} ${resp.statusText}) ${body}`.trim());
+    }
+
+    const payload = (await resp.json()) as LMStudioChatCompletionChunk;
+    const choice = extractChoice(payload);
+    const response = extractContent(choice);
+    const reasoning = extractReasoning(choice);
+    const usage = extractUsage(payload);
+    const totalDuration = Math.max(0, Date.now() - start) * 1e6;
+
+    return {
+      response,
+      ...(reasoning ? { thinking: reasoning } : {}),
+      totalDuration,
+      loadDuration: 0,
+      promptEvalCount: usage?.prompt_tokens ?? 0,
+      promptEvalDuration: 0,
+      evalCount: usage?.completion_tokens ?? 0,
+      evalDuration: totalDuration,
+    };
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error("LM Studio generate request aborted");
+    }
+    throw err;
+  } finally {
+    activeAbortControllers.delete(controller);
+  }
+}
+
+export async function generateStream(
+  model: string,
+  prompt: string,
+  callbacks?: StreamCallbacks,
+  options?: {
+    temperature?: number;
+    num_predict?: number;
+    keep_alive?: KeepAliveValue;
+    think?: boolean;
+    stall_timeout_ms?: number;
+  }
+): Promise<GenerateResult> {
+  const start = Date.now();
+  const controller = new AbortController();
+  activeAbortControllers.add(controller);
+  const stallTimeoutMs = resolveStreamStallTimeoutMs(options?.stall_timeout_ms);
+  let abortedByStallTimeout = false;
+
+  const baseUrl = getLMStudioBaseUrl();
+  const url = new URL("/v1/chat/completions", baseUrl);
+
+  let stallTimer: ReturnType<typeof setTimeout> | null = null;
+  const resetStallTimer = () => {
+    if (stallTimeoutMs === undefined) return;
+    if (stallTimer) clearTimeout(stallTimer);
+    stallTimer = setTimeout(() => {
+      abortedByStallTimeout = true;
+      controller.abort();
+    }, stallTimeoutMs);
+  };
+
+  try {
+    resetStallTimer();
+
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: getLMStudioHeaders(),
+      body: JSON.stringify({
+        model,
+        messages: [{ role: "user", content: prompt }],
+        temperature: options?.temperature ?? 0,
+        max_tokens: options?.num_predict ?? 512,
+        stream: true,
+        stream_options: { include_usage: true },
+      }),
+      signal: controller.signal,
+    });
+
+    if (!resp.ok) {
+      const body = await resp.text().catch(() => "");
+      throw new Error(`LM Studio stream failed (${resp.status} ${resp.statusText}) ${body}`.trim());
+    }
+
+    if (!resp.body) {
+      throw new Error("LM Studio stream response body is empty");
+    }
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffered = "";
+    let doneReceived = false;
+    let fullResponse = "";
+    let fullThinking = "";
+    let usage: LMStudioUsage | undefined;
+
+    const processDataLine = (rawLine: string) => {
+      const line = rawLine.trim();
+      if (!line.startsWith("data:")) return;
+      const dataStr = line.slice(5).trim();
+      if (!dataStr) return;
+      if (dataStr === "[DONE]") {
+        doneReceived = true;
+        return;
+      }
+
+      let payload: unknown;
+      try {
+        payload = JSON.parse(dataStr);
+      } catch {
+        return;
+      }
+
+      const choice = extractChoice(payload);
+      const content = extractContent(choice);
+      const reasoning = extractReasoning(choice);
+      const chunkUsage = extractUsage(payload);
+      if (chunkUsage) usage = chunkUsage;
+
+      if (reasoning) {
+        fullThinking += reasoning;
+      }
+      if (content) {
+        fullResponse += content;
+        callbacks?.onToken?.(content);
+      }
+    };
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      resetStallTimer();
+      buffered += decoder.decode(value, { stream: true });
+      const lines = buffered.split("\n");
+      buffered = lines.pop() ?? "";
+      for (const rawLine of lines) {
+        processDataLine(rawLine);
+      }
+    }
+
+    if (buffered.trim().length > 0) {
+      processDataLine(buffered);
+    }
+
+    if (stallTimer) clearTimeout(stallTimer);
+
+    if (!doneReceived && !fullResponse && !fullThinking) {
+      throw new Error("LM Studio stream ended without content");
+    }
+
+    const totalDuration = Math.max(0, Date.now() - start) * 1e6;
+    const result: GenerateResult = {
+      response: fullResponse,
+      ...(fullThinking ? { thinking: fullThinking } : {}),
+      totalDuration,
+      loadDuration: 0,
+      promptEvalCount: usage?.prompt_tokens ?? 0,
+      promptEvalDuration: 0,
+      evalCount: usage?.completion_tokens ?? 0,
+      evalDuration: totalDuration,
+    };
+
+    callbacks?.onDone?.(result);
+    return result;
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      if (abortedByStallTimeout && stallTimeoutMs !== undefined) {
+        throw new Error(`LM Studio stream timed out after ${stallTimeoutMs}ms`);
+      }
+      throw new Error("LM Studio stream request aborted");
+    }
+    throw err;
+  } finally {
+    if (stallTimer) clearTimeout(stallTimer);
+    activeAbortControllers.delete(controller);
+  }
+}
+
+export async function unloadModel(_model: string): Promise<void> {
+  // No-op for LM Studio today.
+}
+
+export function abortOngoingRequests(): void {
+  for (const controller of activeAbortControllers) {
+    controller.abort();
+  }
+  activeAbortControllers.clear();
+}

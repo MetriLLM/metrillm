@@ -1,6 +1,17 @@
 import { createHash } from "node:crypto";
 import chalk from "chalk";
-import { listModels, getRuntimeVersion, getRuntimeName, getRuntimeModelFormat, setRuntimeKeepAlive, unloadModel } from "../core/runtime.js";
+import {
+  listModels,
+  getRuntimeVersion,
+  getRuntimeName,
+  getRuntimeModelFormat,
+  getRuntimeDisplayName,
+  getRuntimeModelInstallHint,
+  getRuntimeSetupHints,
+  setRuntimeKeepAlive,
+  setRuntimeByName,
+  unloadModel,
+} from "../core/runtime.js";
 import { getHardwareInfo } from "../core/hardware.js";
 import { runPerformanceBench } from "../benchmarks/performance.js";
 import { runReasoningBench } from "../benchmarks/reasoning.js";
@@ -33,13 +44,17 @@ export interface BenchOptions {
   perfWarmupTimeoutMs?: number;
   perfPromptTimeoutMs?: number;
   perfMinSuccessfulPrompts?: number;
+  qualityTimeoutMs?: number;
+  codingTimeoutMs?: number;
+  lmStudioStreamStallTimeoutMs?: number;
   perfStrict?: boolean;
   share?: boolean;       // true = --share, false = --no-share, undefined = prompt
   ciNoMenu?: boolean;    // running in CI mode
   json?: boolean;        // output JSON only, no UI
-  keepAlive?: string | number; // forwarded to Ollama keep_alive
+  keepAlive?: string | number; // forwarded to runtime keep_alive (if supported)
   unloadAfterBench?: boolean;  // unload model after each model benchmark lifecycle
   thinking?: boolean;  // undefined = interactive prompt, true/false = CLI override
+  backend?: string; // runtime backend (ollama | lm-studio)
 }
 
 export interface BenchOutcome {
@@ -48,6 +63,14 @@ export interface BenchOutcome {
 }
 
 export async function benchCommand(options: BenchOptions): Promise<BenchOutcome> {
+  if (options.backend !== undefined) {
+    setRuntimeByName(options.backend);
+  }
+  const runtimeName = getRuntimeName();
+  const runtimeDisplayName = getRuntimeDisplayName(runtimeName);
+  const runtimeModelHint = getRuntimeModelInstallHint(runtimeName);
+  const runtimeSetupHints = getRuntimeSetupHints(runtimeName);
+
   const shouldSetExitCode = options.setExitCode !== false;
   const silent = options.json === true;
   const shouldUnloadAfterModel =
@@ -90,7 +113,7 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
     runtimeVersion = await getRuntimeVersion();
   } catch (err) {
     if (!silent) {
-      warnMsg("Could not detect Ollama version (continuing without it).");
+      warnMsg(`Could not detect ${runtimeDisplayName} version (continuing without it).`);
       if (err instanceof Error) warnMsg(err.message);
     }
   }
@@ -115,10 +138,11 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
       if (!silent) spinnerModels.succeed(`Found ${allModels.length} model(s)`);
     } catch (err) {
       if (!silent) {
-        spinnerModels.fail("Cannot connect to Ollama");
-        errorMsg("Make sure Ollama is installed and running.");
-        errorMsg("  • Start it with:  ollama serve");
-        errorMsg("  • Install it at:  https://ollama.com");
+        spinnerModels.fail(`Cannot connect to ${runtimeDisplayName}`);
+        errorMsg(`Make sure ${runtimeDisplayName} is installed and running.`);
+        for (const hint of runtimeSetupHints) {
+          errorMsg(`  • ${hint}`);
+        }
         if (err instanceof Error) errorMsg(err.message);
       }
       if (shouldSetExitCode) process.exitCode = 1;
@@ -126,7 +150,7 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
     }
 
     if (modelNames.length === 0) {
-      if (!silent) errorMsg("No models found. Pull one with: ollama pull <model>");
+      if (!silent) errorMsg(`No models found. ${runtimeModelHint}`);
       if (shouldSetExitCode) process.exitCode = 1;
       return { results: [], failedModels: [] };
     }
@@ -183,6 +207,7 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
           minSuccessfulPrompts: options.perfMinSuccessfulPrompts,
           failOnPromptError: options.perfStrict,
           think: thinkEnabled,
+          streamStallTimeoutMs: options.lmStudioStreamStallTimeoutMs,
         });
         const perf = perfResult.metrics;
         const thinkingDetected = perfResult.thinkingDetected;
@@ -191,25 +216,33 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
         // Quality benchmarks (unless --perf-only)
         let quality: QualityMetrics | null = null;
         if (!options.perfOnly) {
-          const qualityOpts = thinkEnabled !== undefined ? { think: thinkEnabled } : undefined;
+          const qualityTimeoutMs = options.qualityTimeoutMs;
+          const codingTimeoutMs = options.codingTimeoutMs ?? options.qualityTimeoutMs;
+          const commonQualityOpts = {
+            ...(thinkEnabled !== undefined ? { think: thinkEnabled } : {}),
+            ...(qualityTimeoutMs !== undefined ? { timeoutMs: qualityTimeoutMs } : {}),
+          };
 
           if (!silent) stepHeader("Quality Benchmark — Reasoning");
-          const reasoning = await runReasoningBench(modelName, qualityOpts);
+          const reasoning = await runReasoningBench(modelName, commonQualityOpts);
 
           if (!silent) stepHeader("Quality Benchmark — Math");
-          const math = await runMathBench(modelName, qualityOpts);
+          const math = await runMathBench(modelName, commonQualityOpts);
 
           if (!silent) stepHeader("Quality Benchmark — Coding");
-          const coding = await runCodingBench(modelName, qualityOpts);
+          const coding = await runCodingBench(modelName, {
+            ...(thinkEnabled !== undefined ? { think: thinkEnabled } : {}),
+            ...(codingTimeoutMs !== undefined ? { timeoutMs: codingTimeoutMs } : {}),
+          });
 
           if (!silent) stepHeader("Quality Benchmark — Instruction Following");
-          const instructionFollowing = await runInstructionFollowingBench(modelName, qualityOpts);
+          const instructionFollowing = await runInstructionFollowingBench(modelName, commonQualityOpts);
 
           if (!silent) stepHeader("Quality Benchmark — Structured Output");
-          const structuredOutput = await runStructuredOutputBench(modelName, qualityOpts);
+          const structuredOutput = await runStructuredOutputBench(modelName, commonQualityOpts);
 
           if (!silent) stepHeader("Quality Benchmark — Multilingual");
-          const multilingual = await runMultilingualBench(modelName, qualityOpts);
+          const multilingual = await runMultilingualBench(modelName, commonQualityOpts);
 
           quality = { reasoning, math, coding, instructionFollowing, structuredOutput, multilingual };
         }

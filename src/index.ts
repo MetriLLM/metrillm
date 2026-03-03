@@ -9,6 +9,7 @@ import { listCommand } from "./commands/list.js";
 import { runInteractiveMenu } from "./ui/menu.js";
 import { exportBenchResults, type ExportFormat } from "./core/exporter.js";
 import { errorMsg, successMsg } from "./ui/progress.js";
+import { normalizeRuntimeBackend } from "./core/runtime.js";
 import { canUseInteractiveMenu } from "./cli-interactive.js";
 import { printGuruMeditationSync } from "./ui/guru-meditation.js";
 
@@ -41,6 +42,20 @@ function parsePositiveIntegerOption(value: unknown, optionName: string): number 
   return parsed;
 }
 
+function parseNonNegativeIntegerOption(value: unknown, optionName: string): number | null {
+  const raw = String(value).trim();
+  if (!/^\d+$/.test(raw)) {
+    errorMsg(`Invalid ${optionName} value: ${value}. Expected a non-negative integer.`);
+    return null;
+  }
+  const parsed = Number(raw);
+  if (!Number.isSafeInteger(parsed) || parsed < 0) {
+    errorMsg(`Invalid ${optionName} value: ${value}. Expected a safe non-negative integer.`);
+    return null;
+  }
+  return parsed;
+}
+
 function parseKeepAliveOption(value: unknown): string | number | null {
   const raw = String(value).trim();
   if (raw.length === 0) {
@@ -56,6 +71,15 @@ function parseKeepAliveOption(value: unknown): string | number | null {
     return seconds;
   }
   return raw;
+}
+
+function parseBackendOption(value: unknown): string | null {
+  try {
+    return normalizeRuntimeBackend(String(value ?? ""));
+  } catch (err) {
+    errorMsg(err instanceof Error ? err.message : "Invalid --backend value.");
+    return null;
+  }
 }
 
 function parseUnloadAfterBenchOverride(argv: string[]): boolean | undefined {
@@ -96,14 +120,21 @@ program
   .command("bench")
   .description("Run benchmarks on local LLM models")
   .option("-m, --model <name>", "Specific model to benchmark")
+  .option("--backend <name>", "Inference backend: ollama | lm-studio", "ollama")
   .option("--perf-only", "Run hardware/performance benchmarks only (skip quality tasks)")
-  .option("--perf-warmup-timeout-ms <ms>", "Warmup timeout in milliseconds (default: 120000)")
-  .option("--perf-prompt-timeout-ms <ms>", "Per-prompt timeout in milliseconds (default: 60000)")
+  .option("--perf-warmup-timeout-ms <ms>", "Warmup timeout in milliseconds (default: 300000)")
+  .option("--perf-prompt-timeout-ms <ms>", "Per-prompt timeout in milliseconds (default: 120000)")
   .option("--perf-min-successful-prompts <count>", "Minimum successful perf prompts required (default: 3)")
+  .option("--quality-timeout-ms <ms>", "Per-question timeout for quality benchmarks (default: 120000)")
+  .option("--coding-timeout-ms <ms>", "Per-question timeout for coding benchmark (default: 240000)")
+  .option(
+    "--lm-studio-stream-stall-timeout-ms <ms>",
+    "Abort LM Studio stream if no chunk is received for <ms> (default: 180000, 0 disables)"
+  )
   .option("--perf-strict", "Fail immediately if any performance prompt fails")
   .option("--share", "Share results on the public leaderboard (skip confirmation)")
   .option("--no-share", "Skip the share prompt entirely")
-  .option("--keep-alive <duration>", "Ollama keep_alive value (seconds or duration string, e.g. 2m)")
+  .option("--keep-alive <duration>", "Runtime keep_alive value (seconds or duration string, e.g. 2m)")
   .option("--unload-after-bench", "Unload model(s) after benchmark completion")
   .option("--no-unload-after-bench", "Do not unload model(s) after benchmark completion")
   .option("--thinking", "Enable thinking mode (extended reasoning for supported models)")
@@ -114,6 +145,12 @@ program
   .option("--telemetry", "Enable anonymous usage stats")
   .option("--no-telemetry", "Disable anonymous usage stats")
   .action(async (opts) => {
+    const backend = parseBackendOption(opts.backend);
+    if (!backend) {
+      process.exitCode = 1;
+      return;
+    }
+
     let exportFormat: ExportFormat | null = null;
     if (opts.export) {
       const fmt = String(opts.export).toLowerCase();
@@ -152,6 +189,39 @@ program
       return;
     }
 
+    const qualityTimeoutMs =
+      opts.qualityTimeoutMs !== undefined
+        ? parsePositiveIntegerOption(opts.qualityTimeoutMs, "--quality-timeout-ms")
+        : undefined;
+    if (opts.qualityTimeoutMs !== undefined && qualityTimeoutMs === null) {
+      process.exitCode = 1;
+      return;
+    }
+
+    const codingTimeoutMs =
+      opts.codingTimeoutMs !== undefined
+        ? parsePositiveIntegerOption(opts.codingTimeoutMs, "--coding-timeout-ms")
+        : undefined;
+    if (opts.codingTimeoutMs !== undefined && codingTimeoutMs === null) {
+      process.exitCode = 1;
+      return;
+    }
+
+    const lmStudioStreamStallTimeoutMs =
+      opts.lmStudioStreamStallTimeoutMs !== undefined
+        ? parseNonNegativeIntegerOption(
+          opts.lmStudioStreamStallTimeoutMs,
+          "--lm-studio-stream-stall-timeout-ms"
+        )
+        : undefined;
+    if (
+      opts.lmStudioStreamStallTimeoutMs !== undefined &&
+      lmStudioStreamStallTimeoutMs === null
+    ) {
+      process.exitCode = 1;
+      return;
+    }
+
     const shareOption =
       typeof opts.share === "boolean"
         ? opts.share
@@ -180,10 +250,14 @@ program
 
     const outcome = await benchCommand({
       model: opts.model,
+      backend,
       perfOnly: opts.perfOnly,
       perfWarmupTimeoutMs: perfWarmupTimeoutMs ?? undefined,
       perfPromptTimeoutMs: perfPromptTimeoutMs ?? undefined,
       perfMinSuccessfulPrompts: perfMinSuccessfulPrompts ?? undefined,
+      qualityTimeoutMs: qualityTimeoutMs ?? undefined,
+      codingTimeoutMs: codingTimeoutMs ?? undefined,
+      lmStudioStreamStallTimeoutMs: lmStudioStreamStallTimeoutMs ?? undefined,
       perfStrict: Boolean(opts.perfStrict),
       share: shareOption,
       ciNoMenu: hasCiNoMenuFlag(process.argv.slice(2)),
@@ -217,9 +291,15 @@ program
 
 program
   .command("list")
-  .description("List available Ollama models")
-  .action(async () => {
-    await listCommand();
+  .description("List available runtime models")
+  .option("--backend <name>", "Inference backend: ollama | lm-studio", "ollama")
+  .action(async (opts) => {
+    const backend = parseBackendOption(opts.backend);
+    if (!backend) {
+      process.exitCode = 1;
+      return;
+    }
+    await listCommand({ backend });
   });
 
 program

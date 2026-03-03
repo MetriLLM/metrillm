@@ -20,7 +20,8 @@
     "test:e2e:smoke": "tsx scripts/e2e-smoke.ts",
     "test:e2e:smoke:strict": "OLLAMA_SMOKE_STRICT=1 tsx scripts/e2e-smoke.ts",
     "ci:verify": "npm run typecheck && npm run test:coverage && npm run build",
-    "security:audit": "npm audit --audit-level=moderate"
+    "security:audit": "npm audit --audit-level=moderate",
+    "brew:update-formula": "./scripts/update-homebrew-formula.sh"
   },
   "keywords": [
     "llm",

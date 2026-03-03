@@ -13,6 +13,7 @@ export interface IFQuestion {
 }
 
 const questions = ifData as IFQuestion[];
+const DEFAULT_INSTRUCTION_FOLLOWING_TIMEOUT_MS = 120_000;
 
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -194,12 +195,16 @@ export function validateInstructionFollowingResponse(response: string, q: IFQues
   }
 }
 
-export async function runInstructionFollowingBench(model: string, opts?: { think?: boolean }): Promise<CategoryResult> {
+export async function runInstructionFollowingBench(
+  model: string,
+  opts?: { think?: boolean; timeoutMs?: number }
+): Promise<CategoryResult> {
   const spinner = createSpinner("Running instruction following benchmark...");
   spinner.start();
 
   const details: QuestionResult[] = [];
   let correct = 0;
+  const timeoutMs = opts?.timeoutMs ?? DEFAULT_INSTRUCTION_FOLLOWING_TIMEOUT_MS;
 
   try {
     for (let i = 0; i < questions.length; i++) {
@@ -212,7 +217,7 @@ export async function runInstructionFollowingBench(model: string, opts?: { think
       try {
         const result = await withTimeout(
           generate(model, prompt, { temperature: 0, num_predict: 1024, think: opts?.think }),
-          60_000,
+          timeoutMs,
           "Instruction following task",
           abortOngoingRequests
         );

@@ -45,8 +45,10 @@ Add to your editor's MCP configuration:
 ## Prerequisites
 
 - Node.js >= 20
-- [Ollama](https://ollama.com) installed and running (`ollama serve`)
-- At least one model available (`ollama pull llama3.2:3b`)
+- One local runtime available:
+  - [Ollama](https://ollama.com) (`ollama serve`)
+  - [LM Studio](https://lmstudio.ai/) (Local Server enabled)
+- At least one model available on the selected runtime
 
 ## Available Tools
 
@@ -56,7 +58,7 @@ List all locally available LLM models.
 
 | Param | Type | Default | Description |
 |---|---|---|---|
-| `runtime` | `"ollama"` | `"ollama"` | Inference runtime |
+| `runtime` | `"ollama" \| "lm-studio"` | `"ollama"` | Inference runtime |
 
 **Example response:**
 ```json
@@ -75,7 +77,7 @@ Run a full benchmark (performance + quality) on a local model.
 | Param | Type | Default | Description |
 |---|---|---|---|
 | `model` | `string` | *(required)* | Model name (e.g. `"llama3.2:3b"`) |
-| `runtime` | `"ollama"` | `"ollama"` | Inference runtime |
+| `runtime` | `"ollama" \| "lm-studio"` | `"ollama"` | Inference runtime |
 | `perfOnly` | `boolean` | `false` | If `true`, measure performance only (skip quality) |
 
 **Example response:**
@@ -102,7 +104,7 @@ Retrieve previous benchmark results stored locally.
 | Param | Type | Default | Description |
 |---|---|---|---|
 | `model` | `string` | *(optional)* | Filter by model name (substring match) |
-| `runtime` | `"ollama"` | `"ollama"` | Inference runtime |
+| `runtime` | `"ollama" \| "lm-studio"` | `"ollama"` | Inference runtime |
 
 ### `share_result`
 
@@ -136,7 +138,7 @@ No code duplication — the MCP server imports CLI modules directly.
 | Runtime | Status |
 |---|---|
 | Ollama | Supported |
-| LM Studio | Planned |
+| LM Studio | Supported |
 | MLX | Planned |
 | llama.cpp | Planned |
 | vLLM | Planned |
