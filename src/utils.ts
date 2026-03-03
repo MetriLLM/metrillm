@@ -238,21 +238,24 @@ export function stripTypeAnnotations(code: string): string {
     // needs stripping
   }
 
-  // Strategy 1: Node 22.6+ built-in TS stripping (official, most reliable)
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const mod = require("node:module") as { stripTypeScriptTypes?: (code: string) => string };
-    if (typeof mod.stripTypeScriptTypes === "function") {
-      const stripped = mod.stripTypeScriptTypes(code);
-      try {
-        new vm.Script(`${stripped}\n;`);
-        return stripped;
-      } catch {
-        // stripTypeScriptTypes may fail on TS enums etc., fall through
+  // Strategy 1 (opt-in): Node 22.6+ built-in TS stripping.
+  // Disabled by default because Node currently emits an ExperimentalWarning.
+  if (process.env.METRILLM_ENABLE_EXPERIMENTAL_TS_STRIP === "1") {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const mod = require("node:module") as { stripTypeScriptTypes?: (code: string) => string };
+      if (typeof mod.stripTypeScriptTypes === "function") {
+        const stripped = mod.stripTypeScriptTypes(code);
+        try {
+          new vm.Script(`${stripped}\n;`);
+          return stripped;
+        } catch {
+          // stripTypeScriptTypes may fail on TS enums etc., fall through
+        }
       }
+    } catch {
+      // node:module API not available, fall through
     }
-  } catch {
-    // node:module API not available, fall through
   }
 
   // Strategy 2: Regex fallback for common LLM-generated TS patterns
