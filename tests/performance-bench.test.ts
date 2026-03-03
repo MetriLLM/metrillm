@@ -50,6 +50,9 @@ vi.mock("../src/core/hardware.js", () => ({
     if (!next) return { usedGB: 10, percent: 40, totalGB: 32 };
     return next;
   }),
+  detectThermalPressure: vi.fn(async () => "nominal"),
+  detectBatteryPowered: vi.fn(async () => undefined),
+  getSwapUsedGB: vi.fn(async () => 0),
 }));
 
 vi.mock("../src/core/lm-studio-client.js", () => ({
@@ -77,6 +80,7 @@ vi.mock("../src/ui/progress.js", () => ({
 import { runPerformanceBench } from "../src/benchmarks/performance.js";
 import * as ollamaClient from "../src/core/ollama-client.js";
 import * as runtime from "../src/core/runtime.js";
+import * as hardware from "../src/core/hardware.js";
 
 describe("runPerformanceBench", () => {
   beforeEach(() => {
@@ -226,5 +230,47 @@ describe("runPerformanceBench", () => {
     expect(result.metrics.loadTime).toBe(0);
     expect(result.metrics.loadTimeAvailable).toBe(false);
     expect(result.metrics.firstChunkMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it("continues when optional environment probes fail", async () => {
+    generatePlan = ["ok", "ok", "ok", "ok", "ok", "ok"];
+    const detectThermalPressureMock = vi.mocked(hardware.detectThermalPressure);
+    const getSwapUsedGBMock = vi.mocked(hardware.getSwapUsedGB);
+    const detectBatteryPoweredMock = vi.mocked(hardware.detectBatteryPowered);
+
+    detectThermalPressureMock.mockRejectedValueOnce(new Error("thermal probe unavailable"));
+    getSwapUsedGBMock.mockRejectedValueOnce(new Error("swap probe unavailable"));
+    detectBatteryPoweredMock.mockRejectedValueOnce(new Error("battery probe unavailable"));
+    detectThermalPressureMock.mockRejectedValueOnce(new Error("thermal probe unavailable"));
+    getSwapUsedGBMock.mockRejectedValueOnce(new Error("swap probe unavailable"));
+
+    const result = await runPerformanceBench("test-model", {
+      failOnPromptError: false,
+      minSuccessfulPrompts: 3,
+    });
+
+    expect(result.metrics.tokensPerSecond).toBeGreaterThan(0);
+    expect(result.benchEnvironment).toMatchObject({
+      thermalPressureBefore: "unknown",
+      thermalPressureAfter: "unknown",
+    });
+    expect(result.benchEnvironment?.batteryPowered).toBeUndefined();
+    expect(result.benchEnvironment?.swapDeltaGB).toBeUndefined();
+  });
+
+  it("does not report swap delta when pre-bench swap probe fails but post-bench probe succeeds", async () => {
+    generatePlan = ["ok", "ok", "ok", "ok", "ok", "ok"];
+    const getSwapUsedGBMock = vi.mocked(hardware.getSwapUsedGB);
+
+    getSwapUsedGBMock.mockRejectedValueOnce(new Error("swap probe unavailable"));
+    getSwapUsedGBMock.mockResolvedValueOnce(2.3);
+
+    const result = await runPerformanceBench("test-model", {
+      failOnPromptError: false,
+      minSuccessfulPrompts: 3,
+    });
+
+    expect(result.metrics.tokensPerSecond).toBeGreaterThan(0);
+    expect(result.benchEnvironment?.swapDeltaGB).toBeUndefined();
   });
 });

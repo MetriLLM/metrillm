@@ -198,6 +198,14 @@ export interface SubmitterIdentity {
   emailHash: string;
 }
 
+// ── Bench environment context ────────────────────────────
+export interface BenchEnvironment {
+  thermalPressureBefore?: "nominal" | "moderate" | "heavy" | "critical" | "unknown";
+  thermalPressureAfter?: "nominal" | "moderate" | "heavy" | "critical" | "unknown";
+  swapDeltaGB?: number;
+  batteryPowered?: boolean;
+}
+
 // ── Bench result ─────────────────────────────────────────
 export interface BenchResult {
   model: string;
@@ -206,6 +214,7 @@ export interface BenchResult {
   performance: PerformanceMetrics;
   quality: QualityMetrics | null;
   fitness: FitnessResult;
+  benchEnvironment?: BenchEnvironment;
   timestamp: string;
   metadata: RunMetadata;
   submitter?: SubmitterIdentity;

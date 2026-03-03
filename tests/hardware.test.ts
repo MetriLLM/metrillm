@@ -51,6 +51,12 @@ vi.mock("systeminformation", () => ({
     })),
     memLayout: vi.fn(async () => [{ type: "DDR5" }]),
     cpuCurrentSpeed: vi.fn(async () => ({ avg: 3.0 })),
+    battery: vi.fn(async () => ({
+      hasBattery: true,
+      acConnected: true,
+      isCharging: true,
+      percent: 100,
+    })),
   },
 }));
 
@@ -187,5 +193,149 @@ describe("power mode detection", () => {
     const { getHardwareInfo } = await import("../src/core/hardware.js");
     const hw = await getHardwareInfo();
     expect(hw.cpuCurrentSpeedGHz).toBe(3.0);
+  });
+});
+
+describe("detectThermalPressure", () => {
+  const originalPlatform = process.platform;
+
+  afterEach(() => {
+    Object.defineProperty(process, "platform", { value: originalPlatform });
+    vi.restoreAllMocks();
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns nominal when CPU_Speed_Limit = 100 on macOS", async () => {
+    Object.defineProperty(process, "platform", { value: "darwin" });
+    mockedExecFile.mockImplementation((_cmd: string, _args: unknown, _opts: unknown, cb: unknown) => {
+      (cb as (err: null, stdout: string) => void)(null, "CPU_Speed_Limit = 100\n");
+      return {} as ReturnType<typeof execFileCb>;
+    });
+
+    const { detectThermalPressure } = await import("../src/core/hardware.js");
+    expect(await detectThermalPressure()).toBe("nominal");
+  });
+
+  it("returns moderate when CPU_Speed_Limit = 85 on macOS", async () => {
+    Object.defineProperty(process, "platform", { value: "darwin" });
+    mockedExecFile.mockImplementation((_cmd: string, _args: unknown, _opts: unknown, cb: unknown) => {
+      (cb as (err: null, stdout: string) => void)(null, "CPU_Speed_Limit = 85\n");
+      return {} as ReturnType<typeof execFileCb>;
+    });
+
+    const { detectThermalPressure } = await import("../src/core/hardware.js");
+    expect(await detectThermalPressure()).toBe("moderate");
+  });
+
+  it("returns heavy when CPU_Speed_Limit = 60 on macOS", async () => {
+    Object.defineProperty(process, "platform", { value: "darwin" });
+    mockedExecFile.mockImplementation((_cmd: string, _args: unknown, _opts: unknown, cb: unknown) => {
+      (cb as (err: null, stdout: string) => void)(null, "CPU_Speed_Limit = 60\n");
+      return {} as ReturnType<typeof execFileCb>;
+    });
+
+    const { detectThermalPressure } = await import("../src/core/hardware.js");
+    expect(await detectThermalPressure()).toBe("heavy");
+  });
+
+  it("returns critical when CPU_Speed_Limit = 30 on macOS", async () => {
+    Object.defineProperty(process, "platform", { value: "darwin" });
+    mockedExecFile.mockImplementation((_cmd: string, _args: unknown, _opts: unknown, cb: unknown) => {
+      (cb as (err: null, stdout: string) => void)(null, "CPU_Speed_Limit = 30\n");
+      return {} as ReturnType<typeof execFileCb>;
+    });
+
+    const { detectThermalPressure } = await import("../src/core/hardware.js");
+    expect(await detectThermalPressure()).toBe("critical");
+  });
+
+  it("returns unknown when pmset output is empty on macOS", async () => {
+    Object.defineProperty(process, "platform", { value: "darwin" });
+    mockedExecFile.mockImplementation((_cmd: string, _args: unknown, _opts: unknown, cb: unknown) => {
+      (cb as (err: Error, stdout: string) => void)(new Error("fail"), "");
+      return {} as ReturnType<typeof execFileCb>;
+    });
+
+    const { detectThermalPressure } = await import("../src/core/hardware.js");
+    expect(await detectThermalPressure()).toBe("unknown");
+  });
+});
+
+describe("detectBatteryPowered", () => {
+  const originalPlatform = process.platform;
+
+  afterEach(() => {
+    Object.defineProperty(process, "platform", { value: originalPlatform });
+    vi.restoreAllMocks();
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns true when on Battery Power on macOS", async () => {
+    Object.defineProperty(process, "platform", { value: "darwin" });
+    mockedExecFile.mockImplementation((_cmd: string, _args: unknown, _opts: unknown, cb: unknown) => {
+      (cb as (err: null, stdout: string) => void)(null, "Currently drawing from 'Battery Power'\n");
+      return {} as ReturnType<typeof execFileCb>;
+    });
+
+    const { detectBatteryPowered } = await import("../src/core/hardware.js");
+    expect(await detectBatteryPowered()).toBe(true);
+  });
+
+  it("returns false when on AC Power on macOS", async () => {
+    Object.defineProperty(process, "platform", { value: "darwin" });
+    mockedExecFile.mockImplementation((_cmd: string, _args: unknown, _opts: unknown, cb: unknown) => {
+      (cb as (err: null, stdout: string) => void)(null, "Currently drawing from 'AC Power'\n");
+      return {} as ReturnType<typeof execFileCb>;
+    });
+
+    const { detectBatteryPowered } = await import("../src/core/hardware.js");
+    expect(await detectBatteryPowered()).toBe(false);
+  });
+
+  it("returns undefined when detection fails on macOS", async () => {
+    Object.defineProperty(process, "platform", { value: "darwin" });
+    mockedExecFile.mockImplementation((_cmd: string, _args: unknown, _opts: unknown, cb: unknown) => {
+      (cb as (err: Error, stdout: string) => void)(new Error("fail"), "");
+      return {} as ReturnType<typeof execFileCb>;
+    });
+
+    const { detectBatteryPowered } = await import("../src/core/hardware.js");
+    expect(await detectBatteryPowered()).toBeUndefined();
+  });
+
+  it("uses AC connection on non-macOS to detect battery-powered state", async () => {
+    Object.defineProperty(process, "platform", { value: "linux" });
+    const siModule = await import("systeminformation");
+    const batteryMock = vi.mocked(siModule.default.battery);
+    batteryMock.mockResolvedValueOnce({
+      hasBattery: true,
+      acConnected: false,
+      isCharging: false,
+      percent: 100,
+    } as Awaited<ReturnType<typeof siModule.default.battery>>);
+
+    const { detectBatteryPowered } = await import("../src/core/hardware.js");
+    expect(await detectBatteryPowered()).toBe(true);
+  });
+
+  it("falls back to charging state on non-macOS when AC status is unavailable", async () => {
+    Object.defineProperty(process, "platform", { value: "win32" });
+    const siModule = await import("systeminformation");
+    const batteryMock = vi.mocked(siModule.default.battery);
+    batteryMock.mockResolvedValueOnce({
+      hasBattery: true,
+      acConnected: undefined,
+      isCharging: true,
+      percent: 80,
+    } as Awaited<ReturnType<typeof siModule.default.battery>>);
+
+    const { detectBatteryPowered } = await import("../src/core/hardware.js");
+    expect(await detectBatteryPowered()).toBe(false);
   });
 });

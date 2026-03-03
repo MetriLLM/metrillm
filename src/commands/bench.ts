@@ -32,7 +32,7 @@ import { openUrl } from "../utils.js";
 import { showTelemetryNotice, trackBenchStarted, trackBenchCompleted, trackBenchShared, flushTelemetry } from "../core/telemetry.js";
 import { supportsUnicode } from "../ui/terminal.js";
 import { promptThinkingMode } from "../ui/thinking-prompt.js";
-import type { BenchResult, HardwareInfo, ModelInfo, OllamaModel, QualityMetrics, RunMetadata } from "../types.js";
+import type { BenchResult, BenchEnvironment, HardwareInfo, ModelInfo, OllamaModel, QualityMetrics, RunMetadata } from "../types.js";
 
 const BENCHMARK_SPEC_VERSION = "0.2.0";
 const PROMPT_PACK_VERSION = "0.1.0";
@@ -212,6 +212,7 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
           streamStallTimeoutMs: options.lmStudioStreamStallTimeoutMs,
         });
         const perf = perfResult.metrics;
+        const benchEnvironment: BenchEnvironment | undefined = perfResult.benchEnvironment;
         if (!silent) printPerformanceTable(perf);
 
         // Quality benchmarks (unless --perf-only)
@@ -249,7 +250,7 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
         }
 
         // Compute fitness
-        const fitness = computeFitness(perf, quality, hardware);
+        const fitness = computeFitness(perf, quality, hardware, benchEnvironment);
         if (!silent) {
           if (quality) {
             printQualityTable(quality, fitness.qualityScore?.timePenalties);
@@ -277,6 +278,7 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
           performance: perf,
           quality,
           fitness,
+          benchEnvironment,
           timestamp: new Date().toISOString(),
           metadata: {
             benchmarkSpecVersion: BENCHMARK_SPEC_VERSION,

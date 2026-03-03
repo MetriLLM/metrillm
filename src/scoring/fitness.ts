@@ -2,6 +2,7 @@ import type {
   HardwareInfo,
   PerformanceMetrics,
   QualityMetrics,
+  BenchEnvironment,
   FitnessResult,
   FitnessVerdict,
   CategoryLabel,
@@ -29,7 +30,8 @@ function normalizeRawScore(value: number): number {
 export function computeFitness(
   perf: PerformanceMetrics,
   quality: QualityMetrics | null,
-  hardware?: HardwareInfo
+  hardware?: HardwareInfo,
+  benchEnv?: BenchEnvironment
 ): FitnessResult {
   const tuning = deriveHardwareFitTuning(hardware);
   const performanceScore = computePerformanceScore(perf, hardware);
@@ -159,6 +161,25 @@ export function computeFitness(
     const ratio = ((hardware.cpuCurrentSpeedGHz / hardware.cpuFreqGHz) * 100).toFixed(0);
     warnings.push(
       `CPU appears throttled (${hardware.cpuCurrentSpeedGHz.toFixed(1)} GHz current vs ${hardware.cpuFreqGHz.toFixed(1)} GHz nominal, ${ratio}%).`
+    );
+  }
+
+  // Bench environment warnings
+  if (benchEnv?.thermalPressureAfter === "heavy" || benchEnv?.thermalPressureAfter === "critical") {
+    warnings.push(
+      `Thermal throttling detected after benchmark (${benchEnv.thermalPressureAfter}). Results may be degraded — consider cooling or shorter runs.`
+    );
+  }
+
+  if (benchEnv?.swapDeltaGB != null && benchEnv.swapDeltaGB > 0.5) {
+    warnings.push(
+      `Significant swap activity during benchmark (+${benchEnv.swapDeltaGB.toFixed(1)} GB). Model may exceed available RAM — results are severely degraded.`
+    );
+  }
+
+  if (benchEnv?.batteryPowered) {
+    warnings.push(
+      `Running on battery power — performance may be reduced.`
     );
   }
 

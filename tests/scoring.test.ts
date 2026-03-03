@@ -20,6 +20,7 @@ import type {
   CategoryResult,
   QuestionResult,
   HardwareInfo,
+  BenchEnvironment,
 } from "../src/types.js";
 
 function makePerf(overrides: Partial<PerformanceMetrics> = {}): PerformanceMetrics {
@@ -504,6 +505,64 @@ describe("computeFitness", () => {
     const fitness = computeFitness(perf, null);
     expect(fitness.verdict).toBe("EXCELLENT");
     expect(fitness.globalScore).toBeNull();
+  });
+
+  it("adds thermal throttling warning when thermalPressureAfter is heavy", () => {
+    const perf = makePerf({ tokensPerSecond: 80, ttft: 300, memoryPercent: 20 });
+    const benchEnv: BenchEnvironment = { thermalPressureAfter: "heavy" };
+    const fitness = computeFitness(perf, null, undefined, benchEnv);
+    expect(fitness.warnings.some((w) => w.includes("Thermal throttling detected"))).toBe(true);
+  });
+
+  it("adds thermal throttling warning when thermalPressureAfter is critical", () => {
+    const perf = makePerf({ tokensPerSecond: 80, ttft: 300, memoryPercent: 20 });
+    const benchEnv: BenchEnvironment = { thermalPressureAfter: "critical" };
+    const fitness = computeFitness(perf, null, undefined, benchEnv);
+    expect(fitness.warnings.some((w) => w.includes("Thermal throttling detected"))).toBe(true);
+    expect(fitness.warnings.some((w) => w.includes("critical"))).toBe(true);
+  });
+
+  it("does not add thermal warning when thermalPressureAfter is nominal", () => {
+    const perf = makePerf({ tokensPerSecond: 80, ttft: 300, memoryPercent: 20 });
+    const benchEnv: BenchEnvironment = { thermalPressureAfter: "nominal" };
+    const fitness = computeFitness(perf, null, undefined, benchEnv);
+    expect(fitness.warnings.some((w) => w.includes("Thermal throttling"))).toBe(false);
+  });
+
+  it("adds swap activity warning when swapDeltaGB > 0.5", () => {
+    const perf = makePerf({ tokensPerSecond: 80, ttft: 300, memoryPercent: 20 });
+    const benchEnv: BenchEnvironment = { swapDeltaGB: 1.2 };
+    const fitness = computeFitness(perf, null, undefined, benchEnv);
+    expect(fitness.warnings.some((w) => w.includes("Significant swap activity"))).toBe(true);
+    expect(fitness.warnings.some((w) => w.includes("+1.2 GB"))).toBe(true);
+  });
+
+  it("does not add swap warning when swapDeltaGB <= 0.5", () => {
+    const perf = makePerf({ tokensPerSecond: 80, ttft: 300, memoryPercent: 20 });
+    const benchEnv: BenchEnvironment = { swapDeltaGB: 0.3 };
+    const fitness = computeFitness(perf, null, undefined, benchEnv);
+    expect(fitness.warnings.some((w) => w.includes("swap activity"))).toBe(false);
+  });
+
+  it("adds battery warning when running on battery", () => {
+    const perf = makePerf({ tokensPerSecond: 80, ttft: 300, memoryPercent: 20 });
+    const benchEnv: BenchEnvironment = { batteryPowered: true };
+    const fitness = computeFitness(perf, null, undefined, benchEnv);
+    expect(fitness.warnings.some((w) => w.includes("battery power"))).toBe(true);
+  });
+
+  it("does not add battery warning when on AC power", () => {
+    const perf = makePerf({ tokensPerSecond: 80, ttft: 300, memoryPercent: 20 });
+    const benchEnv: BenchEnvironment = { batteryPowered: false };
+    const fitness = computeFitness(perf, null, undefined, benchEnv);
+    expect(fitness.warnings.some((w) => w.includes("battery power"))).toBe(false);
+  });
+
+  it("does not add battery warning when batteryPowered is undefined", () => {
+    const perf = makePerf({ tokensPerSecond: 80, ttft: 300, memoryPercent: 20 });
+    const benchEnv: BenchEnvironment = {};
+    const fitness = computeFitness(perf, null, undefined, benchEnv);
+    expect(fitness.warnings.some((w) => w.includes("battery power"))).toBe(false);
   });
 });
 

@@ -88,6 +88,62 @@ async function detectPowerMode(): Promise<PowerMode> {
   }
 }
 
+export type ThermalPressure = "nominal" | "moderate" | "heavy" | "critical" | "unknown";
+
+export async function detectThermalPressure(): Promise<ThermalPressure> {
+  try {
+    if (process.platform === "darwin") {
+      const output = await execCommand("pmset", ["-g", "therm"]);
+      if (!output) return "unknown";
+      const match = output.match(/CPU_Speed_Limit\s*=\s*(\d+)/i);
+      if (!match) return "unknown";
+      const limit = parseInt(match[1], 10);
+      if (limit >= 100) return "nominal";
+      if (limit >= 80) return "moderate";
+      if (limit >= 50) return "heavy";
+      return "critical";
+    }
+    // Other OS: use CPU temperature as proxy
+    const temp = await si.cpuTemperature();
+    const main = temp.main;
+    if (main == null || main <= 0) return "unknown";
+    if (main < 80) return "nominal";
+    if (main < 90) return "moderate";
+    if (main < 100) return "heavy";
+    return "critical";
+  } catch {
+    return "unknown";
+  }
+}
+
+export async function detectBatteryPowered(): Promise<boolean | undefined> {
+  try {
+    if (process.platform === "darwin") {
+      const output = await execCommand("pmset", ["-g", "ps"]);
+      if (!output) return undefined;
+      if (output.includes("Battery Power")) return true;
+      if (output.includes("AC Power")) return false;
+      return undefined;
+    }
+    const battery = await si.battery();
+    if (!battery.hasBattery) return undefined;
+    if (typeof battery.acConnected === "boolean") return !battery.acConnected;
+    if (typeof battery.isCharging === "boolean") return !battery.isCharging;
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function getSwapUsedGB(): Promise<number> {
+  try {
+    const mem = await si.mem();
+    return +(mem.swapused / 1024 / 1024 / 1024).toFixed(2);
+  } catch {
+    return 0;
+  }
+}
+
 export async function getHardwareInfo(): Promise<HardwareInfo> {
   const [cpu, mem, graphics, osInfo, memLayout, powerMode, cpuSpeed, machineModel] = await Promise.all([
     si.cpu(),

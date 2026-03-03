@@ -1,6 +1,6 @@
 import { abortOngoingRequests, generateStream, listModels, listRunningModels, getRuntimeName } from "../core/runtime.js";
-import { getMemoryUsage } from "../core/hardware.js";
-import type { PerformanceMetrics } from "../types.js";
+import { getMemoryUsage, detectThermalPressure, detectBatteryPowered, getSwapUsedGB } from "../core/hardware.js";
+import type { PerformanceMetrics, BenchEnvironment } from "../types.js";
 import { avg, stddev, withTimeout, hasThinkingContent, estimateTokenCount } from "../utils.js";
 import { createSpinner, subStep } from "../ui/progress.js";
 
@@ -17,6 +17,7 @@ const BENCH_PROMPTS = [
 export interface PerformanceBenchResult {
   metrics: PerformanceMetrics;
   thinkingDetected: boolean;
+  benchEnvironment?: BenchEnvironment;
 }
 
 export interface PerformanceBenchOptions {
@@ -31,6 +32,25 @@ export interface PerformanceBenchOptions {
 const DEFAULT_WARMUP_TIMEOUT_MS = 300_000;
 const DEFAULT_PROMPT_TIMEOUT_MS = 120_000;
 
+async function optionalProbe<T>(probe: () => Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await probe();
+  } catch {
+    return fallback;
+  }
+}
+
+async function optionalProbeWithAvailability<T>(
+  probe: () => Promise<T>,
+  fallback: T
+): Promise<{ value: T; available: boolean }> {
+  try {
+    return { value: await probe(), available: true };
+  } catch {
+    return { value: fallback, available: false };
+  }
+}
+
 export async function runPerformanceBench(
   model: string,
   options: PerformanceBenchOptions = {}
@@ -44,7 +64,12 @@ export async function runPerformanceBench(
     const minSuccessfulPrompts = options.minSuccessfulPrompts ?? Math.max(1, Math.ceil(BENCH_PROMPTS.length / 2));
     const failOnPromptError = options.failOnPromptError ?? false;
 
-    const memBefore = await getMemoryUsage();
+    const [memBefore, thermalBefore, swapBeforeResult, batteryPowered] = await Promise.all([
+      getMemoryUsage(),
+      optionalProbe(() => detectThermalPressure(), "unknown"),
+      optionalProbeWithAvailability(() => getSwapUsedGB(), 0),
+      optionalProbe(() => detectBatteryPowered(), undefined),
+    ]);
 
     // Warmup run (also measures load time)
     const warmup = await withTimeout(
@@ -177,8 +202,12 @@ export async function runPerformanceBench(
       );
     }
 
-    // Measure memory after benchmark (with model loaded)
-    const memAfter = await getMemoryUsage();
+    // Measure memory and environment after benchmark (with model loaded)
+    const [memAfter, thermalAfter, swapAfterResult] = await Promise.all([
+      getMemoryUsage(),
+      optionalProbe(() => detectThermalPressure(), thermalBefore),
+      optionalProbeWithAvailability(() => getSwapUsedGB(), swapBeforeResult.value),
+    ]);
 
     // Prefer Ollama's reported model size (accurate), fall back to system delta
     let memoryUsedGB: number;
@@ -198,6 +227,17 @@ export async function runPerformanceBench(
     // Use a sentinel value for TTFT if no tokens were received
     const firstChunkMs = firstChunkValues.length > 0 ? avg(firstChunkValues) : undefined;
     const ttft = ttftValues.length > 0 ? avg(ttftValues) : -1;
+
+    const swapDeltaGB =
+      swapBeforeResult.available && swapAfterResult.available
+        ? +(swapAfterResult.value - swapBeforeResult.value).toFixed(2)
+        : undefined;
+    const benchEnvironment: BenchEnvironment = {
+      thermalPressureBefore: thermalBefore,
+      thermalPressureAfter: thermalAfter,
+      ...(swapDeltaGB !== undefined && swapDeltaGB > 0 ? { swapDeltaGB } : {}),
+      ...(batteryPowered != null ? { batteryPowered } : {}),
+    };
 
     return {
       metrics: {
@@ -220,6 +260,7 @@ export async function runPerformanceBench(
         ...(totalThinkingTokens > 0 ? { thinkingTokensEstimate: totalThinkingTokens } : {}),
       },
       thinkingDetected,
+      benchEnvironment,
     };
   } catch (err) {
     if (spinner.isSpinning) {
