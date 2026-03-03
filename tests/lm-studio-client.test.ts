@@ -414,4 +414,16 @@ describe("lm-studio-client thinking toggle passthrough", () => {
       client.generate("model-a", "prompt", { think: false })
     ).rejects.toThrow(/\{%- set enable_thinking = false %\}/);
   });
+
+  it("does not fail on generic 'Reasoning Process' phrasing when no thinking field is present", async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({
+      choices: [{ message: { content: "Reasoning Process: pick option A because it is simpler." } }],
+      usage: { prompt_tokens: 10, completion_tokens: 20 },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("../src/core/lm-studio-client.js");
+    const result = await client.generate("model-a", "prompt", { think: false });
+    expect(result.response).toContain("Reasoning Process:");
+  });
 });

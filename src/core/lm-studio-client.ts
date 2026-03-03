@@ -90,7 +90,7 @@ interface LMStudioThinkingConfig {
 }
 
 function hasThinkingLeakText(response: string): boolean {
-  return /^\s*(?:thinking|reasoning|thought)\s+process\s*:/i.test(response);
+  return /^\s*(?:thinking|thought)\s+process\s*:/i.test(response);
 }
 
 function assertThinkingModeRespected(

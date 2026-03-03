@@ -130,7 +130,7 @@ export function hasThinkingContent(response: string, thinkingField?: string): bo
   if (thinkingField && thinkingField.trim().length > 0) return true;
   if (/<think(?:ing)?[\s>]/i.test(response)) return true;
   // Some runtimes emit plain-text reasoning headers instead of dedicated fields/tags.
-  return /^\s*(?:thinking|reasoning|thought)\s+process\s*:/i.test(response);
+  return /^\s*(?:thinking|thought)\s+process\s*:/i.test(response);
 }
 
 export function estimateTokenCount(text: string): number {

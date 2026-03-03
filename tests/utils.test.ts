@@ -427,6 +427,10 @@ describe("hasThinkingContent", () => {
     expect(hasThinkingContent("Thinking Process:\n1) analyze\n2) answer")).toBe(true);
   });
 
+  it("does not treat generic 'Reasoning Process' text as hidden thinking leak", () => {
+    expect(hasThinkingContent("Reasoning Process: choose algorithm A over B.")).toBe(false);
+  });
+
   it("returns false for normal response without thinking", () => {
     expect(hasThinkingContent("Just a normal answer")).toBe(false);
   });

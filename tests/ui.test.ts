@@ -121,6 +121,60 @@ describe("printQualityTable", () => {
     expect(joined).toContain("Structured Output");
     expect(joined).toContain("Multilingual");
   });
+
+  it("reports runtime errors and crashes in quality summary", async () => {
+    const { printQualityTable } = await import("../src/ui/results-table.js");
+    const quality: QualityMetrics = {
+      reasoning: {
+        score: 80,
+        correct: 1,
+        total: 2,
+        details: [
+          {
+            id: 1,
+            question: "q1",
+            expected: "A",
+            actual: "TIMEOUT",
+            correct: false,
+            timeMs: 1000,
+          },
+          {
+            id: 2,
+            question: "q2",
+            expected: "B",
+            actual: "B",
+            correct: true,
+            timeMs: 10,
+          },
+        ],
+      },
+      math: { score: 70, correct: 1, total: 1, details: [] },
+      coding: {
+        score: 60,
+        correct: 0,
+        total: 1,
+        details: [
+          {
+            id: 29,
+            question: "sudoku",
+            expected: "6 tests pass",
+            actual: "ERROR: LM Studio generate failed (400 Bad Request) {\"error\":\"The model has crashed without additional information. (Exit code: null)\"}",
+            correct: false,
+            timeMs: 1500,
+          },
+        ],
+      },
+      instructionFollowing: { score: 75, correct: 1, total: 1, details: [] },
+      structuredOutput: { score: 65, correct: 1, total: 1, details: [] },
+      multilingual: { score: 55, correct: 1, total: 1, details: [] },
+    };
+
+    printQualityTable(quality);
+    const joined = output.join("\n");
+    expect(joined).toContain("Execution issues detected during quality benchmark");
+    expect(joined).toContain("Coding: 1 crash");
+    expect(joined).toContain("Reasoning: 1 timeout");
+  });
 });
 
 describe("printVerdict", () => {

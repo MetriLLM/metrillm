@@ -39,6 +39,35 @@ function getLevel(score: number): CategoryLevel {
   return "Poor";
 }
 
+interface CategoryIssueSummary {
+  name: string;
+  crashes: number;
+  timeouts: number;
+  errors: number;
+}
+
+function summarizeCategoryIssues(name: string, details: QualityMetrics["reasoning"]["details"]): CategoryIssueSummary {
+  let crashes = 0;
+  let timeouts = 0;
+  let errors = 0;
+
+  for (const detail of details) {
+    const actual = detail.actual ?? "";
+    if (/^TIMEOUT\b/i.test(actual)) {
+      timeouts++;
+      continue;
+    }
+    if (/^ERROR:/i.test(actual)) {
+      errors++;
+      if (/model has crashed|has crashed without additional information|model crashed/i.test(actual)) {
+        crashes++;
+      }
+    }
+  }
+
+  return { name, crashes, timeouts, errors };
+}
+
 export function printHardwareTable(hw: HardwareInfo): void {
   const table = new Table({
     head: [chalk.bold("Hardware"), chalk.bold("Value")],
@@ -228,6 +257,22 @@ export function printQualityTable(quality: QualityMetrics, timePenalties?: Recor
     ]);
   }
   console.log(table.toString());
+
+  const issueSummaries = categories
+    .map((cat) => summarizeCategoryIssues(cat.name, cat.result.details))
+    .filter((summary) => summary.errors > 0 || summary.timeouts > 0);
+
+  if (issueSummaries.length > 0) {
+    console.log(chalk.yellow("Execution issues detected during quality benchmark:"));
+    for (const summary of issueSummaries) {
+      const parts: string[] = [];
+      if (summary.crashes > 0) parts.push(`${summary.crashes} crash${summary.crashes > 1 ? "es" : ""}`);
+      const nonCrashErrors = summary.errors - summary.crashes;
+      if (nonCrashErrors > 0) parts.push(`${nonCrashErrors} error${nonCrashErrors > 1 ? "s" : ""}`);
+      if (summary.timeouts > 0) parts.push(`${summary.timeouts} timeout${summary.timeouts > 1 ? "s" : ""}`);
+      console.log(chalk.yellow(`  • ${summary.name}: ${parts.join(", ")} (scored as incorrect)`));
+    }
+  }
 }
 
 export function printSummaryTable(results: BenchResult[]): void {
