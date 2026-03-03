@@ -110,12 +110,20 @@ export function toBenchmarkFailureLabel(err: unknown): string {
 
 /**
  * Strip <think>...</think> blocks emitted by reasoning models (e.g. deepseek-r1).
- * Returns only the final answer after the closing tag.
+ * Also strips trailing chat-template tokens frequently emitted by local runtimes.
  */
 export function stripThinkTags(text: string): string {
   // Handle <think>...</think> and <thinking>...</thinking>
-  const stripped = text.replace(/<think(?:ing)?[\s>][\s\S]*?<\/think(?:ing)?>/gi, "");
-  return stripped.trim();
+  const withoutThinking = text.replace(/<think(?:ing)?[\s>][\s\S]*?<\/think(?:ing)?>/gi, "");
+  const withoutTrailingWhitespace = withoutThinking.trimEnd();
+
+  // Some backends return chat delimiter tokens in final text; keep only semantic content.
+  const withoutTrailingControlTokens = withoutTrailingWhitespace.replace(
+    /(?:\s*(?:<\|(?:im_end|eot_id|end_of_text|eom_id|end)\|>|<\/s>))+$/gi,
+    ""
+  );
+
+  return withoutTrailingControlTokens.trim();
 }
 
 export function hasThinkingContent(response: string, thinkingField?: string): boolean {

@@ -370,6 +370,23 @@ describe("stripThinkTags", () => {
     expect(stripThinkTags(input)).toContain("function add(a, b)");
     expect(stripThinkTags(input)).not.toContain("I need to write");
   });
+
+  it("strips trailing local-runtime control tokens", () => {
+    expect(stripThinkTags("B <|im_end|>")).toBe("B");
+    expect(stripThinkTags("The answer is 42 <|eot_id|>")).toBe("The answer is 42");
+    expect(stripThinkTags("Answer <|im_end|>\n")).toBe("Answer");
+    expect(stripThinkTags("Answer </s>   ")).toBe("Answer");
+  });
+
+  it("strips repeated trailing control tokens", () => {
+    const input = "Final answer\n<|im_end|>\n<|eot_id|>\n</s>";
+    expect(stripThinkTags(input)).toBe("Final answer");
+  });
+
+  it("keeps token-like text when it is not a trailing control marker", () => {
+    const input = "In this format guide, <|im_end|> is shown as a literal token.";
+    expect(stripThinkTags(input)).toBe(input);
+  });
 });
 
 describe("withTimeout", () => {
