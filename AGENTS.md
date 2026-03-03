@@ -4,10 +4,11 @@ Guidelines for AI agents and contributors working on this repository.
 
 ## Project Overview
 
-MetriLLM is an open-source CLI tool that benchmarks local LLM models running on Ollama. It measures performance (tok/s, TTFT, memory) and quality (reasoning, math, coding, instruction following, structured output, multilingual), then computes a hardware fitness verdict.
+MetriLLM is an open-source CLI tool that benchmarks local LLM models running on Ollama or LM Studio. It measures performance (tok/s, TTFT, memory, CPU load) and quality (reasoning, math, coding, instruction following, structured output, multilingual), then computes a hardware fitness verdict.
 
 - **License**: Apache 2.0
 - **Language**: TypeScript (ESM, Node 20+)
+- **Runtimes**: Ollama (`src/core/ollama-client.ts`), LM Studio (`src/core/lm-studio-client.ts`), abstracted via `src/core/runtime.ts`
 - **Companion repo**: `MetriLLM/metrillm-web` (private) — leaderboard website at `metrillm.dev`
 
 ## Project Structure
@@ -79,3 +80,23 @@ Supabase (PostgreSQL) with RLS — public read + public insert, immutable rows. 
 ## CI
 
 GitHub Actions (`.github/workflows/ci.yml`): typecheck + coverage + build + audit on every push/PR. Ollama smoke test is manual-only.
+
+**Important**: Root tests import code from `mcp/src/` — any dependency used there (e.g., `zod`) must also be listed in root `devDependencies`, because CI only runs `npm ci` at root level.
+
+## Release
+
+Triggered by pushing a `v*` git tag. Workflow: `.github/workflows/release.yml`.
+
+**Automated** (via release workflow): npm publish (`metrillm` + `metrillm-mcp`), GitHub Release with changelog extraction, smoke tests on Ubuntu/macOS/Windows.
+
+**Manual steps required before tagging**:
+1. Bump version in: `package.json`, `mcp/package.json`, `mcp/server.json`, `plugins/claude-code/.claude-plugin/plugin.json`, `plugins/cursor/.cursor-plugin/plugin.json`
+2. Update `CHANGELOG.md` (move [Unreleased] items to versioned section)
+3. Run `npm run ci:verify` locally
+4. Commit, tag (`git tag vX.Y.Z`), push tag
+
+**Manual steps required after release workflow completes**:
+5. Homebrew: `./scripts/update-homebrew-formula.sh X.Y.Z`, commit and push
+6. MCP Registry: `cd mcp && mcp-publisher publish` (requires prior `mcp-publisher login github`)
+
+**Distribution channels**: npm (metrillm), npm (metrillm-mcp), GitHub Release, Homebrew tap, MCP Registry, Claude Code plugin, Cursor plugin.
