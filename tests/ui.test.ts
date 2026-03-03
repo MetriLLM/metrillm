@@ -67,6 +67,7 @@ describe("printPerformanceTable", () => {
     const { printPerformanceTable } = await import("../src/ui/results-table.js");
     const perf: PerformanceMetrics = {
       tokensPerSecond: 45.2,
+      firstChunkMs: 220,
       ttft: 800,
       loadTime: 2000,
       totalTokens: 500,
@@ -78,6 +79,25 @@ describe("printPerformanceTable", () => {
     expect(() => printPerformanceTable(perf)).not.toThrow();
     const joined = output.join("\n");
     expect(joined).toContain("45.2");
+    expect(joined).toContain("First Chunk");
+  });
+
+  it("prints N/A load time when runtime metric is unavailable", async () => {
+    const { printPerformanceTable } = await import("../src/ui/results-table.js");
+    const perf: PerformanceMetrics = {
+      tokensPerSecond: 45.2,
+      ttft: 800,
+      loadTime: 0,
+      loadTimeAvailable: false,
+      totalTokens: 500,
+      promptTokens: 100,
+      completionTokens: 400,
+      memoryUsedGB: 16,
+      memoryPercent: 25,
+    };
+    printPerformanceTable(perf);
+    const joined = output.join("\n");
+    expect(joined).toContain("runtime metric unavailable");
   });
 });
 

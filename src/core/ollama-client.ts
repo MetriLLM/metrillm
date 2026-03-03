@@ -90,6 +90,7 @@ export async function generate(
 }
 
 export interface StreamCallbacks {
+  onFirstChunk?: () => void;
   onToken?: (token: string) => void;
   onDone?: (result: GenerateResult) => void;
 }
@@ -125,6 +126,7 @@ export async function generateStream(
   let fullResponse = "";
   let fullThinking = "";
   let result: GenerateResult | null = null;
+  let firstChunkSeen = false;
 
   // Stall detection: abort if no chunk arrives within STREAM_STALL_TIMEOUT_MS
   let stallTimer: ReturnType<typeof setTimeout> | null = null;
@@ -139,6 +141,10 @@ export async function generateStream(
     resetStallTimer();
     for await (const chunk of stream) {
       resetStallTimer();
+      if (!firstChunkSeen) {
+        firstChunkSeen = true;
+        callbacks?.onFirstChunk?.();
+      }
       const chunkAny = chunk as unknown as Record<string, unknown>;
       if (chunkAny.thinking) {
         fullThinking += String(chunkAny.thinking);

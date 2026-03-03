@@ -162,11 +162,13 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
   setRuntimeKeepAlive(options.keepAlive);
 
   // Resolve thinking mode
-  let thinkEnabled: boolean | undefined;
+  let thinkEnabled: boolean;
   if (options.thinking !== undefined) {
     thinkEnabled = options.thinking;
   } else if (!silent && !options.ciNoMenu) {
     thinkEnabled = await promptThinkingMode();
+  } else {
+    thinkEnabled = false;
   }
   if (!silent && thinkEnabled) {
     infoMsg("Thinking mode enabled — models that support it will use extended reasoning.");
@@ -210,7 +212,6 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
           streamStallTimeoutMs: options.lmStudioStreamStallTimeoutMs,
         });
         const perf = perfResult.metrics;
-        const thinkingDetected = perfResult.thinkingDetected;
         if (!silent) printPerformanceTable(perf);
 
         // Quality benchmarks (unless --perf-only)
@@ -219,7 +220,7 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
           const qualityTimeoutMs = options.qualityTimeoutMs;
           const codingTimeoutMs = options.codingTimeoutMs ?? options.qualityTimeoutMs;
           const commonQualityOpts = {
-            ...(thinkEnabled !== undefined ? { think: thinkEnabled } : {}),
+            think: thinkEnabled,
             ...(qualityTimeoutMs !== undefined ? { timeoutMs: qualityTimeoutMs } : {}),
           };
 
@@ -231,7 +232,7 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
 
           if (!silent) stepHeader("Quality Benchmark — Coding");
           const coding = await runCodingBench(modelName, {
-            ...(thinkEnabled !== undefined ? { think: thinkEnabled } : {}),
+            think: thinkEnabled,
             ...(codingTimeoutMs !== undefined ? { timeoutMs: codingTimeoutMs } : {}),
           });
 
@@ -258,16 +259,15 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
 
         // Build model info from discovered models
         const matchedModel = allModels.find((m) => m.name === modelName);
-        const modelInfo: ModelInfo | undefined = matchedModel
+        const modelInfo: ModelInfo = matchedModel
           ? {
               parameterSize: matchedModel.parameterSize,
               quantization: matchedModel.quantization,
               family: matchedModel.family,
-              ...(thinkingDetected ? { thinkingDetected } : {}),
+              // Persist the configured benchmark mode (not model auto-detection).
+              thinkingDetected: thinkEnabled,
             }
-          : thinkingDetected
-            ? { thinkingDetected }
-            : undefined;
+          : { thinkingDetected: thinkEnabled };
 
         // Build result without hash first, then compute hash
         const partialResult: Omit<BenchResult, "metadata"> & { metadata: Omit<RunMetadata, "rawLogHash"> } = {

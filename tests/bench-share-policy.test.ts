@@ -268,6 +268,8 @@ describe("bench share policy", () => {
 
     expect(setRuntimeByNameMock).not.toHaveBeenCalled();
     expect(uploadBenchResultMock).toHaveBeenCalledTimes(1);
+    const savedResult = saveResultMock.mock.calls[0]?.[0];
+    expect(savedResult?.modelInfo?.thinkingDetected).toBe(false);
   });
 
   it("forwards timeout overrides to performance and quality benchmarks", async () => {
@@ -289,33 +291,56 @@ describe("bench share policy", () => {
       expect.objectContaining({
         warmupTimeoutMs: 500_000,
         promptTimeoutMs: 180_000,
+        think: false,
         streamStallTimeoutMs: 210_000,
       })
     );
     expect(runReasoningBenchMock).toHaveBeenCalledWith(
       "test-model",
-      expect.objectContaining({ timeoutMs: 240_000 })
+      expect.objectContaining({ timeoutMs: 240_000, think: false })
     );
     expect(runMathBenchMock).toHaveBeenCalledWith(
       "test-model",
-      expect.objectContaining({ timeoutMs: 240_000 })
+      expect.objectContaining({ timeoutMs: 240_000, think: false })
     );
     expect(runCodingBenchMock).toHaveBeenCalledWith(
       "test-model",
-      expect.objectContaining({ timeoutMs: 360_000 })
+      expect.objectContaining({ timeoutMs: 360_000, think: false })
     );
     expect(runInstructionFollowingBenchMock).toHaveBeenCalledWith(
       "test-model",
-      expect.objectContaining({ timeoutMs: 240_000 })
+      expect.objectContaining({ timeoutMs: 240_000, think: false })
     );
     expect(runStructuredOutputBenchMock).toHaveBeenCalledWith(
       "test-model",
-      expect.objectContaining({ timeoutMs: 240_000 })
+      expect.objectContaining({ timeoutMs: 240_000, think: false })
     );
     expect(runMultilingualBenchMock).toHaveBeenCalledWith(
       "test-model",
-      expect.objectContaining({ timeoutMs: 240_000 })
+      expect.objectContaining({ timeoutMs: 240_000, think: false })
     );
+  });
+
+  it("persists thinking mode as true when explicitly enabled", async () => {
+    await benchCommand({
+      model: "test-model",
+      perfOnly: false,
+      share: false,
+      setExitCode: false,
+      ciNoMenu: true,
+      thinking: true,
+    });
+
+    expect(runPerformanceBenchMock).toHaveBeenCalledWith(
+      "test-model",
+      expect.objectContaining({ think: true })
+    );
+    expect(runReasoningBenchMock).toHaveBeenCalledWith(
+      "test-model",
+      expect.objectContaining({ think: true })
+    );
+    const savedResult = saveResultMock.mock.calls[0]?.[0];
+    expect(savedResult?.modelInfo?.thinkingDetected).toBe(true);
   });
 
   it("uses per-model modelFormat metadata when available", async () => {

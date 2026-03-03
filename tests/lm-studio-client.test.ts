@@ -223,4 +223,178 @@ describe("lm-studio-client metadata mapping", () => {
       },
     ]);
   });
+
+  it("falls back to bundled publisher directory size when hub metadata is missing", async () => {
+    tempDir = await mkdtemp(path.join(os.tmpdir(), "lmstudio-bundled-"));
+    const modelsDir = path.join(tempDir, "models");
+    process.env.LM_STUDIO_HOME_DIR = tempDir;
+    process.env.LM_STUDIO_MODELS_DIR = modelsDir;
+
+    const bundledDir = path.join(
+      tempDir,
+      ".internal",
+      "bundled-models",
+      "nomic-ai",
+      "nomic-embed-text-v1.5-GGUF"
+    );
+    await mkdir(bundledDir, { recursive: true });
+    await writeFile(path.join(bundledDir, "model.gguf"), Buffer.alloc(4096));
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const reqPath = requestPath(input);
+      if (reqPath === "/v1/models") {
+        return jsonResponse({
+          object: "list",
+          data: [{ id: "text-embedding-nomic-embed-text-v1.5" }],
+        });
+      }
+      if (reqPath === "/api/v0/models") {
+        return jsonResponse({
+          object: "list",
+          data: [
+            {
+              id: "text-embedding-nomic-embed-text-v1.5",
+              publisher: "nomic-ai",
+              compatibility_type: "gguf",
+              quantization: "Q4_K_M",
+              arch: "nomic-bert",
+              state: "not-loaded",
+            },
+          ],
+        });
+      }
+      throw new Error(`Unexpected path: ${reqPath}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("../src/core/lm-studio-client.js");
+    const models = await client.listModels();
+
+    expect(models).toEqual([
+      {
+        name: "text-embedding-nomic-embed-text-v1.5",
+        size: 4096,
+        parameterSize: undefined,
+        quantization: "Q4_K_M",
+        runtimeStatus: "not-loaded",
+        modelFormat: "gguf",
+        family: "nomic-bert",
+      },
+    ]);
+  });
+
+  it("falls back to historical local app version when API header is missing", async () => {
+    tempDir = await mkdtemp(path.join(os.tmpdir(), "lmstudio-version-"));
+    process.env.LM_STUDIO_HOME_DIR = tempDir;
+    process.env.LM_STUDIO_MODELS_DIR = path.join(tempDir, "models");
+
+    const historicalPath = path.join(tempDir, ".internal", "historical-version-info.json");
+    await mkdir(path.dirname(historicalPath), { recursive: true });
+    await writeFile(
+      historicalPath,
+      JSON.stringify({
+        lastRecorderdAppVersion: "0.4.6",
+        lastRecordedAppBuildVersion: "1",
+      }),
+      "utf8"
+    );
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const reqPath = requestPath(input);
+      if (reqPath === "/v1/models") {
+        return jsonResponse({ object: "list", data: [] });
+      }
+      throw new Error(`Unexpected path: ${reqPath}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("../src/core/lm-studio-client.js");
+    const version = await client.getLMStudioVersion();
+
+    expect(version).toBe("0.4.6+1");
+  });
+});
+
+describe("lm-studio-client thinking toggle passthrough", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    delete process.env.LM_STUDIO_BASE_URL;
+    delete process.env.LM_STUDIO_API_KEY;
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("sends thinking config when generate() receives think=true/false", async () => {
+    const capturedBodies: unknown[] = [];
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const rawBody = typeof init?.body === "string" ? init.body : "{}";
+      capturedBodies.push(JSON.parse(rawBody));
+      return jsonResponse({
+        choices: [{ message: { content: "OK" } }],
+        usage: { prompt_tokens: 3, completion_tokens: 1 },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("../src/core/lm-studio-client.js");
+
+    await client.generate("model-a", "prompt", { think: true });
+    await client.generate("model-a", "prompt", { think: false });
+    await client.generate("model-a", "prompt");
+
+    expect(capturedBodies).toHaveLength(3);
+    expect(capturedBodies[0]).toMatchObject({
+      include_reasoning: true,
+      reasoning_effort: "high",
+      reasoning: { effort: "high" },
+    });
+    expect(capturedBodies[1]).toMatchObject({
+      include_reasoning: false,
+      reasoning_effort: "low",
+      reasoning: { effort: "low" },
+    });
+    expect(capturedBodies[2]).not.toHaveProperty("include_reasoning");
+    expect(capturedBodies[2]).not.toHaveProperty("reasoning_effort");
+    expect(capturedBodies[2]).not.toHaveProperty("reasoning");
+  });
+
+  it("sends thinking config when generateStream() receives think=false", async () => {
+    let capturedBody: Record<string, unknown> | null = null;
+    const encoder = new TextEncoder();
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const rawBody = typeof init?.body === "string" ? init.body : "{}";
+      capturedBody = JSON.parse(rawBody) as Record<string, unknown>;
+
+      const sse =
+        "data: {\"choices\":[{\"delta\":{\"content\":\"OK\"}}]}\n\n" +
+        "data: [DONE]\n\n";
+
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(encoder.encode(sse));
+            controller.close();
+          },
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "text/event-stream" },
+        }
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("../src/core/lm-studio-client.js");
+    const result = await client.generateStream("model-a", "prompt", undefined, { think: false });
+
+    expect(result.response).toBe("OK");
+    expect(capturedBody).toMatchObject({
+      stream: true,
+      include_reasoning: false,
+      reasoning_effort: "low",
+      reasoning: { effort: "low" },
+    });
+  });
 });

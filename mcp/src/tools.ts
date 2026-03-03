@@ -76,7 +76,7 @@ export const toolDefinitions = [
     name: "share_result",
     description:
       "Upload a benchmark result to the public MetriLLM leaderboard. " +
-      "Requires METRILLM_SUPABASE_URL and METRILLM_SUPABASE_ANON_KEY environment variables. " +
+      "Uses official upload defaults; METRILLM_* environment variables can override for self-hosted deployments. " +
       "The resultFile must be an absolute path to a JSON file in ~/.metrillm/results/.",
     inputSchema: shareResultSchema,
   },

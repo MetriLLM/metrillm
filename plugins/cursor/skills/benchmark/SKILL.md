@@ -73,7 +73,7 @@ If the user wants to share results to the public leaderboard:
 - **With MCP**: Use the `share_result` tool with the result file path.
 - **Without MCP**: `npx metrillm bench --model <model-name> --share`
 
-Requires `METRILLM_SUPABASE_URL` and `METRILLM_SUPABASE_ANON_KEY` environment variables.
+Uses official upload defaults by default. For self-hosted/staging deployments, set `METRILLM_SUPABASE_URL` and `METRILLM_SUPABASE_ANON_KEY`.
 
 ## Tips
 

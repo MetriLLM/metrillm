@@ -131,8 +131,19 @@ export function printPerformanceTable(perf: PerformanceMetrics): void {
 
   table.push(
     ["Tokens/sec", tpsColor(`${perf.tokensPerSecond.toFixed(1)} tok/s`)],
+    [
+      "First Chunk Latency",
+      perf.firstChunkMs !== undefined
+        ? formatDuration(perf.firstChunkMs)
+        : chalk.dim("N/A (stream metric unavailable)"),
+    ],
     ["Time to First Token", ttftColor(formatDuration(perf.ttft))],
-    ["Model Load Time", formatDuration(perf.loadTime)],
+    [
+      "Model Load Time",
+      perf.loadTimeAvailable === false
+        ? chalk.dim("N/A (runtime metric unavailable)")
+        : formatDuration(perf.loadTime),
+    ],
     ["Total Tokens", String(perf.totalTokens)],
     ["Prompt Tokens", String(perf.promptTokens)],
     ["Completion Tokens", String(perf.completionTokens)],

@@ -36,6 +36,7 @@ function toCsv(results: BenchResult[]): string {
     "thinking_detected",
     "timestamp",
     "tokens_per_second",
+    "first_chunk_ms",
     "ttft_ms",
     "thinking_tokens_estimate",
     "model_memory_percent",
@@ -60,9 +61,14 @@ function toCsv(results: BenchResult[]): string {
       r.modelInfo?.parameterSize ?? "",
       r.modelInfo?.quantization ?? "",
       r.modelInfo?.family ?? "",
-      r.modelInfo?.thinkingDetected ? "true" : "",
+      r.modelInfo?.thinkingDetected === undefined
+        ? ""
+        : String(r.modelInfo.thinkingDetected),
       r.timestamp,
       r.performance.tokensPerSecond.toFixed(2),
+      r.performance.firstChunkMs !== undefined
+        ? r.performance.firstChunkMs.toFixed(0)
+        : "",
       r.performance.ttft.toFixed(0),
       r.performance.thinkingTokensEstimate
         ? String(r.performance.thinkingTokensEstimate)

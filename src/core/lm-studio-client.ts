@@ -42,6 +42,12 @@ interface LMStudioApiModelListResponse {
   data?: LMStudioApiModel[];
 }
 
+interface LMStudioHistoricalVersionInfo {
+  lastRecorderdAppVersion?: unknown;
+  lastRecordedAppVersion?: unknown;
+  lastRecordedAppBuildVersion?: unknown;
+}
+
 interface LMStudioModelSource {
   user: string;
   repo: string;
@@ -73,6 +79,24 @@ interface LMStudioChoice {
 interface LMStudioChatCompletionChunk {
   usage?: LMStudioUsage;
   choices?: LMStudioChoice[];
+}
+
+interface LMStudioThinkingConfig {
+  include_reasoning: boolean;
+  reasoning_effort: "low" | "high";
+  reasoning: {
+    effort: "low" | "high";
+  };
+}
+
+function buildThinkingConfig(think?: boolean): Partial<LMStudioThinkingConfig> {
+  if (think === undefined) return {};
+  const effort = think ? "high" : "low";
+  return {
+    include_reasoning: think,
+    reasoning_effort: effort,
+    reasoning: { effort },
+  };
 }
 
 function parseNonNegativeInt(value: string): number | null {
@@ -158,6 +182,14 @@ function stripOptionalQuotes(value: string): string {
 
 function normalizeToken(value: string | undefined): string {
   return (value ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function tokenizeModelName(value: string): string[] {
+  return value
+    .toLowerCase()
+    .split(/[^a-z0-9]+/g)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 3 && /[a-z]/.test(token));
 }
 
 function getLMStudioHomeDir(): string {
@@ -310,6 +342,112 @@ async function resolveModelsRootDir(): Promise<string> {
   return DEFAULT_LM_STUDIO_MODELS_DIR;
 }
 
+async function listImmediateSubdirs(dirPath: string): Promise<string[]> {
+  let entries: Dirent[] = [];
+  try {
+    entries = await fs.readdir(dirPath, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  return entries
+    .filter((entry) => entry.isDirectory() && !entry.isSymbolicLink())
+    .map((entry) => path.join(dirPath, entry.name));
+}
+
+async function findPublisherDirs(rootDir: string, publisher: string): Promise<string[]> {
+  const normalizedPublisher = normalizeToken(publisher);
+  if (!normalizedPublisher) return [];
+  const dirs = await listImmediateSubdirs(rootDir);
+  return dirs.filter((dir) => normalizeToken(path.basename(dir)) === normalizedPublisher);
+}
+
+function scorePublisherModelCandidate(
+  modelDirName: string,
+  modelId: string,
+  apiModel: LMStudioApiModel | undefined
+): number {
+  const dirToken = normalizeToken(modelDirName);
+  if (!dirToken) return 0;
+
+  let score = 0;
+  const idToken = normalizeToken(modelId);
+  if (idToken && dirToken.includes(idToken)) score += 24;
+
+  const [, shortModelName] = modelId.split("/", 2);
+  const shortToken = normalizeToken(shortModelName ?? modelId);
+  if (shortToken && dirToken.includes(shortToken)) score += 16;
+
+  for (const token of tokenizeModelName(shortModelName ?? modelId)) {
+    if (dirToken.includes(token)) score += 3;
+  }
+
+  const quantToken = normalizeToken(apiModel?.quantization);
+  if (quantToken && dirToken.includes(quantToken)) score += 6;
+
+  const compatibilityToken = normalizeToken(apiModel?.compatibility_type);
+  if (compatibilityToken && dirToken.includes(compatibilityToken)) score += 4;
+
+  return score;
+}
+
+async function resolvePublisherModelMetadata(
+  modelId: string,
+  apiModel: LMStudioApiModel | undefined,
+  modelsRootDir: string
+): Promise<{ size: number; parameterSize?: string }> {
+  const explicitPublisher = asNonEmptyString(apiModel?.publisher);
+  const [publisherFromId] = modelId.split("/", 1);
+  const publisher = explicitPublisher ?? publisherFromId;
+  if (!publisher) {
+    return { size: 0, parameterSize: inferParameterSizeFromModelId(modelId) };
+  }
+
+  const bundledModelsDir = path.join(getLMStudioHomeDir(), ".internal", "bundled-models");
+  const roots = Array.from(new Set([modelsRootDir, bundledModelsDir]));
+
+  const candidates: Array<{ fullPath: string; score: number }> = [];
+  for (const root of roots) {
+    const publisherDirs = await findPublisherDirs(root, publisher);
+    for (const publisherDir of publisherDirs) {
+      const modelDirs = await listImmediateSubdirs(publisherDir);
+      if (modelDirs.length === 0) {
+        candidates.push({
+          fullPath: publisherDir,
+          score: scorePublisherModelCandidate(path.basename(publisherDir), modelId, apiModel),
+        });
+        continue;
+      }
+      for (const modelDir of modelDirs) {
+        candidates.push({
+          fullPath: modelDir,
+          score: scorePublisherModelCandidate(path.basename(modelDir), modelId, apiModel),
+        });
+      }
+    }
+  }
+
+  if (candidates.length === 0) {
+    return { size: 0, parameterSize: inferParameterSizeFromModelId(modelId) };
+  }
+
+  candidates.sort((a, b) => {
+    const scoreDiff = b.score - a.score;
+    if (scoreDiff !== 0) return scoreDiff;
+    return a.fullPath.localeCompare(b.fullPath);
+  });
+
+  let bestSize = 0;
+  for (const candidate of candidates) {
+    const size = await readDirectorySizeBytes(candidate.fullPath);
+    if (size > bestSize) bestSize = size;
+    if (size > 0 && candidate.score > 0) {
+      return { size, parameterSize: inferParameterSizeFromModelId(modelId) };
+    }
+  }
+
+  return { size: bestSize, parameterSize: inferParameterSizeFromModelId(modelId) };
+}
+
 async function resolveLocalModelMetadata(
   modelId: string,
   apiModel: LMStudioApiModel | undefined,
@@ -317,7 +455,7 @@ async function resolveLocalModelMetadata(
 ): Promise<{ size: number; parameterSize?: string }> {
   const definition = await loadHubModelDefinition(modelId);
   if (!definition) {
-    return { size: 0, parameterSize: undefined };
+    return resolvePublisherModelMetadata(modelId, apiModel, modelsRootDir);
   }
 
   const installedSources: Array<LMStudioModelSource & { fullPath: string }> = [];
@@ -329,6 +467,13 @@ async function resolveLocalModelMetadata(
   }
 
   if (installedSources.length === 0) {
+    const fallback = await resolvePublisherModelMetadata(modelId, apiModel, modelsRootDir);
+    if (fallback.size > 0) {
+      return {
+        size: fallback.size,
+        parameterSize: definition.parameterSize ?? fallback.parameterSize,
+      };
+    }
     return { size: 0, parameterSize: definition.parameterSize };
   }
 
@@ -349,7 +494,19 @@ async function resolveLocalModelMetadata(
     }
   }
 
-  return { size: bestSize, parameterSize: definition.parameterSize };
+  if (bestSize > 0) {
+    return { size: bestSize, parameterSize: definition.parameterSize };
+  }
+
+  const fallback = await resolvePublisherModelMetadata(modelId, apiModel, modelsRootDir);
+  if (fallback.size > 0) {
+    return {
+      size: fallback.size,
+      parameterSize: definition.parameterSize ?? fallback.parameterSize,
+    };
+  }
+
+  return { size: 0, parameterSize: definition.parameterSize ?? fallback.parameterSize };
 }
 
 function parseSizeBytes(model: LMStudioApiModel | undefined): number {
@@ -441,7 +598,28 @@ async function fetchWithTimeout(
   }
 }
 
+async function resolveLocalLMStudioVersion(): Promise<string | null> {
+  const historicalVersionPath = path.join(
+    getLMStudioHomeDir(),
+    ".internal",
+    "historical-version-info.json"
+  );
+  try {
+    const content = await fs.readFile(historicalVersionPath, "utf8");
+    const parsed = JSON.parse(content) as LMStudioHistoricalVersionInfo;
+    const version =
+      asNonEmptyString(parsed.lastRecordedAppVersion)
+      ?? asNonEmptyString(parsed.lastRecorderdAppVersion);
+    if (!version) return null;
+    const build = asNonEmptyString(parsed.lastRecordedAppBuildVersion);
+    return build ? `${version}+${build}` : version;
+  } catch {
+    return null;
+  }
+}
+
 export async function getLMStudioVersion(): Promise<string> {
+  const localVersion = await resolveLocalLMStudioVersion();
   try {
     const resp = await fetchWithTimeout(
       "/v1/models",
@@ -449,12 +627,12 @@ export async function getLMStudioVersion(): Promise<string> {
       5_000,
       "LM Studio version check"
     );
-    if (!resp.ok) return "unknown";
-    const fromHeader = resp.headers.get("x-lmstudio-version");
-    if (fromHeader && fromHeader.trim()) return fromHeader.trim();
-    return "unknown";
+    if (!resp.ok) return localVersion ?? "unknown";
+    const fromHeader = asNonEmptyString(resp.headers.get("x-lmstudio-version"));
+    if (fromHeader) return fromHeader;
+    return localVersion ?? "unknown";
   } catch {
-    return "unknown";
+    return localVersion ?? "unknown";
   }
 }
 
@@ -555,6 +733,7 @@ export async function generate(
         temperature: options?.temperature ?? 0,
         max_tokens: options?.num_predict ?? 512,
         stream: false,
+        ...buildThinkingConfig(options?.think),
       }),
       signal: controller.signal,
     });
@@ -635,6 +814,7 @@ export async function generateStream(
         max_tokens: options?.num_predict ?? 512,
         stream: true,
         stream_options: { include_usage: true },
+        ...buildThinkingConfig(options?.think),
       }),
       signal: controller.signal,
     });
@@ -655,6 +835,7 @@ export async function generateStream(
     let fullResponse = "";
     let fullThinking = "";
     let usage: LMStudioUsage | undefined;
+    let firstChunkSeen = false;
 
     const processDataLine = (rawLine: string) => {
       const line = rawLine.trim();
@@ -692,6 +873,10 @@ export async function generateStream(
       const { value, done } = await reader.read();
       if (done) break;
       resetStallTimer();
+      if (!firstChunkSeen) {
+        firstChunkSeen = true;
+        callbacks?.onFirstChunk?.();
+      }
       buffered += decoder.decode(value, { stream: true });
       const lines = buffered.split("\n");
       buffered = lines.pop() ?? "";

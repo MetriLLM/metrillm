@@ -12,18 +12,25 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 type PlanItem = "ok" | "fail";
 
 let generatePlan: PlanItem[] = [];
-let memoryPlan: Array<{ usedGB: number; percent: number }> = [];
+let memoryPlan: Array<{ usedGB: number; percent: number; totalGB: number }> = [];
+let listedModelSizeBytes = 0;
+let runtimeName = "ollama";
 
 let thinkingPlan: Array<string | undefined> = [];
 
 vi.mock("../src/core/ollama-client.js", () => ({
   abortOngoingRequests: vi.fn(),
   listRunningModels: vi.fn(async () => []),
-  generateStream: vi.fn(async (_model: string, _prompt: string, streamOpts?: { onToken?: () => void }) => {
+  listModels: vi.fn(async () =>
+    listedModelSizeBytes > 0 ? [{ name: "test-model", size: listedModelSizeBytes }] : []
+  ),
+  getOllamaVersion: vi.fn(async () => "0.0.0-test"),
+  generateStream: vi.fn(async (_model: string, _prompt: string, streamOpts?: { onFirstChunk?: () => void; onToken?: () => void }) => {
     const next = generatePlan.shift() ?? "ok";
     if (next === "fail") {
       throw new Error("mock stream failure");
     }
+    streamOpts?.onFirstChunk?.();
     streamOpts?.onToken?.();
     const thinking = thinkingPlan.shift();
     return {
@@ -40,9 +47,20 @@ vi.mock("../src/core/ollama-client.js", () => ({
 vi.mock("../src/core/hardware.js", () => ({
   getMemoryUsage: vi.fn(async () => {
     const next = memoryPlan.shift();
-    if (!next) return { usedGB: 10, percent: 40 };
+    if (!next) return { usedGB: 10, percent: 40, totalGB: 32 };
     return next;
   }),
+}));
+
+vi.mock("../src/core/lm-studio-client.js", () => ({
+  listModels: vi.fn(async () => []),
+  listRunningModels: vi.fn(async () => []),
+  getLMStudioVersion: vi.fn(async () => "unknown"),
+  generate: vi.fn(),
+  generateStream: vi.fn(),
+  setDefaultKeepAlive: vi.fn(),
+  unloadModel: vi.fn(),
+  abortOngoingRequests: vi.fn(),
 }));
 
 vi.mock("../src/ui/progress.js", () => ({
@@ -58,16 +76,20 @@ vi.mock("../src/ui/progress.js", () => ({
 
 import { runPerformanceBench } from "../src/benchmarks/performance.js";
 import * as ollamaClient from "../src/core/ollama-client.js";
+import * as runtime from "../src/core/runtime.js";
 
 describe("runPerformanceBench", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     generatePlan = [];
     thinkingPlan = [];
+    listedModelSizeBytes = 0;
+    runtimeName = "ollama";
     memoryPlan = [
-      { usedGB: 10, percent: 40 },
-      { usedGB: 13, percent: 47 },
+      { usedGB: 10, percent: 40, totalGB: 32 },
+      { usedGB: 13, percent: 47, totalGB: 32 },
     ];
+    runtime.setRuntimeByName(runtimeName);
   });
 
   it("continues when some prompts fail (non-strict mode)", async () => {
@@ -82,6 +104,7 @@ describe("runPerformanceBench", () => {
     expect(result.metrics.tokensPerSecond).toBeGreaterThan(0);
     expect(result.metrics.promptTokens).toBe(4 * 50);
     expect(result.metrics.completionTokens).toBe(4 * 100);
+    expect(result.metrics.firstChunkMs).toBeGreaterThanOrEqual(0);
     expect(result.metrics.memoryHostPercent).toBe(47);
     expect(result.thinkingDetected).toBe(false);
   });
@@ -159,5 +182,49 @@ describe("runPerformanceBench", () => {
         return options?.stall_timeout_ms === 180_000;
       })
     ).toBe(true);
+  });
+
+  it("falls back to listed model size when running model size is unavailable", async () => {
+    generatePlan = ["ok", "ok", "ok", "ok", "ok", "ok"];
+    listedModelSizeBytes = 3 * 1024 ** 3; // 3.0 GB
+    memoryPlan = [
+      { usedGB: 10, percent: 40, totalGB: 10 },
+      { usedGB: 10, percent: 40, totalGB: 10 },
+    ];
+
+    const result = await runPerformanceBench("test-model", {
+      failOnPromptError: false,
+      minSuccessfulPrompts: 3,
+    });
+
+    expect(result.metrics.memoryUsedGB).toBe(3);
+    expect(result.metrics.memoryPercent).toBe(30);
+  });
+
+  it("marks load time unavailable for LM Studio when runtime does not report it", async () => {
+    runtime.setRuntimeByName("lm-studio");
+    const lmStudioGenerateStreamMock = vi.mocked(
+      (await import("../src/core/lm-studio-client.js")).generateStream
+    );
+    lmStudioGenerateStreamMock.mockImplementation(async (_model: string, _prompt: string, streamOpts?: { onFirstChunk?: () => void; onToken?: () => void }) => {
+      streamOpts?.onFirstChunk?.();
+      streamOpts?.onToken?.();
+      return {
+        response: "test response",
+        loadDuration: 0,
+        evalDuration: 1_000_000_000,
+        evalCount: 100,
+        promptEvalCount: 50,
+      };
+    });
+
+    const result = await runPerformanceBench("test-model", {
+      failOnPromptError: false,
+      minSuccessfulPrompts: 3,
+    });
+
+    expect(result.metrics.loadTime).toBe(0);
+    expect(result.metrics.loadTimeAvailable).toBe(false);
+    expect(result.metrics.firstChunkMs).toBeGreaterThanOrEqual(0);
   });
 });

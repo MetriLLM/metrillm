@@ -1,4 +1,4 @@
-import { abortOngoingRequests, generateStream, listRunningModels } from "../core/runtime.js";
+import { abortOngoingRequests, generateStream, listModels, listRunningModels, getRuntimeName } from "../core/runtime.js";
 import { getMemoryUsage } from "../core/hardware.js";
 import type { PerformanceMetrics } from "../types.js";
 import { avg, stddev, withTimeout, hasThinkingContent, estimateTokenCount } from "../utils.js";
@@ -57,16 +57,30 @@ export async function runPerformanceBench(
       "Model warmup",
       abortOngoingRequests
     );
+    const runtimeName = getRuntimeName();
+    const loadTimeAvailable = !(runtimeName === "lm-studio" && warmup.loadDuration === 0);
     const loadTime = warmup.loadDuration / 1e6; // ns -> ms
 
-    // After warmup, query ollama ps for accurate model memory size
+    // After warmup, query running models for accurate loaded size.
     const runningModels = await listRunningModels();
     const thisModel = runningModels.find((m) => m.name === model);
+    // Fallback to installed model size when runtime cannot expose loaded size.
+    let installedModelSizeBytes = 0;
+    try {
+      const availableModels = await listModels();
+      const listedModel = availableModels.find((m) => m.name === model);
+      if (listedModel && Number.isFinite(listedModel.size) && listedModel.size > 0) {
+        installedModelSizeBytes = listedModel.size;
+      }
+    } catch {
+      // Non-fatal: keep fallback to host memory delta.
+    }
 
     spinner.succeed("Model loaded");
 
     // Run benchmark prompts
     const tpsValues: number[] = [];
+    const firstChunkValues: number[] = [];
     const ttftValues: number[] = [];
     let totalPromptTokens = 0;
     let totalCompletionTokens = 0;
@@ -80,6 +94,7 @@ export async function runPerformanceBench(
     for (let i = 0; i < BENCH_PROMPTS.length; i++) {
       spinner.start(`Running performance test ${i + 1}/${BENCH_PROMPTS.length}...`);
 
+      let firstChunkTime: number | null = null;
       let firstTokenTime: number | null = null;
       const startTime = Date.now();
 
@@ -89,6 +104,11 @@ export async function runPerformanceBench(
             model,
             BENCH_PROMPTS[i],
             {
+              onFirstChunk: () => {
+                if (firstChunkTime === null) {
+                  firstChunkTime = Date.now() - startTime;
+                }
+              },
               onToken: () => {
                 if (firstTokenTime === null) {
                   firstTokenTime = Date.now() - startTime;
@@ -113,7 +133,10 @@ export async function runPerformanceBench(
         totalEvalCount += result.evalCount;
         totalEvalDurationNs += result.evalDuration;
 
-        // TTFT
+        // First chunk latency / TTFT
+        if (firstChunkTime !== null) {
+          firstChunkValues.push(firstChunkTime);
+        }
         if (firstTokenTime !== null) {
           ttftValues.push(firstTokenTime);
         }
@@ -130,7 +153,7 @@ export async function runPerformanceBench(
         successfulPrompts++;
 
         subStep(
-          `  Prompt ${i + 1}: ${tps.toFixed(1)} tok/s, TTFT ${firstTokenTime ?? "?"}ms`
+          `  Prompt ${i + 1}: ${tps.toFixed(1)} tok/s, first chunk ${firstChunkTime ?? "?"}ms, TTFT ${firstTokenTime ?? "?"}ms`
         );
       } catch (err) {
         failedPrompts++;
@@ -160,8 +183,10 @@ export async function runPerformanceBench(
     // Prefer Ollama's reported model size (accurate), fall back to system delta
     let memoryUsedGB: number;
     let memoryPercent: number;
-    if (thisModel && thisModel.size > 0) {
-      memoryUsedGB = thisModel.size / (1024 ** 3);
+    const loadedModelSizeBytes =
+      thisModel && thisModel.size > 0 ? thisModel.size : installedModelSizeBytes;
+    if (loadedModelSizeBytes > 0) {
+      memoryUsedGB = loadedModelSizeBytes / (1024 ** 3);
       memoryPercent = (memoryUsedGB / memAfter.totalGB) * 100;
     } else {
       memoryUsedGB = Math.max(0, memAfter.usedGB - memBefore.usedGB);
@@ -171,6 +196,7 @@ export async function runPerformanceBench(
     spinner.succeed("Performance benchmark complete");
 
     // Use a sentinel value for TTFT if no tokens were received
+    const firstChunkMs = firstChunkValues.length > 0 ? avg(firstChunkValues) : undefined;
     const ttft = ttftValues.length > 0 ? avg(ttftValues) : -1;
 
     return {
@@ -179,8 +205,10 @@ export async function runPerformanceBench(
           totalEvalDurationNs > 0
             ? totalEvalCount / (totalEvalDurationNs / 1e9)
             : avg(tpsValues),
+        ...(firstChunkMs !== undefined ? { firstChunkMs } : {}),
         ttft: ttft >= 0 ? ttft : 30_000, // Fallback: 30s if no TTFT measured
         loadTime,
+        loadTimeAvailable,
         totalTokens: totalPromptTokens + totalCompletionTokens,
         promptTokens: totalPromptTokens,
         completionTokens: totalCompletionTokens,

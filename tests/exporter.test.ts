@@ -105,6 +105,25 @@ describe("exportBenchResults", () => {
     expect(content).toContain("GOOD");
   });
 
+  it("exports explicit non-thinking mode in CSV", async () => {
+    const dir = await makeTmpDir("metrillm-export-csv-thinking-");
+    const path = await exportBenchResults(
+      [
+        {
+          ...sampleResult(),
+          modelInfo: {
+            ...sampleResult().modelInfo,
+            thinkingDetected: false,
+          },
+        },
+      ],
+      "csv",
+      dir
+    );
+    const content = await readFile(path, "utf8");
+    expect(content).toContain(",false,");
+  });
+
   it("exports Markdown", async () => {
     const dir = await makeTmpDir("metrillm-export-md-");
     const path = await exportBenchResults([sampleResult()], "md", dir);
