@@ -263,7 +263,7 @@ The tap formula lives in `Formula/metrillm.rb`.
 ./scripts/update-homebrew-formula.sh
 
 # Or pin a specific version
-./scripts/update-homebrew-formula.sh 0.2.0
+./scripts/update-homebrew-formula.sh 0.2.1
 ```
 
 After updating the formula, commit and push so users can install/update with:

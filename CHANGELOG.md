@@ -7,6 +7,16 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-03-04
+
+### Fixed
+
+- Upgrade systeminformation ^5.23.5 → ^5.31.2 — resolves 4 High supply-chain CVEs.
+- Upgrade @modelcontextprotocol/sdk ^1.12.1 → ^1.27.1 — resolves 3 High supply-chain CVEs.
+- MCP server now works zero-config — no environment variables needed for leaderboard upload.
+- Fix MCP server version announcement (was stuck at 0.1.0).
+- Harden LM Studio non-thinking detection (regex + system prompt improvements).
+
 ## [0.2.0] - 2026-03-03
 
 ### Added

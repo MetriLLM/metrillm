@@ -35,7 +35,7 @@ import { promptThinkingMode } from "../ui/thinking-prompt.js";
 import type { BenchResult, BenchEnvironment, HardwareInfo, ModelInfo, OllamaModel, QualityMetrics, RunMetadata } from "../types.js";
 import { buildBenchmarkProfileMetadata, BENCHMARK_PROFILE_VERSION } from "../benchmarks/profile.js";
 
-const BENCHMARK_SPEC_VERSION = "0.2.0";
+const BENCHMARK_SPEC_VERSION = "0.2.1";
 const PROMPT_PACK_VERSION = "0.1.0";
 
 export interface BenchOptions {

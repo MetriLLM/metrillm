@@ -1,6 +1,6 @@
 {
   "name": "metrillm",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Benchmark your local LLM models — speed, quality & hardware fitness verdict",
   "type": "module",
   "bin": {

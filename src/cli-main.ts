@@ -101,7 +101,7 @@ program
   .description(
     "Benchmark local LLMs for hardware fit and task quality, then compute a global verdict"
   )
-  .version("0.2.0")
+  .version("0.2.1")
   .hook("preAction", (_thisCommand, actionCommand) => {
     // Skip banner in JSON mode
     if (!actionCommand.opts()?.json) printBanner();
