@@ -446,6 +446,54 @@ describe("lm-studio-client thinking toggle passthrough", () => {
     expect(capturedBodies[1]).not.toHaveProperty("seed");
   });
 
+  it("shows actionable guidance when LM Studio blocks model load in non-stream mode", async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonResponse(
+        {
+          error: {
+            message:
+              "Failed to load model \"zai-org/glm-4.7-flash\". Error: Model loading was stopped due to insufficient system resources. Continuing to load the model would likely overload your system and cause it to freeze. If you think this is incorrect, you can adjust the model loading guardrails in settings.",
+          },
+        },
+        400
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("../src/core/lm-studio-client.js");
+
+    await expect(client.generate("zai-org/glm-4.7-flash", "prompt")).rejects.toThrow(
+      /could not load model "zai-org\/glm-4\.7-flash" due to insufficient system resources/i
+    );
+    await expect(client.generate("zai-org/glm-4.7-flash", "prompt")).rejects.toThrow(
+      /unload other models, reduce loaded context length, or relax model loading guardrails/i
+    );
+  });
+
+  it("shows actionable guidance when LM Studio blocks model load in stream mode", async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonResponse(
+        {
+          error: {
+            message:
+              "Failed to load model \"zai-org/glm-4.7-flash\". Error: Model loading was stopped due to insufficient system resources. Continuing to load the model would likely overload your system and cause it to freeze. If you think this is incorrect, you can adjust the model loading guardrails in settings.",
+          },
+        },
+        400
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("../src/core/lm-studio-client.js");
+
+    await expect(client.generateStream("zai-org/glm-4.7-flash", "prompt")).rejects.toThrow(
+      /could not load model "zai-org\/glm-4\.7-flash" due to insufficient system resources/i
+    );
+    await expect(client.generateStream("zai-org/glm-4.7-flash", "prompt")).rejects.toThrow(
+      /unload other models, reduce loaded context length, or relax model loading guardrails/i
+    );
+  });
+
   it("sends thinking config when generateStream() receives think=false", async () => {
     let capturedBody: Record<string, unknown> | null = null;
     const encoder = new TextEncoder();

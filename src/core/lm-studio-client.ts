@@ -143,6 +143,56 @@ function isUnsupportedSamplingMessage(status: number, text: string): boolean {
   return /unrecognized|unknown|not support|unsupported|invalid|unexpected|additional|extra/.test(lower);
 }
 
+function extractLMStudioErrorMessage(body: string): string {
+  const trimmed = body.trim();
+  if (!trimmed) return "";
+  try {
+    const parsed = JSON.parse(trimmed) as {
+      error?: {
+        message?: unknown;
+      };
+    };
+    const message = parsed.error?.message;
+    if (typeof message === "string" && message.trim().length > 0) {
+      return message.trim();
+    }
+  } catch {
+    // Fall back to raw response body text when payload is not JSON.
+  }
+  return trimmed;
+}
+
+function isModelLoadGuardrailError(message: string): boolean {
+  const lower = message.toLowerCase();
+  if (!lower.includes("failed to load model")) return false;
+  return (
+    lower.includes("insufficient system resources")
+    || lower.includes("overload your system")
+    || lower.includes("loading guardrails")
+  );
+}
+
+function buildLMStudioRequestError(
+  kind: "generate" | "stream",
+  model: string,
+  status: number,
+  statusText: string,
+  body: string
+): Error {
+  const backendMessage = extractLMStudioErrorMessage(body);
+  if (isModelLoadGuardrailError(backendMessage)) {
+    return new Error(
+      [
+        `LM Studio could not load model "${model}" due to insufficient system resources (model loading guardrails).`,
+        "In LM Studio: unload other models, reduce loaded context length, or relax model loading guardrails in Settings.",
+        `Backend error: ${backendMessage}`,
+      ].join(" ")
+    );
+  }
+  const suffix = backendMessage ? ` ${backendMessage}` : "";
+  return new Error(`LM Studio ${kind} failed (${status} ${statusText})${suffix}`.trim());
+}
+
 function buildChatCompletionBody(
   model: string,
   prompt: string,
@@ -796,12 +846,12 @@ export async function generate(
       if (hasSamplingOverrides(options) && isUnsupportedSamplingMessage(resp.status, body)) {
         resp = await doRequest(false);
       } else {
-        throw new Error(`LM Studio generate failed (${resp.status} ${resp.statusText}) ${body}`.trim());
+        throw buildLMStudioRequestError("generate", model, resp.status, resp.statusText, body);
       }
     }
     if (!resp.ok) {
       const body = await resp.text().catch(() => "");
-      throw new Error(`LM Studio generate failed (${resp.status} ${resp.statusText}) ${body}`.trim());
+      throw buildLMStudioRequestError("generate", model, resp.status, resp.statusText, body);
     }
 
     const payload = (await resp.json()) as LMStudioChatCompletionChunk;
@@ -878,12 +928,12 @@ export async function generateStream(
       if (hasSamplingOverrides(options) && isUnsupportedSamplingMessage(resp.status, body)) {
         resp = await doRequest(false);
       } else {
-        throw new Error(`LM Studio stream failed (${resp.status} ${resp.statusText}) ${body}`.trim());
+        throw buildLMStudioRequestError("stream", model, resp.status, resp.statusText, body);
       }
     }
     if (!resp.ok) {
       const body = await resp.text().catch(() => "");
-      throw new Error(`LM Studio stream failed (${resp.status} ${resp.statusText}) ${body}`.trim());
+      throw buildLMStudioRequestError("stream", model, resp.status, resp.statusText, body);
     }
 
     if (!resp.body) {
