@@ -14,7 +14,7 @@ Run an MetriLLM benchmark on a locally available model. This skill handles setup
 Before running any benchmark, verify the environment:
 
 1. **Ollama running**: Run `ollama list` to check. If it fails, tell the user to start Ollama first.
-2. **MetriLLM available**: If the MetriLLM MCP server is connected, use the MCP tools directly. Otherwise, check if `npx metrillm` works.
+2. **MetriLLM available**: If the MetriLLM MCP server is connected, use the MCP tools directly. Otherwise, check if `metrillm` works.
 
 ## Workflow
 
@@ -34,12 +34,12 @@ Use the `run_benchmark` tool with the model name. Set `perfOnly: true` for perfo
 
 **Without MCP**:
 ```bash
-npx metrillm bench --model <model-name> --json
+metrillm bench --model <model-name> --json
 ```
 
 For performance-only (skip quality tests, much faster):
 ```bash
-npx metrillm bench --model <model-name> --perf-only --json
+metrillm bench --model <model-name> --perf-only --json
 ```
 
 ### Step 3 — Interpret results
@@ -71,7 +71,7 @@ Compare side-by-side on key metrics.
 If the user wants to share results to the public leaderboard:
 
 - **With MCP**: Use the `share_result` tool with the result file path.
-- **Without MCP**: `npx metrillm bench --model <model-name> --share`
+- **Without MCP**: `metrillm bench --model <model-name> --share`
 
 Uses official upload defaults by default. For self-hosted/staging deployments, set `METRILLM_SUPABASE_URL` and `METRILLM_SUPABASE_ANON_KEY`.
 

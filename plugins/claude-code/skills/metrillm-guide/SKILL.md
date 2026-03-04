@@ -31,16 +31,16 @@ Suggest using MetriLLM when the user:
 ollama list
 
 # Full benchmark (perf + quality, 1-5 min)
-npx metrillm bench --model <name>
+metrillm bench --model <name>
 
 # Performance only (30s)
-npx metrillm bench --model <name> --perf-only
+metrillm bench --model <name> --perf-only
 
 # View previous results
 ls ~/.metrillm/results/
 
 # Share to public leaderboard
-npx metrillm bench --model <name> --share
+metrillm bench --model <name> --share
 ```
 
 ## Verdict Scale

@@ -13,7 +13,8 @@
 > Think Geekbench, but for local LLMs on your actual hardware.
 
 ```bash
-npx metrillm@latest bench
+npm install -g metrillm
+metrillm bench
 ```
 
 <p align="center">
@@ -56,26 +57,19 @@ npx metrillm@latest bench
 > [Ollama](https://ollama.com/) or [LM Studio](https://lmstudio.ai/).
 
 ```bash
-# Run directly (no install)
-npx metrillm@latest bench
-
-# Or install globally
-npm i -g metrillm
-metrillm bench
-
-# Homebrew (no global npm install)
-# One-liner install (without pre-tapping):
-brew install MetriLLM/metrillm/metrillm
-
-# Or one-time tap for short install command:
-brew tap MetriLLM/metrillm
-# Then:
-brew install metrillm
+# Install globally
+npm install -g metrillm
 metrillm bench
 
 # Alternative package managers
-pnpm dlx metrillm@latest bench
-bunx metrillm@latest bench
+pnpm add -g metrillm
+bun add -g metrillm
+
+# Homebrew
+brew install MetriLLM/metrillm/metrillm
+
+# Or run without installing
+npx metrillm@latest bench
 ```
 
 ## Usage

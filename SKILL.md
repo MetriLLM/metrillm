@@ -28,7 +28,7 @@ ollama list
 ### Run a full benchmark
 
 ```bash
-npx metrillm bench --model $ARGUMENTS --json
+metrillm bench --model $ARGUMENTS --json
 ```
 
 This measures:
@@ -41,7 +41,7 @@ A full benchmark takes 1-5 minutes depending on model size.
 ### Performance-only benchmark (faster)
 
 ```bash
-npx metrillm bench --model $ARGUMENTS --perf-only --json
+metrillm bench --model $ARGUMENTS --perf-only --json
 ```
 
 Takes about 30 seconds. Skips quality evaluation.
@@ -57,7 +57,7 @@ Read any JSON file to see full benchmark details.
 ### Share to public leaderboard
 
 ```bash
-npx metrillm bench --model $ARGUMENTS --share
+metrillm bench --model $ARGUMENTS --share
 ```
 
 ## Interpreting Results
