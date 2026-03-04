@@ -1,4 +1,5 @@
 import { Ollama } from "ollama";
+import type { AbortableAsyncIterator, GenerateRequest, GenerateResponse } from "ollama";
 import type { OllamaModel, OllamaRunningModel } from "../types.js";
 import { withTimeout } from "../utils.js";
 
@@ -102,7 +103,7 @@ function buildGenerateRequest(
   prompt: string,
   options: OllamaRequestOptions | undefined,
   includeSampling: boolean
-): Record<string, unknown> {
+): GenerateRequest & { stream: true } {
   return {
     model,
     prompt,
@@ -145,7 +146,7 @@ export async function generateStream(
       "Ollama generate initialization"
     );
 
-  let stream: Awaited<ReturnType<typeof initializeStream>>;
+  let stream: AbortableAsyncIterator<GenerateResponse>;
   try {
     stream = await initializeStream(true);
   } catch (err) {

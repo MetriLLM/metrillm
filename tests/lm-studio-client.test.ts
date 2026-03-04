@@ -355,9 +355,29 @@ describe("lm-studio-client thinking toggle passthrough", () => {
       reasoning_effort: "low",
       reasoning: { effort: "low" },
     });
+    expect(capturedBodies[1]).toMatchObject({
+      messages: [
+        {
+          role: "system",
+        },
+        {
+          role: "user",
+          content: "prompt",
+        },
+      ],
+    });
+    expect((capturedBodies[1] as { messages?: Array<{ content?: string }> }).messages?.[0]?.content).toMatch(
+      /non-thinking mode/i
+    );
     expect(capturedBodies[2]).not.toHaveProperty("include_reasoning");
     expect(capturedBodies[2]).not.toHaveProperty("reasoning_effort");
     expect(capturedBodies[2]).not.toHaveProperty("reasoning");
+    expect(capturedBodies[0]).toMatchObject({
+      messages: [{ role: "user", content: "prompt" }],
+    });
+    expect(capturedBodies[2]).toMatchObject({
+      messages: [{ role: "user", content: "prompt" }],
+    });
   });
 
   it("forwards top_p and seed when provided", async () => {
@@ -529,7 +549,19 @@ describe("lm-studio-client thinking toggle passthrough", () => {
       include_reasoning: false,
       reasoning_effort: "low",
       reasoning: { effort: "low" },
+      messages: [
+        {
+          role: "system",
+        },
+        {
+          role: "user",
+          content: "prompt",
+        },
+      ],
     });
+    expect((capturedBody?.messages as Array<{ content?: string }>)?.[0]?.content).toMatch(
+      /do not output internal reasoning/i
+    );
   });
 
   it("fails fast when non-thinking mode still returns plain-text thinking traces", async () => {
@@ -547,6 +579,20 @@ describe("lm-studio-client thinking toggle passthrough", () => {
     await expect(
       client.generate("model-a", "prompt", { think: false })
     ).rejects.toThrow(/\{%- set enable_thinking = false %\}/);
+  });
+
+  it("fails fast when non-thinking mode still returns [THINK]...[/THINK] traces", async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({
+      choices: [{ message: { content: "[THINK]I should reason first[/THINK]Final answer" } }],
+      usage: { prompt_tokens: 10, completion_tokens: 20 },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("../src/core/lm-studio-client.js");
+
+    await expect(
+      client.generate("model-a", "prompt", { think: false })
+    ).rejects.toThrow(/still emitted thinking content/i);
   });
 
   it("does not fail on generic 'Reasoning Process' phrasing when no thinking field is present", async () => {

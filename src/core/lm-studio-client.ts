@@ -81,6 +81,11 @@ interface LMStudioChatCompletionChunk {
   choices?: LMStudioChoice[];
 }
 
+interface LMStudioChatMessage {
+  role: "system" | "user";
+  content: string;
+}
+
 interface LMStudioThinkingConfig {
   include_reasoning: boolean;
   reasoning_effort: "low" | "high";
@@ -99,8 +104,18 @@ interface LMStudioRequestOptions {
   stall_timeout_ms?: number;
 }
 
+const NON_THINKING_SYSTEM_PROMPT = [
+  "You are in non-thinking mode for benchmark reproducibility.",
+  "Return only the final answer.",
+  "Do not output internal reasoning, chain-of-thought, or scratchpad.",
+  "Never output tags or sections like <think>, </think>, [THINK], [/THINK], or Thinking Process.",
+].join(" ");
+
 function hasThinkingLeakText(response: string): boolean {
-  return /^\s*(?:thinking|thought)\s+process\s*:/i.test(response);
+  return (
+    /^\s*(?:thinking|thought)\s+process\s*:/i.test(response)
+    || /\[(?:\/)?THINK(?:ING)?\]/i.test(response)
+  );
 }
 
 function assertThinkingModeRespected(
@@ -202,9 +217,17 @@ function buildChatCompletionBody(
   stream: boolean,
   includeSampling: boolean
 ): Record<string, unknown> {
+  const messages: LMStudioChatMessage[] =
+    options?.think === false
+      ? [
+        { role: "system", content: NON_THINKING_SYSTEM_PROMPT },
+        { role: "user", content: prompt },
+      ]
+      : [{ role: "user", content: prompt }];
+
   return {
     model,
-    messages: [{ role: "user", content: prompt }],
+    messages,
     temperature: options?.temperature ?? 0,
     ...(includeSampling && options?.top_p !== undefined ? { top_p: options.top_p } : {}),
     ...(includeSampling && options?.seed !== undefined ? { seed: options.seed } : {}),
@@ -321,7 +344,7 @@ async function pathIsDirectory(targetPath: string): Promise<boolean> {
   try {
     const stat = await fs.stat(targetPath);
     return stat.isDirectory();
-  } catch {
+  } catch (_err: unknown) {
     return false;
   }
 }
