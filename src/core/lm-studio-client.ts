@@ -115,6 +115,8 @@ function assertThinkingModeRespected(
       [
         `LM Studio model "${model}" still emitted thinking content while non-thinking mode is requested.`,
         "In LM Studio, add this at the top of the model chat template: {%- set enable_thinking = false %}.",
+        "If this model does not expose a Prompt/Chat Template editor in LM Studio (e.g. some GPT-OSS builds), non-thinking mode cannot be enforced from the API.",
+        "Use --thinking for this model, or benchmark a model/runtime that supports explicit non-thinking control.",
         "Then eject/reload the model and run the benchmark again.",
       ].join(" ")
     );
