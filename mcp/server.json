@@ -16,29 +16,7 @@
       "transport": {
         "type": "stdio"
       },
-      "environmentVariables": [
-        {
-          "description": "Supabase project URL for uploading results to the leaderboard",
-          "isRequired": false,
-          "format": "string",
-          "isSecret": false,
-          "name": "METRILLM_SUPABASE_URL"
-        },
-        {
-          "description": "Supabase anonymous key for uploading results",
-          "isRequired": false,
-          "format": "string",
-          "isSecret": true,
-          "name": "METRILLM_SUPABASE_ANON_KEY"
-        },
-        {
-          "description": "Base URL for public result pages",
-          "isRequired": false,
-          "format": "string",
-          "isSecret": false,
-          "name": "METRILLM_PUBLIC_RESULT_BASE_URL"
-        }
-      ]
+      "environmentVariables": []
     }
   ]
 }

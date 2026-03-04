@@ -49,7 +49,7 @@
     "ollama": "^0.5.12",
     "ora": "^8.1.1",
     "posthog-node": "^5.26.0",
-    "systeminformation": "^5.23.5"
+    "systeminformation": "^5.31.2"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
