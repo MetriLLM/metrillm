@@ -15,6 +15,9 @@ import { errorMsg, successMsg, warnMsg } from "./progress.js";
 import { printGuruMeditation } from "./guru-meditation.js";
 import { promptAndSaveSubmitterProfile } from "./submitter-prompt.js";
 import { getRuntimeDisplayName, type RuntimeBackend } from "../core/runtime.js";
+import { stripAnsi } from "./terminal.js";
+
+const MAX_SINGLE_DIGIT_OPTIONS = 9;
 
 interface MenuOption<T> {
   label: string;
@@ -61,7 +64,6 @@ function renderMenu<T>(
   lastRenderedRows = 0
 ): number {
   const terminalWidth = Math.max(20, output.columns ?? 80);
-  const stripAnsi = (value: string): string => value.replace(/\x1b\[[0-9;]*[A-Za-z]/g, "");
   const lineRowCount = (line: string): number => {
     const visibleLength = Math.max(0, stripAnsi(line).length);
     if (visibleLength === 0) return 1;
@@ -77,7 +79,7 @@ function renderMenu<T>(
   if (config.subtitle) {
     lines.push(chalk.dim(config.subtitle));
   }
-  const navHelp = options.length <= 9
+  const navHelp = options.length <= MAX_SINGLE_DIGIT_OPTIONS
     ? "Use Up/Down arrows then Enter, or press a number key."
     : "Use Up/Down arrows then Enter, or type a number then Enter.";
   const backHelp = config.allowEscape !== false ? " Esc to go back." : "";
@@ -204,7 +206,7 @@ async function selectWithArrows<T>(
       if (/^[0-9]$/.test(keyToken)) {
         const digit = Number.parseInt(keyToken, 10);
 
-        if (options.length <= 9) {
+        if (options.length <= MAX_SINGLE_DIGIT_OPTIONS) {
           if (!resolveByNumber(digit)) {
             output.write("\x07");
             render();
@@ -436,8 +438,7 @@ async function exportLastResults(results: BenchResult[]): Promise<void> {
     const exported = await exportBenchResults(results, format, outDir);
     successMsg(`Results exported: ${exported}`);
   } catch (err) {
-    errorMsg("Failed to export results.");
-    if (err instanceof Error) errorMsg(err.message);
+    errorMsg(`Failed to export ${format} to ${outDir}: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   await waitForContinue();

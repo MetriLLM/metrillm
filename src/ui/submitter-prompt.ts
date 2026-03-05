@@ -93,9 +93,9 @@ async function promptSubmitterProfile(
     console.log(chalk.yellow("Nickname must be between 2 and 40 characters."));
   }
 
+  console.log(chalk.dim("Your email is never stored — only a SHA-256 hash is saved to match your leaderboard entries."));
   while (true) {
     const emailHint = defaults.email ? ` [${defaults.email}]` : "";
-    console.log(chalk.dim("Your email is never stored — only a SHA-256 hash is saved to match your leaderboard entries."));
     const emailAnswer = await ask(`Email${emailHint} > `);
     if (emailAnswer === null) return null;
 

@@ -1,16 +1,12 @@
 import chalk from "chalk";
 import type { FitnessResult } from "../types.js";
 import { scoreColor, type ColorFn } from "./score-color.js";
-import { supportsUnicode } from "./terminal.js";
+import { stripAnsi, supportsUnicode } from "./terminal.js";
 
 const BOX_INNER = 60;
 
-// eslint-disable-next-line no-control-regex
-const ANSI_RE = /\x1b\[[0-9;]*m/g;
-
-// Strip ANSI escape codes to get visible string length
 function visibleLength(str: string): number {
-  return str.replace(ANSI_RE, "").length;
+  return stripAnsi(str).length;
 }
 
 function wrapText(text: string, maxWidth: number): string[] {
