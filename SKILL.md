@@ -6,7 +6,7 @@ author: MetriLLM
 source: https://github.com/MetriLLM/metrillm
 license: MIT
 allowed-tools: Bash, Read
-install: npx metrillm@latest --help
+install: npm install -g metrillm
 ---
 
 # MetriLLM — Find the Best LLM for Your Hardware
