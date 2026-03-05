@@ -564,6 +564,101 @@ describe("lm-studio-client thinking toggle passthrough", () => {
     );
   });
 
+  it("falls back to estimated completion token count when usage is missing in stream", async () => {
+    const encoder = new TextEncoder();
+    const fetchMock = vi.fn(async () => {
+      const sse =
+        "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"reasoning token\"}}]}\n\n" +
+        "data: {\"choices\":[{\"delta\":{\"content\":\"final answer\"}}]}\n\n" +
+        "data: [DONE]\n\n";
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(encoder.encode(sse));
+            controller.close();
+          },
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "text/event-stream" },
+        }
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("../src/core/lm-studio-client.js");
+    const result = await client.generateStream("model-a", "prompt");
+
+    expect(result.evalCount).toBeGreaterThanOrEqual(4);
+  });
+
+  it("uses robust fallback token estimation for non-whitespace scripts when usage is missing", async () => {
+    const encoder = new TextEncoder();
+    const fetchMock = vi.fn(async () => {
+      const sse =
+        "data: {\"choices\":[{\"delta\":{\"content\":\"你好世界你好世界\"}}]}\n\n" +
+        "data: [DONE]\n\n";
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(encoder.encode(sse));
+            controller.close();
+          },
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "text/event-stream" },
+        }
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("../src/core/lm-studio-client.js");
+    const result = await client.generateStream("model-a", "prompt");
+
+    expect(result.evalCount).toBeGreaterThan(1);
+  });
+
+  it("measures evalDuration across generated tokens (reasoning and content)", async () => {
+    const encoder = new TextEncoder();
+    let now = 0;
+    const dateNowSpy = vi.spyOn(Date, "now").mockImplementation(() => {
+      now += 100;
+      return now;
+    });
+
+    const fetchMock = vi.fn(async () => {
+      const sse =
+        "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"plan\"}}]}\n\n" +
+        "data: {\"choices\":[{\"delta\":{\"content\":\"ok\"}}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":5}}\n\n" +
+        "data: [DONE]\n\n";
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(encoder.encode(sse));
+            controller.close();
+          },
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "text/event-stream" },
+        }
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const client = await import("../src/core/lm-studio-client.js");
+      const result = await client.generateStream("model-a", "prompt");
+
+      expect(result.evalDuration).toBe(100_000_000);
+      expect(result.promptEvalDuration).toBe(100_000_000);
+      expect(result.evalCount).toBe(5);
+    } finally {
+      dateNowSpy.mockRestore();
+    }
+  });
+
   it("fails fast when non-thinking mode still returns plain-text thinking traces", async () => {
     const fetchMock = vi.fn(async () => jsonResponse({
       choices: [{ message: { content: "Thinking Process:\n1. analyze\n2. answer" } }],

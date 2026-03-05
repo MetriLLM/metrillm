@@ -56,4 +56,20 @@ describe("ollama-client sampling fallback", () => {
     expect((secondCall.options as Record<string, unknown>)?.top_p).toBeUndefined();
     expect((secondCall.options as Record<string, unknown>)?.seed).toBeUndefined();
   });
+
+  it("applies per-request stream stall timeout override", async () => {
+    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+    try {
+      generateMock.mockResolvedValueOnce(makeStreamChunks());
+
+      const client = await import("../src/core/ollama-client.js");
+      await client.generateStream("model-a", "prompt", undefined, { stall_timeout_ms: 1234 });
+
+      expect(
+        setTimeoutSpy.mock.calls.some((call) => call[1] === 1234)
+      ).toBe(true);
+    } finally {
+      setTimeoutSpy.mockRestore();
+    }
+  });
 });

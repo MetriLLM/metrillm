@@ -4,6 +4,7 @@ import { promises as fs } from "node:fs";
 import type { Dirent } from "node:fs";
 import type { OllamaModel, OllamaRunningModel } from "../types.js";
 import type { GenerateResult, KeepAliveValue, StreamCallbacks } from "./ollama-client.js";
+import { estimateTokenCount } from "../utils.js";
 
 const DEFAULT_LM_STUDIO_BASE_URL = "http://127.0.0.1:1234";
 const LM_STUDIO_INIT_TIMEOUT_MS = 15_000;
@@ -306,6 +307,41 @@ function extractReasoning(choice: LMStudioChoice | undefined): string {
     choice?.message?.reasoning_content ??
     choice?.message?.reasoning;
   return typeof reasoning === "string" ? reasoning : "";
+}
+
+function getUsageTokenCount(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0;
+  if (value <= 0) return 0;
+  return Math.trunc(value);
+}
+
+function estimateCompletionTokensFallback(text: string): number {
+  const normalized = text.trim();
+  if (!normalized) return 0;
+
+  // CJK-like scripts often have sparse/no whitespace, so whitespace tokenization
+  // underestimates badly. Count those codepoints directly and estimate the rest.
+  const cjkMatches = normalized.match(/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/gu);
+  const cjkCount = cjkMatches?.length ?? 0;
+  const withoutCjk = normalized.replace(
+    /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/gu,
+    ""
+  );
+  const nonCjkChars = withoutCjk.replace(/\s+/g, "").length;
+  const nonCjkHeuristic = Math.ceil(nonCjkChars / 4);
+  const whitespaceEstimate = estimateTokenCount(normalized);
+
+  return Math.max(1, Math.max(whitespaceEstimate, cjkCount + nonCjkHeuristic));
+}
+
+function resolveCompletionTokenCount(
+  usage: LMStudioUsage | undefined,
+  response: string,
+  reasoning: string
+): number {
+  const reported = getUsageTokenCount(usage?.completion_tokens);
+  if (reported > 0) return reported;
+  return estimateCompletionTokensFallback(`${reasoning} ${response}`);
 }
 
 function asNonEmptyString(value: unknown): string | undefined {
@@ -896,9 +932,9 @@ export async function generate(
       ...(reasoning ? { thinking: reasoning } : {}),
       totalDuration,
       loadDuration: 0,
-      promptEvalCount: usage?.prompt_tokens ?? 0,
+      promptEvalCount: getUsageTokenCount(usage?.prompt_tokens),
       promptEvalDuration: 0,
-      evalCount: usage?.completion_tokens ?? 0,
+      evalCount: resolveCompletionTokenCount(usage, response, reasoning),
       evalDuration: totalDuration,
     };
   } catch (err) {
@@ -973,8 +1009,8 @@ export async function generateStream(
     let fullThinking = "";
     let usage: LMStudioUsage | undefined;
     let firstChunkSeen = false;
-    let firstTokenTime: number | null = null;
-    let lastTokenTime: number | null = null;
+    let firstGeneratedTokenTime: number | null = null;
+    let lastGeneratedTokenTime: number | null = null;
 
     const processDataLine = (rawLine: string) => {
       const line = rawLine.trim();
@@ -999,13 +1035,15 @@ export async function generateStream(
       const chunkUsage = extractUsage(payload);
       if (chunkUsage) usage = chunkUsage;
 
+      if (reasoning || content) {
+        const now = Date.now();
+        if (firstGeneratedTokenTime === null) firstGeneratedTokenTime = now;
+        lastGeneratedTokenTime = now;
+      }
       if (reasoning) {
         fullThinking += reasoning;
       }
       if (content) {
-        const now = Date.now();
-        if (firstTokenTime === null) firstTokenTime = now;
-        lastTokenTime = now;
         fullResponse += content;
         callbacks?.onToken?.(content);
       }
@@ -1038,20 +1076,22 @@ export async function generateStream(
     }
 
     const totalDuration = Math.max(0, Date.now() - start) * 1e6;
-    // evalDuration = time between first and last content token (pure generation).
-    // Falls back to totalDuration when we couldn't track tokens (e.g. single token).
+    // evalDuration = time between first and last generated token (reasoning/content).
+    // Falls back to totalDuration when we couldn't track a token window.
     const evalDurationMs =
-      firstTokenTime !== null && lastTokenTime !== null && lastTokenTime > firstTokenTime
-        ? lastTokenTime - firstTokenTime
+      firstGeneratedTokenTime !== null
+      && lastGeneratedTokenTime !== null
+      && lastGeneratedTokenTime > firstGeneratedTokenTime
+        ? lastGeneratedTokenTime - firstGeneratedTokenTime
         : Date.now() - start;
     const result: GenerateResult = {
       response: fullResponse,
       ...(fullThinking ? { thinking: fullThinking } : {}),
       totalDuration,
       loadDuration: 0,
-      promptEvalCount: usage?.prompt_tokens ?? 0,
-      promptEvalDuration: firstTokenTime !== null ? (firstTokenTime - start) * 1e6 : 0,
-      evalCount: usage?.completion_tokens ?? 0,
+      promptEvalCount: getUsageTokenCount(usage?.prompt_tokens),
+      promptEvalDuration: firstGeneratedTokenTime !== null ? (firstGeneratedTokenTime - start) * 1e6 : 0,
+      evalCount: resolveCompletionTokenCount(usage, fullResponse, fullThinking),
       evalDuration: Math.max(1, evalDurationMs) * 1e6,
     };
     assertThinkingModeRespected(model, options?.think, fullResponse, fullThinking);

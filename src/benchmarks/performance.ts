@@ -155,7 +155,7 @@ export async function runPerformanceBench(
           abortOngoingRequests
         );
 
-        // tok/s from Ollama's own measurement
+        // tok/s from runtime-provided generation metrics (evalCount / evalDuration)
         const evalDurationSec = result.evalDuration / 1e9;
         const tps = evalDurationSec > 0 ? result.evalCount / evalDurationSec : 0;
         tpsValues.push(tps);

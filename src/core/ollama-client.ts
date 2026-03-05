@@ -6,7 +6,7 @@ import { withTimeout } from "../utils.js";
 const client = new Ollama();
 const DEFAULT_OLLAMA_HOST = "http://127.0.0.1:11434";
 const OLLAMA_INIT_TIMEOUT_MS = 120_000;
-const STREAM_STALL_TIMEOUT_MS = 30_000;
+const DEFAULT_STREAM_STALL_TIMEOUT_MS = 30_000;
 
 function getOllamaBaseUrl(): string {
   const configured = process.env.OLLAMA_HOST?.trim();
@@ -98,6 +98,26 @@ function isUnsupportedSamplingOptionError(err: unknown): boolean {
   return /unrecognized|unknown|not support|unsupported|invalid|unexpected|additional|extra/.test(lower);
 }
 
+function parseNonNegativeInt(value: string): number | null {
+  if (!/^\d+$/.test(value)) return null;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isSafeInteger(parsed) || parsed < 0) return null;
+  return parsed;
+}
+
+function resolveStreamStallTimeoutMs(override?: number): number | undefined {
+  if (override !== undefined) {
+    if (!Number.isFinite(override) || override < 0) return DEFAULT_STREAM_STALL_TIMEOUT_MS;
+    return override === 0 ? undefined : Math.trunc(override);
+  }
+
+  const configured = process.env.OLLAMA_STREAM_STALL_TIMEOUT_MS?.trim();
+  if (!configured) return DEFAULT_STREAM_STALL_TIMEOUT_MS;
+  const parsed = parseNonNegativeInt(configured);
+  if (parsed === null) return DEFAULT_STREAM_STALL_TIMEOUT_MS;
+  return parsed === 0 ? undefined : parsed;
+}
+
 function buildGenerateRequest(
   model: string,
   prompt: string,
@@ -139,6 +159,8 @@ export async function generateStream(
   callbacks?: StreamCallbacks,
   options?: OllamaRequestOptions
 ): Promise<GenerateResult> {
+  const stallTimeoutMs = resolveStreamStallTimeoutMs(options?.stall_timeout_ms);
+  let abortedByStallTimeout = false;
   const initializeStream = (includeSampling: boolean) =>
     withTimeout(
       client.generate(buildGenerateRequest(model, prompt, options, includeSampling)),
@@ -162,13 +184,15 @@ export async function generateStream(
   let result: GenerateResult | null = null;
   let firstChunkSeen = false;
 
-  // Stall detection: abort if no chunk arrives within STREAM_STALL_TIMEOUT_MS
+  // Stall detection: abort if no chunk arrives within configured timeout.
   let stallTimer: ReturnType<typeof setTimeout> | null = null;
   const resetStallTimer = () => {
+    if (stallTimeoutMs === undefined) return;
     if (stallTimer) clearTimeout(stallTimer);
     stallTimer = setTimeout(() => {
+      abortedByStallTimeout = true;
       client.abort();
-    }, STREAM_STALL_TIMEOUT_MS);
+    }, stallTimeoutMs);
   };
 
   try {
@@ -205,6 +229,9 @@ export async function generateStream(
   }
 
   if (!result) {
+    if (abortedByStallTimeout && stallTimeoutMs !== undefined) {
+      throw new Error(`Ollama stream timed out after ${stallTimeoutMs}ms`);
+    }
     throw new Error("Stream ended without done signal");
   }
 
