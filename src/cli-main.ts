@@ -32,13 +32,13 @@ function checkWindowsExecutionPolicy(): void {
     }).trim();
     if (policy === "Restricted" || policy === "AllSigned") {
       warnMsg(
-        `PowerShell execution policy is "${policy}" — this may block metrillm scripts.`
+        `PowerShell execution policy is "${policy}" — "npm install -g metrillm" won't work in PowerShell.`
       );
       warnMsg(
         "Fix: Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned"
       );
       warnMsg(
-        "Or use: npx metrillm (bypasses the issue entirely)"
+        "Or keep using: npx metrillm (works without changing the policy)"
       );
     }
   } catch {
