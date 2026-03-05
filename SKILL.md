@@ -19,13 +19,11 @@ Test any local model and get a clear verdict: is it worth running on your machin
 2. **Ollama** or **LM Studio** installed and running
    - Ollama: [ollama.com](https://ollama.com), then `ollama serve`
    - LM Studio: [lmstudio.ai](https://lmstudio.ai), load a model and start the server
-3. **MetriLLM CLI** — no install needed, runs via npx:
+3. **MetriLLM CLI** — install globally:
 
 ```bash
-npx metrillm@latest --help
+npm install -g metrillm
 ```
-
-Or install globally: `npm i -g metrillm`
 
 ## Usage
 
@@ -38,7 +36,7 @@ ollama list
 ### Run a full benchmark
 
 ```bash
-npx metrillm@latest bench --model $ARGUMENTS --json
+metrillm bench --model $ARGUMENTS --json
 ```
 
 This measures:
@@ -46,15 +44,13 @@ This measures:
 - **Quality**: reasoning, math, coding, instruction following, structured output, multilingual
 - **Fitness verdict**: EXCELLENT / GOOD / MARGINAL / NOT RECOMMENDED
 
-A full benchmark takes 1-5 minutes depending on model size.
-
 ### Performance-only benchmark (faster)
 
 ```bash
-npx metrillm@latest bench --model $ARGUMENTS --perf-only --json
+metrillm bench --model $ARGUMENTS --perf-only --json
 ```
 
-Takes about 30 seconds. Skips quality evaluation.
+Skips quality evaluation — measures speed and memory only.
 
 ### View previous results
 
@@ -67,7 +63,7 @@ Read any JSON file to see full benchmark details.
 ### Share to the public leaderboard
 
 ```bash
-npx metrillm@latest bench --model $ARGUMENTS --share
+metrillm bench --model $ARGUMENTS --share
 ```
 
 Uploads your result to the [MetriLLM community leaderboard](https://metrillm.dev) — an open, community-driven ranking of local LLM performance across real hardware. Compare your results with others and help the community find the best models for every setup. Shared data includes: model name, scores, hardware specs (CPU, RAM, GPU). No personal data is sent.
