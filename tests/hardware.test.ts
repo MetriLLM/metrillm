@@ -10,6 +10,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { execFile as execFileCb } from "node:child_process";
 import { readFile } from "node:fs/promises";
+import si from "systeminformation";
 
 vi.mock("node:child_process", () => ({
   execFile: vi.fn(),
@@ -194,6 +195,98 @@ describe("power mode detection", () => {
     const { getHardwareInfo } = await import("../src/core/hardware.js");
     const hw = await getHardwareInfo();
     expect(hw.cpuCurrentSpeedGHz).toBe(3.0);
+  });
+
+  it("splits APU cpu brand and infers GPU when graphics controllers are missing", async () => {
+    Object.defineProperty(process, "platform", { value: "linux" });
+    mockedReadFile.mockResolvedValue("schedutil\n");
+    const mockedSi = si as unknown as {
+      cpu: { mockResolvedValueOnce: (value: unknown) => void };
+      graphics: { mockResolvedValueOnce: (value: unknown) => void };
+    };
+    mockedSi.cpu.mockResolvedValueOnce({
+      manufacturer: "AMD",
+      brand: "RYZEN AI MAX+ 395 w/ Radeon 8060S",
+      cores: 32,
+      performanceCores: 16,
+      efficiencyCores: null,
+      speed: 3.0,
+    });
+    mockedSi.graphics.mockResolvedValueOnce({ controllers: [] });
+
+    const { getHardwareInfo } = await import("../src/core/hardware.js");
+    const hw = await getHardwareInfo();
+    expect(hw.cpu).toBe("AMD RYZEN AI MAX+ 395");
+    expect(hw.gpu).toBe("Radeon 8060S");
+  });
+
+  it("supports generic 'with ... Graphics' cpu brand pattern", async () => {
+    Object.defineProperty(process, "platform", { value: "linux" });
+    mockedReadFile.mockResolvedValue("schedutil\n");
+    const mockedSi = si as unknown as {
+      cpu: { mockResolvedValueOnce: (value: unknown) => void };
+      graphics: { mockResolvedValueOnce: (value: unknown) => void };
+    };
+    mockedSi.cpu.mockResolvedValueOnce({
+      manufacturer: "Intel",
+      brand: "Core Ultra 7 155H with Intel Arc Graphics",
+      cores: 16,
+      performanceCores: 6,
+      efficiencyCores: 8,
+      speed: 3.1,
+    });
+    mockedSi.graphics.mockResolvedValueOnce({ controllers: [] });
+
+    const { getHardwareInfo } = await import("../src/core/hardware.js");
+    const hw = await getHardwareInfo();
+    expect(hw.cpu).toBe("Intel Core Ultra 7 155H");
+    expect(hw.gpu).toBe("Intel Arc Graphics");
+  });
+
+  it("supports compact 'w/...GPU' cpu brand pattern without extra spaces", async () => {
+    Object.defineProperty(process, "platform", { value: "linux" });
+    mockedReadFile.mockResolvedValue("schedutil\n");
+    const mockedSi = si as unknown as {
+      cpu: { mockResolvedValueOnce: (value: unknown) => void };
+      graphics: { mockResolvedValueOnce: (value: unknown) => void };
+    };
+    mockedSi.cpu.mockResolvedValueOnce({
+      manufacturer: "AMD",
+      brand: "Ryzen AI 9 HX 370 w/Radeon 890M",
+      cores: 12,
+      performanceCores: 4,
+      efficiencyCores: 8,
+      speed: 3.3,
+    });
+    mockedSi.graphics.mockResolvedValueOnce({ controllers: [] });
+
+    const { getHardwareInfo } = await import("../src/core/hardware.js");
+    const hw = await getHardwareInfo();
+    expect(hw.cpu).toBe("AMD Ryzen AI 9 HX 370");
+    expect(hw.gpu).toBe("Radeon 890M");
+  });
+
+  it("does not split cpu labels when trailing text is not a GPU descriptor", async () => {
+    Object.defineProperty(process, "platform", { value: "linux" });
+    mockedReadFile.mockResolvedValue("schedutil\n");
+    const mockedSi = si as unknown as {
+      cpu: { mockResolvedValueOnce: (value: unknown) => void };
+      graphics: { mockResolvedValueOnce: (value: unknown) => void };
+    };
+    mockedSi.cpu.mockResolvedValueOnce({
+      manufacturer: "AMD",
+      brand: "Ryzen 7 5800X with 3D V-Cache",
+      cores: 8,
+      performanceCores: 8,
+      efficiencyCores: null,
+      speed: 3.8,
+    });
+    mockedSi.graphics.mockResolvedValueOnce({ controllers: [] });
+
+    const { getHardwareInfo } = await import("../src/core/hardware.js");
+    const hw = await getHardwareInfo();
+    expect(hw.cpu).toBe("AMD Ryzen 7 5800X with 3D V-Cache");
+    expect(hw.gpu).toBe("Integrated / Unknown");
   });
 });
 

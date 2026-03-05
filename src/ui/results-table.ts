@@ -74,9 +74,14 @@ export function printHardwareTable(hw: HardwareInfo): void {
     style: { head: [], border: [] },
   });
 
-  const coresDetail = hw.cpuPCores
-    ? `${hw.cpuCores} (${hw.cpuPCores} performance + ${hw.cpuECores ?? 0} efficiency)`
-    : String(hw.cpuCores);
+  const coresDetail =
+    hw.cpuPCores !== null && hw.cpuECores !== null
+      ? `${hw.cpuCores} (${hw.cpuPCores} performance + ${hw.cpuECores} efficiency)`
+      : hw.cpuPCores !== null
+        ? `${hw.cpuCores} (${hw.cpuPCores} performance)`
+        : hw.cpuECores !== null
+          ? `${hw.cpuCores} (${hw.cpuECores} efficiency)`
+          : String(hw.cpuCores);
 
   const cpuLine = hw.cpuFreqGHz
     ? `${hw.cpu} @ ${hw.cpuFreqGHz} GHz`

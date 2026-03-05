@@ -6,6 +6,32 @@ import { readFile } from "node:fs/promises";
 
 type PowerMode = "low-power" | "balanced" | "performance" | "unknown";
 
+function normalizeWhitespace(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function looksLikeGpuDescriptor(value: string): boolean {
+  return /\b(radeon|graphics|geforce|rtx|gtx|arc|iris|uhd|quadro|tesla|adreno|mali|powervr)\b/i.test(value);
+}
+
+function splitCpuAndInferredGpu(cpuLabel: string): { cpu: string; inferredGpu: string | null } {
+  const normalized = normalizeWhitespace(cpuLabel);
+  const withGpuMatch = normalized.match(/\s+(?:w\/\s*|with\s+)(.+)$/i);
+  if (!withGpuMatch?.index) {
+    return { cpu: normalized, inferredGpu: null };
+  }
+
+  const inferredGpu = normalizeWhitespace(withGpuMatch[1] ?? "");
+  if (!looksLikeGpuDescriptor(inferredGpu)) {
+    return { cpu: normalized, inferredGpu: null };
+  }
+  const cpu = normalizeWhitespace(normalized.slice(0, withGpuMatch.index));
+  return {
+    cpu: cpu || normalized,
+    inferredGpu: inferredGpu || null,
+  };
+}
+
 function execCommand(cmd: string, args: string[], timeoutMs = 3000): Promise<string> {
   return new Promise((resolve) => {
     const child = execFile(cmd, args, { timeout: timeoutMs }, (err, stdout) => {
@@ -161,6 +187,10 @@ export async function getHardwareInfo(): Promise<HardwareInfo> {
     .map((g) => g.model)
     .filter(Boolean)
     .join(", ");
+  const cpuLabelRaw = normalizeWhitespace(`${cpu.manufacturer} ${cpu.brand}`);
+  const { cpu: cpuLabel, inferredGpu } = splitCpuAndInferredGpu(cpuLabelRaw);
+  const defaultIntegratedGpu =
+    process.platform === "darwin" ? "Integrated / Apple Silicon" : "Integrated / Unknown";
 
   const gpuCoresRaw = gpuController?.cores;
   const gpuCores = gpuCoresRaw ? parseInt(String(gpuCoresRaw), 10) : null;
@@ -168,7 +198,7 @@ export async function getHardwareInfo(): Promise<HardwareInfo> {
   const memType = memLayout.length > 0 ? memLayout[0].type : null;
 
   return {
-    cpu: `${cpu.manufacturer} ${cpu.brand}`,
+    cpu: cpuLabel,
     cpuCores: cpu.cores,
     cpuPCores: cpu.performanceCores || null,
     cpuECores: cpu.efficiencyCores || null,
@@ -178,7 +208,7 @@ export async function getHardwareInfo(): Promise<HardwareInfo> {
     memoryType: memType || null,
     swapTotalGB: +(mem.swaptotal / 1024 / 1024 / 1024).toFixed(1),
     swapUsedGB: +(mem.swapused / 1024 / 1024 / 1024).toFixed(1),
-    gpu: gpuNames || "Integrated / Apple Silicon",
+    gpu: normalizeWhitespace(gpuNames) || inferredGpu || defaultIntegratedGpu,
     gpuCores: gpuCores && !isNaN(gpuCores) ? gpuCores : null,
     gpuVramMB: gpuController?.vram ?? null,
     os: `${osInfo.distro} ${osInfo.release}`,
