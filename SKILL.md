@@ -6,16 +6,26 @@ author: MetriLLM
 source: https://github.com/MetriLLM/metrillm
 license: MIT
 allowed-tools: Bash, Read
+install: npx metrillm@latest --help
 ---
 
-# MetriLLM — Benchmark Local LLM Models
+# MetriLLM — Find the Best LLM for Your Hardware
 
-Benchmark any local LLM model directly from your AI coding assistant. Get a clear verdict on whether a model fits your hardware.
+Test any local model and get a clear verdict: is it worth running on your machine?
 
-## Setup
+## Prerequisites
 
-1. Install and start [Ollama](https://ollama.com)
-2. Pull a model: `ollama pull llama3.2:3b`
+1. **Node.js 20+** — check with `node -v`
+2. **Ollama** or **LM Studio** installed and running
+   - Ollama: [ollama.com](https://ollama.com), then `ollama serve`
+   - LM Studio: [lmstudio.ai](https://lmstudio.ai), load a model and start the server
+3. **MetriLLM CLI** — no install needed, runs via npx:
+
+```bash
+npx metrillm@latest --help
+```
+
+Or install globally: `npm i -g metrillm`
 
 ## Usage
 
@@ -28,7 +38,7 @@ ollama list
 ### Run a full benchmark
 
 ```bash
-metrillm bench --model $ARGUMENTS --json
+npx metrillm@latest bench --model $ARGUMENTS --json
 ```
 
 This measures:
@@ -41,7 +51,7 @@ A full benchmark takes 1-5 minutes depending on model size.
 ### Performance-only benchmark (faster)
 
 ```bash
-metrillm bench --model $ARGUMENTS --perf-only --json
+npx metrillm@latest bench --model $ARGUMENTS --perf-only --json
 ```
 
 Takes about 30 seconds. Skips quality evaluation.
@@ -54,11 +64,13 @@ ls ~/.metrillm/results/
 
 Read any JSON file to see full benchmark details.
 
-### Share to public leaderboard
+### Share to the public leaderboard
 
 ```bash
-metrillm bench --model $ARGUMENTS --share
+npx metrillm@latest bench --model $ARGUMENTS --share
 ```
+
+Uploads your result to the [MetriLLM community leaderboard](https://metrillm.dev) — an open, community-driven ranking of local LLM performance across real hardware. Compare your results with others and help the community find the best models for every setup. Shared data includes: model name, scores, hardware specs (CPU, RAM, GPU). No personal data is sent.
 
 ## Interpreting Results
 
