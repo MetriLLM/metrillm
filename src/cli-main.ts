@@ -1,10 +1,11 @@
 import { Command } from "commander";
+import { execSync } from "node:child_process";
 import { printBanner } from "./ui/banner.js";
 import { benchCommand } from "./commands/bench.js";
 import { listCommand } from "./commands/list.js";
 import { runInteractiveMenu } from "./ui/menu.js";
 import { exportBenchResults, type ExportFormat } from "./core/exporter.js";
-import { errorMsg, successMsg } from "./ui/progress.js";
+import { errorMsg, successMsg, warnMsg } from "./ui/progress.js";
 import { normalizeRuntimeBackend } from "./core/runtime.js";
 import { canUseInteractiveMenu } from "./cli-interactive.js";
 import { printGuruMeditationSync } from "./ui/guru-meditation.js";
@@ -21,6 +22,31 @@ process.on("SIGINT", () => {
   printGuruMeditationSync();
   process.exit(130);
 });
+
+function checkWindowsExecutionPolicy(): void {
+  if (process.platform !== "win32") return;
+  try {
+    const policy = execSync("powershell -NoProfile -Command Get-ExecutionPolicy", {
+      encoding: "utf-8",
+      timeout: 5000,
+    }).trim();
+    if (policy === "Restricted" || policy === "AllSigned") {
+      warnMsg(
+        `PowerShell execution policy is "${policy}" — this may block metrillm scripts.`
+      );
+      warnMsg(
+        "Fix: Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned"
+      );
+      warnMsg(
+        "Or use: npx metrillm (bypasses the issue entirely)"
+      );
+    }
+  } catch {
+    // Not on PowerShell or command failed — skip silently.
+  }
+}
+
+checkWindowsExecutionPolicy();
 
 const program = new Command();
 

@@ -114,6 +114,16 @@ By default, production builds upload shared results to the official MetriLLM lea
 
 If these variables are set to placeholder values (from templates), MetriLLM falls back to official defaults.
 
+## Windows Users
+
+PowerShell's default execution policy blocks npm global scripts. If you see `PSSecurityException` or `UnauthorizedAccess` when running `metrillm`, run this once:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+```
+
+Alternatively, use `npx metrillm` which bypasses the issue entirely.
+
 ## Runtime Backends
 
 | Backend | Flag | Default URL | Required env |
