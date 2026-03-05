@@ -116,7 +116,7 @@ program
   .command("bench")
   .description("Run benchmarks on local LLM models")
   .option("-m, --model <name>", "Specific model to benchmark")
-  .option("--backend <name>", "Inference backend: ollama | lm-studio", "ollama")
+  .option("--backend <name>", "Inference backend: ollama | lm-studio")
   .option("--perf-only", "Run hardware/performance benchmarks only (skip quality tasks)")
   .option("--perf-warmup-timeout-ms <ms>", "Warmup timeout in milliseconds (default: 300000)")
   .option("--perf-prompt-timeout-ms <ms>", "Per-prompt timeout in milliseconds (default: 120000)")
@@ -141,10 +141,14 @@ program
   .option("--telemetry", "Enable anonymous usage stats")
   .option("--no-telemetry", "Disable anonymous usage stats")
   .action(async (opts) => {
-    const backend = parseBackendOption(opts.backend);
-    if (!backend) {
-      process.exitCode = 1;
-      return;
+    let backend: string | undefined;
+    if (opts.backend !== undefined) {
+      const parsedBackend = parseBackendOption(opts.backend);
+      if (!parsedBackend) {
+        process.exitCode = 1;
+        return;
+      }
+      backend = parsedBackend;
     }
 
     let exportFormat: ExportFormat | null = null;
@@ -288,12 +292,16 @@ program
 program
   .command("list")
   .description("List available runtime models")
-  .option("--backend <name>", "Inference backend: ollama | lm-studio", "ollama")
+  .option("--backend <name>", "Inference backend: ollama | lm-studio")
   .action(async (opts) => {
-    const backend = parseBackendOption(opts.backend);
-    if (!backend) {
-      process.exitCode = 1;
-      return;
+    let backend: string | undefined;
+    if (opts.backend !== undefined) {
+      const parsedBackend = parseBackendOption(opts.backend);
+      if (!parsedBackend) {
+        process.exitCode = 1;
+        return;
+      }
+      backend = parsedBackend;
     }
     await listCommand({ backend });
   });

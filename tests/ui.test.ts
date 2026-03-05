@@ -124,6 +124,25 @@ describe("printPerformanceTable", () => {
     const joined = output.join("\n");
     expect(joined).toContain("runtime metric unavailable");
   });
+
+  it("prints N/A memory footprint when runtime cannot isolate model footprint", async () => {
+    const { printPerformanceTable } = await import("../src/ui/results-table.js");
+    const perf: PerformanceMetrics = {
+      tokensPerSecond: 25,
+      ttft: 1200,
+      loadTime: 0,
+      totalTokens: 500,
+      promptTokens: 100,
+      completionTokens: 400,
+      memoryUsedGB: 0,
+      memoryPercent: 0,
+      memoryFootprintAvailable: false,
+    };
+
+    printPerformanceTable(perf);
+    const joined = output.join("\n");
+    expect(joined).toContain("model already loaded; runtime metric unavailable");
+  });
 });
 
 describe("printQualityTable", () => {

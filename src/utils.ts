@@ -1,14 +1,25 @@
 import vm from "node:vm";
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 
 export function openUrl(url: string): void {
-  const cmd =
-    process.platform === "darwin"
-      ? "open"
-      : process.platform === "win32"
-        ? "start"
-        : "xdg-open";
-  execFile(cmd, [url]);
+  if (process.platform === "win32") {
+    // `start` is a cmd built-in (not an executable), so we invoke it via cmd.exe.
+    const child = spawn("cmd", ["/c", "start", "", url], {
+      windowsHide: true,
+      stdio: "ignore",
+    });
+    child.on("error", () => {
+      // Best-effort only.
+    });
+    child.unref();
+    return;
+  }
+
+  const cmd = process.platform === "darwin" ? "open" : "xdg-open";
+  const child = execFile(cmd, [url]);
+  child.on("error", () => {
+    // Best-effort only.
+  });
 }
 
 export function avg(nums: number[]): number {

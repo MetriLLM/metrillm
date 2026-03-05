@@ -1,4 +1,4 @@
-import { abortOngoingRequests, generateStream, listModels, listRunningModels, getRuntimeName } from "../core/runtime.js";
+import { abortOngoingRequests, generateStream, listRunningModels, getRuntimeName } from "../core/runtime.js";
 import { getMemoryUsage, detectThermalPressure, detectBatteryPowered, getSwapUsedGB, getCpuLoad } from "../core/hardware.js";
 import type { PerformanceMetrics, BenchEnvironment } from "../types.js";
 import { avg, stddev, withTimeout, hasThinkingContent, estimateTokenCount } from "../utils.js";
@@ -72,6 +72,11 @@ export async function runPerformanceBench(
       optionalProbe(() => detectBatteryPowered(), undefined),
     ]);
 
+    // Capture pre-warmup load state so we can qualify memory footprint reliability
+    // when runtimes don't expose per-model loaded size.
+    const runningModelsBeforeWarmup = await optionalProbe(() => listRunningModels(), []);
+    const modelWasAlreadyLoaded = runningModelsBeforeWarmup.some((m) => m.name === model);
+
     // Warmup run (also measures load time)
     const warmup = await withTimeout(
       generateStream(model, WARMUP_PROMPT, undefined, {
@@ -92,17 +97,6 @@ export async function runPerformanceBench(
     // After warmup, query running models for accurate loaded size.
     const runningModels = await listRunningModels();
     const thisModel = runningModels.find((m) => m.name === model);
-    // Fallback to installed model size when runtime cannot expose loaded size.
-    let installedModelSizeBytes = 0;
-    try {
-      const availableModels = await listModels();
-      const listedModel = availableModels.find((m) => m.name === model);
-      if (listedModel && Number.isFinite(listedModel.size) && listedModel.size > 0) {
-        installedModelSizeBytes = listedModel.size;
-      }
-    } catch {
-      // Non-fatal: keep fallback to host memory delta.
-    }
 
     spinner.succeed("Model loaded");
 
@@ -217,11 +211,13 @@ export async function runPerformanceBench(
       optionalProbeWithAvailability(() => getSwapUsedGB(), swapBeforeResult.value),
     ]);
 
-    // Prefer Ollama's reported model size (accurate), fall back to system delta
+    // Prefer runtime-reported loaded model size when available; otherwise fall back
+    // to host memory delta, which reflects actual runtime footprint better than
+    // static on-disk model size.
     let memoryUsedGB: number;
     let memoryPercent: number;
-    const loadedModelSizeBytes =
-      thisModel && thisModel.size > 0 ? thisModel.size : installedModelSizeBytes;
+    const loadedModelSizeBytes = thisModel && thisModel.size > 0 ? thisModel.size : 0;
+    const memoryFootprintAvailable = loadedModelSizeBytes > 0 || !modelWasAlreadyLoaded;
     if (loadedModelSizeBytes > 0) {
       memoryUsedGB = loadedModelSizeBytes / (1024 ** 3);
       memoryPercent = (memoryUsedGB / memAfter.totalGB) * 100;
@@ -272,6 +268,7 @@ export async function runPerformanceBench(
         completionTokens: totalCompletionTokens,
         memoryUsedGB: +memoryUsedGB.toFixed(1),
         memoryPercent: +memoryPercent.toFixed(1),
+        memoryFootprintAvailable,
         memoryHostUsedGB: memAfter.usedGB,
         memoryHostPercent: memAfter.percent,
         tpsStdDev: tpsValues.length >= 2 ? stddev(tpsValues) : undefined,

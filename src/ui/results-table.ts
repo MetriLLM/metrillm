@@ -193,9 +193,11 @@ export function printPerformanceTable(perf: PerformanceMetrics, benchEnvironment
     ["Completion Tokens", String(perf.completionTokens)],
     [
       "Model Memory Footprint",
-      memColor(
-        `${perf.memoryUsedGB.toFixed(1)} GB (+${perf.memoryPercent.toFixed(0)}%)`
-      ),
+      perf.memoryFootprintAvailable === false
+        ? chalk.dim("N/A (model already loaded; runtime metric unavailable)")
+        : memColor(
+          `${perf.memoryUsedGB.toFixed(1)} GB (+${perf.memoryPercent.toFixed(0)}%)`
+        ),
     ],
     [
       "Host RAM Pressure",

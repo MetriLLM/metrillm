@@ -13,7 +13,6 @@ type PlanItem = "ok" | "fail";
 
 let generatePlan: PlanItem[] = [];
 let memoryPlan: Array<{ usedGB: number; percent: number; totalGB: number }> = [];
-let listedModelSizeBytes = 0;
 let runtimeName = "ollama";
 
 let thinkingPlan: Array<string | undefined> = [];
@@ -21,9 +20,7 @@ let thinkingPlan: Array<string | undefined> = [];
 vi.mock("../src/core/ollama-client.js", () => ({
   abortOngoingRequests: vi.fn(),
   listRunningModels: vi.fn(async () => []),
-  listModels: vi.fn(async () =>
-    listedModelSizeBytes > 0 ? [{ name: "test-model", size: listedModelSizeBytes }] : []
-  ),
+  listModels: vi.fn(async () => []),
   getOllamaVersion: vi.fn(async () => "0.0.0-test"),
   generateStream: vi.fn(async (_model: string, _prompt: string, streamOpts?: { onFirstChunk?: () => void; onToken?: () => void }) => {
     const next = generatePlan.shift() ?? "ok";
@@ -88,7 +85,6 @@ describe("runPerformanceBench", () => {
     vi.clearAllMocks();
     generatePlan = [];
     thinkingPlan = [];
-    listedModelSizeBytes = 0;
     runtimeName = "ollama";
     memoryPlan = [
       { usedGB: 10, percent: 40, totalGB: 32 },
@@ -189,9 +185,8 @@ describe("runPerformanceBench", () => {
     ).toBe(true);
   });
 
-  it("falls back to listed model size when running model size is unavailable", async () => {
+  it("falls back to host memory delta when running model size is unavailable", async () => {
     generatePlan = ["ok", "ok", "ok", "ok", "ok", "ok"];
-    listedModelSizeBytes = 3 * 1024 ** 3; // 3.0 GB
     memoryPlan = [
       { usedGB: 10, percent: 40, totalGB: 10 },
       { usedGB: 10, percent: 40, totalGB: 10 },
@@ -202,8 +197,31 @@ describe("runPerformanceBench", () => {
       minSuccessfulPrompts: 3,
     });
 
-    expect(result.metrics.memoryUsedGB).toBe(3);
-    expect(result.metrics.memoryPercent).toBe(30);
+    expect(result.metrics.memoryUsedGB).toBe(0);
+    expect(result.metrics.memoryPercent).toBe(0);
+    expect(result.metrics.memoryFootprintAvailable).toBe(true);
+    expect(vi.mocked(ollamaClient.listModels)).not.toHaveBeenCalled();
+  });
+
+  it("marks memory footprint unavailable when model was already loaded and runtime size is unknown", async () => {
+    generatePlan = ["ok", "ok", "ok", "ok", "ok", "ok"];
+    memoryPlan = [
+      { usedGB: 10, percent: 40, totalGB: 10 },
+      { usedGB: 10, percent: 40, totalGB: 10 },
+    ];
+
+    vi.mocked(ollamaClient.listRunningModels).mockResolvedValue([
+      { name: "test-model", size: 0, vramUsed: 0 },
+    ]);
+
+    const result = await runPerformanceBench("test-model", {
+      failOnPromptError: false,
+      minSuccessfulPrompts: 3,
+    });
+
+    expect(result.metrics.memoryUsedGB).toBe(0);
+    expect(result.metrics.memoryPercent).toBe(0);
+    expect(result.metrics.memoryFootprintAvailable).toBe(false);
   });
 
   it("marks load time unavailable for LM Studio when runtime does not report it", async () => {

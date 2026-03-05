@@ -835,11 +835,15 @@ export async function listModels(): Promise<OllamaModel[]> {
   }
 
   const modelsRootDir = await resolveModelsRootDir();
-  const localMetadataById = new Map<string, { size: number; parameterSize?: string }>();
-  for (const id of ids) {
-    const localMetadata = await resolveLocalModelMetadata(id, apiById.get(id), modelsRootDir);
-    localMetadataById.set(id, localMetadata);
-  }
+  const localMetadataEntries = await Promise.all(
+    ids.map(async (id) => {
+      const localMetadata = await resolveLocalModelMetadata(id, apiById.get(id), modelsRootDir);
+      return [id, localMetadata] as const;
+    })
+  );
+  const localMetadataById = new Map<string, { size: number; parameterSize?: string }>(
+    localMetadataEntries
+  );
 
   return ids.map((id) => {
     const apiModel = apiById.get(id);
@@ -1058,6 +1062,16 @@ export async function generateStream(
         callbacks?.onFirstChunk?.();
       }
       buffered += decoder.decode(value, { stream: true });
+      const lines = buffered.split("\n");
+      buffered = lines.pop() ?? "";
+      for (const rawLine of lines) {
+        processDataLine(rawLine);
+      }
+    }
+
+    // Flush any pending decoder state for chunk boundaries / multibyte codepoints.
+    buffered += decoder.decode();
+    if (buffered.length > 0) {
       const lines = buffered.split("\n");
       buffered = lines.pop() ?? "";
       for (const rawLine of lines) {
