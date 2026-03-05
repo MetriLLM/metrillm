@@ -39,6 +39,22 @@ function getLevel(score: number): CategoryLevel {
   return "Poor";
 }
 
+function formatCpuCoresLabel(hw: HardwareInfo): string {
+  if (hw.cpuPCores !== null && hw.cpuECores !== null) {
+    return `${hw.cpuCores} total (${hw.cpuPCores} performance + ${hw.cpuECores} efficiency)`;
+  }
+  if (hw.cpuPCores !== null && hw.cpuCores > hw.cpuPCores) {
+    return `${hw.cpuCores} threads (${hw.cpuPCores} cores)`;
+  }
+  if (hw.cpuPCores !== null) {
+    return `${hw.cpuCores} total (${hw.cpuPCores} performance)`;
+  }
+  if (hw.cpuECores !== null) {
+    return `${hw.cpuCores} total (${hw.cpuECores} efficiency)`;
+  }
+  return String(hw.cpuCores);
+}
+
 interface CategoryIssueSummary {
   name: string;
   crashes: number;
@@ -74,14 +90,7 @@ export function printHardwareTable(hw: HardwareInfo): void {
     style: { head: [], border: [] },
   });
 
-  const coresDetail =
-    hw.cpuPCores !== null && hw.cpuECores !== null
-      ? `${hw.cpuCores} (${hw.cpuPCores} performance + ${hw.cpuECores} efficiency)`
-      : hw.cpuPCores !== null
-        ? `${hw.cpuCores} (${hw.cpuPCores} performance)`
-        : hw.cpuECores !== null
-          ? `${hw.cpuCores} (${hw.cpuECores} efficiency)`
-          : String(hw.cpuCores);
+  const coresDetail = formatCpuCoresLabel(hw);
 
   const cpuLine = hw.cpuFreqGHz
     ? `${hw.cpu} @ ${hw.cpuFreqGHz} GHz`

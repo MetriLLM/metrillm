@@ -60,6 +60,31 @@ describe("printHardwareTable", () => {
     expect(joined).toContain("Apple M4 Pro");
     expect(joined).toContain("64");
   });
+
+  it("prints threads vs cores when only performance cores are reported", async () => {
+    const { printHardwareTable } = await import("../src/ui/results-table.js");
+    const hw: HardwareInfo = {
+      cpu: "AMD Ryzen AI MAX+ 395",
+      cpuCores: 32,
+      cpuPCores: 16,
+      cpuECores: null,
+      cpuFreqGHz: 3,
+      totalMemoryGB: 125,
+      freeMemoryGB: 100,
+      memoryType: null,
+      swapTotalGB: 0,
+      swapUsedGB: 0,
+      gpu: "AMD Radeon 8060S",
+      gpuCores: null,
+      gpuVramMB: null,
+      os: "Ubuntu 24.04.4 LTS",
+      arch: "x64",
+    };
+
+    printHardwareTable(hw);
+    const joined = output.join("\n");
+    expect(joined).toContain("32 threads (16 cores)");
+  });
 });
 
 describe("printPerformanceTable", () => {
