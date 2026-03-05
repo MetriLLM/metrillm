@@ -75,7 +75,8 @@ function guruLines(): { line1: string; line2: string } {
  */
 export function printGuruMeditationSync(): void {
   const { line1, line2 } = guruLines();
-  process.stdout.write(buildFrame(line1, line2, true) + "\n\n");
+  process.stdout.write(buildFrame(line1, line2, true) + "\n");
+  process.stdout.write(chalk.dim("Don't worry, everything is fine — just an old Amiga joke that only veteran nerds will get :-)") + "\n\n");
 }
 
 /**
@@ -90,7 +91,8 @@ export async function printGuruMeditation(): Promise<void> {
 
   if (!isTTY) {
     // Non-interactive: just print once, no animation
-    process.stdout.write(buildFrame(line1, line2, true) + "\n\n");
+    process.stdout.write(buildFrame(line1, line2, true) + "\n");
+    process.stdout.write(chalk.dim("Don't worry, everything is fine — just an old Amiga joke that only veteran nerds will get :-)") + "\n\n");
     return;
   }
 
@@ -115,7 +117,8 @@ export async function printGuruMeditation(): Promise<void> {
 
   // Ensure we end on border-ON state
   process.stdout.write(`\x1B[${frameHeight}A`);
-  process.stdout.write(buildFrame(line1, line2, true) + "\n\n");
+  process.stdout.write(buildFrame(line1, line2, true) + "\n");
+  process.stdout.write(chalk.dim("Don't worry, everything is fine — just an old Amiga joke that only veteran nerds will get :-)") + "\n\n");
 
   // Restore cursor
   process.stdout.write("\x1B[?25h");
