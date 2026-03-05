@@ -16,6 +16,7 @@ import { printGuruMeditation } from "./guru-meditation.js";
 import { promptAndSaveSubmitterProfile } from "./submitter-prompt.js";
 import { getRuntimeDisplayName, type RuntimeBackend } from "../core/runtime.js";
 import { stripAnsi } from "./terminal.js";
+import { runUpdate, type UpdateInfo } from "../core/update-checker.js";
 
 const MAX_SINGLE_DIGIT_OPTIONS = 9;
 
@@ -466,10 +467,24 @@ function printQuickCommands(): void {
   console.log("  metrillm menu");
 }
 
-function mainMenuOptions(): MenuOption<
-  "list" | "bench-one" | "bench-all" | "hardware" | "settings" | "export" | "help" | "exit"
+function mainMenuOptions(
+  updateInfo?: UpdateInfo | null
+): MenuOption<
+  "update" | "list" | "bench-one" | "bench-all" | "hardware" | "settings" | "export" | "help" | "exit"
 >[] {
-  return [
+  const options: MenuOption<
+    "update" | "list" | "bench-one" | "bench-all" | "hardware" | "settings" | "export" | "help" | "exit"
+  >[] = [];
+
+  if (updateInfo?.updateAvailable) {
+    options.push({
+      label: `Update metrillm to v${updateInfo.latest}`,
+      value: "update",
+      hint: `Current: v${updateInfo.current}. Installs the latest version globally.`,
+    });
+  }
+
+  options.push(
     {
       label: "List available models",
       value: "list",
@@ -509,7 +524,9 @@ function mainMenuOptions(): MenuOption<
       label: "Exit",
       value: "exit",
     },
-  ];
+  );
+
+  return options;
 }
 
 function nextActionOptions(): MenuOption<"rerun" | "export" | "menu" | "quit">[] {
@@ -779,9 +796,14 @@ export async function runSettingsMenu(deps: SettingsMenuDeps = {}): Promise<void
   }
 }
 
-export async function runInteractiveMenu(): Promise<void> {
+export interface InteractiveMenuOptions {
+  updateCheckPromise?: Promise<UpdateInfo | null>;
+}
+
+export async function runInteractiveMenu(opts: InteractiveMenuOptions = {}): Promise<void> {
   let lastResults: BenchResult[] = [];
   let firstRun = true;
+  let updateInfo = (await opts.updateCheckPromise?.catch(() => null)) ?? null;
 
   while (true) {
     const config = await loadConfig();
@@ -790,13 +812,27 @@ export async function runInteractiveMenu(): Promise<void> {
 
     if (firstRun) {
       firstRun = false;
+      if (updateInfo?.updateAvailable) {
+        console.log(
+          chalk.dim(
+            `  ⬆ metrillm v${updateInfo.latest} available (current: v${updateInfo.current}). Select "Update" below or run: npm install -g metrillm@latest`
+          )
+        );
+      }
     } else {
       console.clear();
       printBanner();
+      if (updateInfo?.updateAvailable) {
+        console.log(
+          chalk.dim(
+            `  ⬆ metrillm v${updateInfo.latest} available (current: v${updateInfo.current}). Select "Update" below or run: npm install -g metrillm@latest`
+          )
+        );
+      }
     }
     const mainChoice = await selectOption(
       "Main Menu",
-      mainMenuOptions(),
+      mainMenuOptions(updateInfo),
       {
         subtitle:
           `Goal: estimate real-world fit. Backend: ${runtimeDisplayName}. Global verdict combines Hardware Fit + Task Quality; quality stays directional (dataset-based).`,
@@ -808,6 +844,19 @@ export async function runInteractiveMenu(): Promise<void> {
       restoreTerminalForExit();
       await printGuruMeditation();
       break;
+    }
+
+    if (mainChoice === "update") {
+      infoMsg(`Updating metrillm to v${updateInfo?.latest}...`);
+      const ok = runUpdate();
+      if (ok) {
+        successMsg("Update successful! Please restart metrillm to use the new version.");
+        updateInfo = null; // Hide the update option on next menu loop.
+      } else {
+        errorMsg("Update failed. Try manually: npm install -g metrillm@latest");
+      }
+      await waitForContinue("Press Enter to continue...");
+      continue;
     }
 
     if (mainChoice === "list") {

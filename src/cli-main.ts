@@ -9,6 +9,7 @@ import { errorMsg, successMsg, warnMsg } from "./ui/progress.js";
 import { normalizeRuntimeBackend } from "./core/runtime.js";
 import { canUseInteractiveMenu } from "./cli-interactive.js";
 import { printGuruMeditationSync } from "./ui/guru-meditation.js";
+import { checkForUpdate, type UpdateInfo } from "./core/update-checker.js";
 
 // Restore cursor on any exit (covers normal exit, unhandled errors, etc.)
 process.on("exit", () => {
@@ -47,6 +48,15 @@ function checkWindowsExecutionPolicy(): void {
 }
 
 checkWindowsExecutionPolicy();
+
+const CLI_VERSION = "0.2.1";
+
+// Fire-and-forget update check (skipped for non-interactive / output-sensitive flags).
+const skipUpdateCheckFlags = ["--json", "--ci-no-menu", "--help", "--version", "-h", "-V"];
+const shouldCheckUpdate = !process.argv.slice(2).some((a) => skipUpdateCheckFlags.includes(a));
+const updateCheckPromise: Promise<UpdateInfo | null> = shouldCheckUpdate
+  ? checkForUpdate(CLI_VERSION).catch(() => null)
+  : Promise.resolve(null);
 
 const program = new Command();
 
@@ -127,7 +137,7 @@ program
   .description(
     "Benchmark local LLMs for hardware fit and task quality, then compute a global verdict"
   )
-  .version("0.2.1")
+  .version(CLI_VERSION)
   .hook("preAction", (_thisCommand, actionCommand) => {
     // Skip banner in JSON mode
     if (!actionCommand.opts()?.json) printBanner();
@@ -336,7 +346,7 @@ program
   .command("menu")
   .description("Open interactive menu")
   .action(async () => {
-    await runInteractiveMenu();
+    await runInteractiveMenu({ updateCheckPromise });
   });
 
 const argv = process.argv.slice(2);
@@ -349,7 +359,7 @@ if (shouldShortCircuitCiNoMenu(argv)) {
     errorMsg("No interactive terminal detected. Use `metrillm --ci-no-menu` or a subcommand.");
     process.exitCode = 1;
   } else {
-    await runInteractiveMenu();
+    await runInteractiveMenu({ updateCheckPromise });
     // Force exit — PostHog telemetry keeps the event loop alive otherwise.
     setTimeout(() => process.exit(process.exitCode ?? 0), 500).unref();
   }
