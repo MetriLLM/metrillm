@@ -160,6 +160,15 @@ describe("computePerformanceScore", () => {
     expect(low.memory).toBeGreaterThanOrEqual(high.memory);
   });
 
+  it("normalizes the memory score when the model footprint is unavailable", () => {
+    const score = computePerformanceScore(makePerf({
+      memoryPercent: 0,
+      memoryFootprintAvailable: false,
+    }));
+    expect(score.memory).toBeGreaterThan(0);
+    expect(score.total).toBe(score.speed + score.ttft + score.memory);
+  });
+
   it("adapts speed scoring to hardware profile", () => {
     const perf = makePerf({ tokensPerSecond: 22, ttft: 1200, memoryPercent: 30 });
     const entryScore = computePerformanceScore(
@@ -481,6 +490,30 @@ describe("computeFitness", () => {
     const fitness = computeFitness(perf, null);
     expect(fitness.performanceScore.memory).toBe(baseline.performanceScore.memory);
     expect(fitness.warnings.some((w) => w.includes("Host memory is already high"))).toBe(true);
+  });
+
+  it("warns when the model memory footprint is unavailable", () => {
+    const fitness = computeFitness(makePerf({
+      memoryPercent: 0,
+      memoryFootprintAvailable: false,
+      memoryHostPercent: 97,
+    }), null);
+    expect(
+      fitness.warnings.some((w) => w.includes("RAM fit scoring was normalized"))
+    ).toBe(true);
+    expect(
+      fitness.warnings.some((w) => w.includes("model footprint was unavailable"))
+    ).toBe(true);
+  });
+
+  it("warns when the memory footprint is estimated", () => {
+    const fitness = computeFitness(makePerf({
+      memoryPercent: 25,
+      memoryFootprintEstimated: true,
+    }), null);
+    expect(
+      fitness.warnings.some((w) => w.includes("estimated via LM Studio CLI"))
+    ).toBe(true);
   });
 
   it("adds stability warning when tpsStdDev / mean > 0.3", () => {

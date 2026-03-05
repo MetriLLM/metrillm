@@ -121,12 +121,17 @@ export function computePerformanceScore(
   const tuning = deriveHardwareFitTuning(hardware);
   const safeTokensPerSecond = sanitizeNonNegative(perf.tokensPerSecond, 0);
   const safeTtft = sanitizeNonNegative(perf.ttft, tuning.ttft.hardMaxMs * 2);
-  // Score memory from the model's measured footprint/delta rather than
-  // unrelated host RAM usage from other running workloads.
-  const effectiveMemPercent = sanitizeNonNegative(perf.memoryPercent, 100);
   const speed = Math.round(scoreSpeed(safeTokensPerSecond, tuning));
   const ttft = Math.round(scoreTTFT(safeTtft, tuning));
-  const memory = Math.round(scoreMemory(effectiveMemPercent));
+  const memory = perf.memoryFootprintAvailable === false
+    ? Math.round(((speed + ttft) / (50 + 20)) * 30)
+    : Math.round(
+      scoreMemory(
+        // Score memory from the model's measured footprint/delta rather than
+        // unrelated host RAM usage from other running workloads.
+        sanitizeNonNegative(perf.memoryPercent, 100)
+      )
+    );
 
   return {
     total: clamp(speed + ttft + memory, 0, 100),

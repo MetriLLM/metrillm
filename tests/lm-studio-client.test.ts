@@ -3,6 +3,14 @@ import path from "node:path";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const { execFileMock } = vi.hoisted(() => ({
+  execFileMock: vi.fn(),
+}));
+
+vi.mock("node:child_process", () => ({
+  execFile: execFileMock,
+}));
+
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -65,6 +73,7 @@ describe("lm-studio-client metadata mapping", () => {
 
   beforeEach(() => {
     vi.resetModules();
+    execFileMock.mockReset();
     delete process.env.LM_STUDIO_BASE_URL;
     delete process.env.LM_STUDIO_API_KEY;
     delete process.env.METRILLM_STREAM_STALL_TIMEOUT_MS;
@@ -327,6 +336,69 @@ describe("lm-studio-client metadata mapping", () => {
       quantization: "4bit",
       family: "custom",
     });
+  });
+
+  it("returns null without triggering an interactive estimate when no exact loaded model matches", async () => {
+    execFileMock.mockImplementationOnce((_cmd, _args, _opts, cb) => {
+      cb(null, JSON.stringify([]), "");
+      return {} as ReturnType<typeof execFileMock>;
+    });
+
+    const client = await import("../src/core/lm-studio-client.js");
+    const estimated = await client.estimateLoadedModelMemoryBytes("qwen2.5:7b");
+
+    expect(estimated).toBeNull();
+    expect(execFileMock).toHaveBeenCalledTimes(1);
+    expect(execFileMock).toHaveBeenCalledWith(
+      expect.any(String),
+      ["ps", "--json"],
+      expect.objectContaining({ timeout: 8_000 }),
+      expect.any(Function)
+    );
+  });
+
+  it("estimates memory from the exact loaded-model path reported by LM Studio CLI", async () => {
+    execFileMock
+      .mockImplementationOnce((_cmd, _args, _opts, cb) => {
+        cb(null, JSON.stringify([
+          {
+            path: "lmstudio-community/Phi-4-reasoning-plus-MLX-4bit",
+            modelKey: "microsoft/phi-4-reasoning-plus",
+            contextLength: 32768,
+          },
+        ]), "");
+        return {} as ReturnType<typeof execFileMock>;
+      })
+      .mockImplementationOnce((_cmd, _args, _opts, cb) => {
+        cb(
+          null,
+          [
+            "Model: microsoft/phi-4-reasoning-plus",
+            "Estimated Total Memory: 10.77 GiB",
+          ].join("\n"),
+          ""
+        );
+        return {} as ReturnType<typeof execFileMock>;
+      });
+
+    const client = await import("../src/core/lm-studio-client.js");
+    const estimated = await client.estimateLoadedModelMemoryBytes("lmstudio-community/Phi-4-reasoning-plus-MLX-4bit");
+
+    expect(estimated).toBeGreaterThan(10 * 1024 ** 3);
+    expect(execFileMock).toHaveBeenNthCalledWith(
+      2,
+      expect.any(String),
+      [
+        "load",
+        "--estimate-only",
+        "-y",
+        "--context-length",
+        "32768",
+        "lmstudio-community/Phi-4-reasoning-plus-MLX-4bit",
+      ],
+      expect.objectContaining({ timeout: 8_000 }),
+      expect.any(Function)
+    );
   });
 
   it("falls back to bundled publisher directory size when hub metadata is missing", async () => {

@@ -51,6 +51,7 @@ export interface PerformanceMetrics {
   memoryUsedGB: number; // model memory footprint delta (GB)
   memoryPercent: number; // model memory footprint delta (% of total RAM)
   memoryFootprintAvailable?: boolean; // false when model was already loaded and runtime can't provide per-model size
+  memoryFootprintEstimated?: boolean; // true when the value comes from an LM Studio CLI estimate rather than direct measurement
   memoryHostUsedGB?: number; // host absolute RAM used after benchmark (GB)
   memoryHostPercent?: number; // host absolute RAM usage after benchmark (%)
   tpsStdDev?: number; // standard deviation of per-prompt tok/s values

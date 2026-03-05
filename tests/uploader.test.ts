@@ -134,6 +134,23 @@ describe("uploadBenchResult", () => {
     });
   });
 
+  it("uploads null memory_percent when the model footprint is unavailable", async () => {
+    singleMock.mockResolvedValueOnce({ data: { id: "row-no-memory" }, error: null });
+    const { uploadBenchResult } = await import("../src/core/uploader.js");
+
+    await uploadBenchResult({
+      ...sampleResult(),
+      performance: {
+        ...sampleResult().performance,
+        memoryPercent: 0,
+        memoryFootprintAvailable: false,
+      },
+    });
+
+    const inserted = insertMock.mock.calls[0][0] as Record<string, unknown>;
+    expect(inserted.memory_percent).toBeNull();
+  });
+
   it("uses embedded official upload defaults when Supabase env vars are missing", async () => {
     delete process.env.METRILLM_SUPABASE_URL;
     delete process.env.METRILLM_SUPABASE_ANON_KEY;

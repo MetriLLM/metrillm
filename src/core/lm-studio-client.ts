@@ -2,6 +2,7 @@ import os from "node:os";
 import path from "node:path";
 import { promises as fs } from "node:fs";
 import type { Dirent } from "node:fs";
+import { execFile } from "node:child_process";
 import type { OllamaModel, OllamaRunningModel } from "../types.js";
 import type { GenerateResult, KeepAliveValue, StreamCallbacks } from "./ollama-client.js";
 import { estimateTokenCount } from "../utils.js";
@@ -10,11 +11,13 @@ const DEFAULT_LM_STUDIO_BASE_URL = "http://127.0.0.1:1234";
 const LM_STUDIO_INIT_TIMEOUT_MS = 15_000;
 const LM_STUDIO_METADATA_TIMEOUT_MS = 2_000;
 const DEFAULT_STREAM_STALL_TIMEOUT_MS = 30_000;
+const LM_STUDIO_CLI_TIMEOUT_MS = 8_000;
 const SHARED_STREAM_STALL_TIMEOUT_ENV = "METRILLM_STREAM_STALL_TIMEOUT_MS";
 const DEFAULT_LM_STUDIO_HOME_DIR = path.join(os.homedir(), ".lmstudio");
 const DEFAULT_LM_STUDIO_MODELS_DIR = path.join(DEFAULT_LM_STUDIO_HOME_DIR, "models");
 const LM_STUDIO_HOME_DIR_ENV = "LM_STUDIO_HOME_DIR";
 const LM_STUDIO_MODELS_DIR_ENV = "LM_STUDIO_MODELS_DIR";
+const LM_STUDIO_CLI_PATH_ENV = "LM_STUDIO_CLI_PATH";
 
 let defaultKeepAlive: KeepAliveValue | undefined;
 const activeAbortControllers = new Set<AbortController>();
@@ -42,6 +45,14 @@ interface LMStudioApiModel {
 
 interface LMStudioApiModelListResponse {
   data?: LMStudioApiModel[];
+}
+
+interface LMStudioLoadedModelCliEntry {
+  modelKey?: string;
+  path?: string;
+  indexedModelIdentifier?: string;
+  identifier?: string;
+  contextLength?: number;
 }
 
 interface LMStudioHistoricalVersionInfo {
@@ -829,6 +840,158 @@ function isLoadedState(state: string | undefined): boolean {
   if (!normalized || normalized.includes("not-loaded")) return false;
   if (normalized === "loaded" || normalized === "ready") return true;
   return normalized.includes("loaded");
+}
+
+function execFileText(
+  cmd: string,
+  args: string[],
+  timeoutMs: number
+): Promise<{ stdout: string; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    execFile(
+      cmd,
+      args,
+      {
+        timeout: timeoutMs,
+        maxBuffer: 1024 * 1024,
+        env: process.env,
+      },
+      (err, stdout, stderr) => {
+        if (err) {
+          const error = err as NodeJS.ErrnoException & { stdout?: string; stderr?: string };
+          error.stdout = stdout;
+          error.stderr = stderr;
+          reject(error);
+          return;
+        }
+        resolve({ stdout, stderr });
+      }
+    );
+  });
+}
+
+function isCommandMissingError(err: unknown): boolean {
+  return err instanceof Error
+    && "code" in err
+    && (err as NodeJS.ErrnoException).code === "ENOENT";
+}
+
+async function runLmsCli(args: string[]): Promise<{ stdout: string; stderr: string }> {
+  const configuredPath = asNonEmptyString(process.env[LM_STUDIO_CLI_PATH_ENV]);
+  const fallbackPath = path.join(getLMStudioHomeDir(), "bin", "lms");
+  const candidates = [
+    configuredPath,
+    "lms",
+    fallbackPath,
+  ].filter((candidate, index, list): candidate is string =>
+    Boolean(candidate) && list.indexOf(candidate) === index
+  );
+
+  let lastError: unknown;
+  for (const candidate of candidates) {
+    try {
+      return await execFileText(candidate, args, LM_STUDIO_CLI_TIMEOUT_MS);
+    } catch (err) {
+      lastError = err;
+      if (isCommandMissingError(err)) continue;
+      throw err;
+    }
+  }
+
+  throw lastError ?? new Error("LM Studio CLI is not available.");
+}
+
+function normalizeCliToken(value: string | undefined): string {
+  return (value ?? "").trim().toLowerCase();
+}
+
+function matchesLoadedModelCliEntry(entry: LMStudioLoadedModelCliEntry, model: string): boolean {
+  const target = normalizeCliToken(model);
+  if (!target) return false;
+  return [
+    entry.identifier,
+    entry.indexedModelIdentifier,
+    entry.path,
+    entry.modelKey,
+  ].some((candidate) => normalizeCliToken(candidate) === target);
+}
+
+async function listLoadedModelsFromCli(): Promise<LMStudioLoadedModelCliEntry[]> {
+  const { stdout } = await runLmsCli(["ps", "--json"]);
+  const parsed = JSON.parse(stdout) as unknown;
+  return Array.isArray(parsed) ? parsed as LMStudioLoadedModelCliEntry[] : [];
+}
+
+function parseEstimatedBytes(output: string): number | null {
+  const match = output.match(/Estimated Total Memory:\s*([0-9]+(?:\.[0-9]+)?)\s*(KiB|MiB|GiB|TiB|KB|MB|GB|TB)/i);
+  if (!match) return null;
+
+  const value = Number.parseFloat(match[1] ?? "");
+  const unit = (match[2] ?? "").toUpperCase();
+  if (!Number.isFinite(value) || value <= 0) return null;
+
+  const multipliers: Record<string, number> = {
+    KIB: 1024,
+    MIB: 1024 ** 2,
+    GIB: 1024 ** 3,
+    TIB: 1024 ** 4,
+    KB: 1000,
+    MB: 1000 ** 2,
+    GB: 1000 ** 3,
+    TB: 1000 ** 4,
+  };
+  const multiplier = multipliers[unit];
+  if (!multiplier) return null;
+  return Math.round(value * multiplier);
+}
+
+export async function estimateLoadedModelMemoryBytes(model: string): Promise<number | null> {
+  let loadedEntry: LMStudioLoadedModelCliEntry | undefined;
+  try {
+    const loadedModels = await listLoadedModelsFromCli();
+    loadedEntry = loadedModels.find((entry) => matchesLoadedModelCliEntry(entry, model));
+  } catch {
+    loadedEntry = undefined;
+  }
+
+  // Only estimate from an exact loaded-model entry reported by `lms ps --json`.
+  // Falling back to the raw user-provided model string can trigger the LM Studio
+  // interactive selector, which would stall the benchmark process.
+  if (!loadedEntry) return null;
+
+  const candidateModelKeys = [
+    loadedEntry?.path,
+    loadedEntry?.indexedModelIdentifier,
+    loadedEntry?.modelKey,
+  ].filter((candidate, index, list): candidate is string =>
+    Boolean(candidate?.trim()) && list.findIndex((item) => item === candidate) === index
+  );
+
+  for (const candidate of candidateModelKeys) {
+    const args = ["load", "--estimate-only", "-y"];
+    if (
+      typeof loadedEntry?.contextLength === "number"
+      && Number.isFinite(loadedEntry.contextLength)
+      && loadedEntry.contextLength > 0
+    ) {
+      args.push("--context-length", String(Math.trunc(loadedEntry.contextLength)));
+    }
+    args.push(candidate);
+
+    try {
+      const { stdout, stderr } = await runLmsCli(args);
+      const estimated = parseEstimatedBytes(`${stdout}\n${stderr}`);
+      if (estimated !== null) return estimated;
+    } catch (err) {
+      const output = err instanceof Error
+        ? `${String((err as NodeJS.ErrnoException & { stdout?: string }).stdout ?? "")}\n${String((err as NodeJS.ErrnoException & { stderr?: string }).stderr ?? "")}`
+        : "";
+      const estimated = parseEstimatedBytes(output);
+      if (estimated !== null) return estimated;
+    }
+  }
+
+  return null;
 }
 
 async function fetchApiModels(): Promise<LMStudioApiModel[] | null> {

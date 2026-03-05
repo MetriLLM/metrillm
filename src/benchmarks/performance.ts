@@ -1,5 +1,6 @@
 import { abortOngoingRequests, generateStream, listRunningModels, getRuntimeName } from "../core/runtime.js";
 import { getMemoryUsage, detectThermalPressure, detectBatteryPowered, getSwapUsedGB, getCpuLoad } from "../core/hardware.js";
+import { estimateLoadedModelMemoryBytes } from "../core/lm-studio-client.js";
 import type { PerformanceMetrics, BenchEnvironment } from "../types.js";
 import { avg, stddev, withTimeout, hasThinkingContent, estimateTokenCount } from "../utils.js";
 import { createSpinner, subStep } from "../ui/progress.js";
@@ -220,10 +221,15 @@ export async function runPerformanceBench(
     // static on-disk model size.
     let memoryUsedGB: number;
     let memoryPercent: number;
+    let memoryFootprintEstimated = false;
     // Only treat runtime-reported running size as a true loaded-memory footprint
     // when the backend exposes a comparable in-memory value. LM Studio's size can
     // reflect local file/directory metadata rather than resident RAM usage.
     const runtimeReportsComparableLoadedSize = runtimeName !== "lm-studio";
+    const estimatedLoadedModelSizeBytes =
+      runtimeName === "lm-studio" && modelWasAlreadyLoaded
+        ? await optionalProbe(() => estimateLoadedModelMemoryBytes(model), null)
+        : null;
     const loadedModelSizeBytes =
       runtimeReportsComparableLoadedSize && thisModel && thisModel.size > 0
         ? thisModel.size
@@ -231,10 +237,14 @@ export async function runPerformanceBench(
     const memoryFootprintAvailable =
       runtimeReportsComparableLoadedSize
         ? loadedModelSizeBytes > 0 || !modelWasAlreadyLoaded
-        : !modelWasAlreadyLoaded;
+        : (estimatedLoadedModelSizeBytes ?? 0) > 0 || !modelWasAlreadyLoaded;
     if (loadedModelSizeBytes > 0) {
       memoryUsedGB = loadedModelSizeBytes / (1024 ** 3);
       memoryPercent = (memoryUsedGB / memAfter.totalGB) * 100;
+    } else if ((estimatedLoadedModelSizeBytes ?? 0) > 0) {
+      memoryUsedGB = (estimatedLoadedModelSizeBytes ?? 0) / (1024 ** 3);
+      memoryPercent = (memoryUsedGB / memAfter.totalGB) * 100;
+      memoryFootprintEstimated = true;
     } else {
       memoryUsedGB = Math.max(0, memAfter.usedGB - memBefore.usedGB);
       memoryPercent = Math.max(0, memAfter.percent - memBefore.percent);
@@ -284,6 +294,7 @@ export async function runPerformanceBench(
         memoryUsedGB: +memoryUsedGB.toFixed(1),
         memoryPercent: +memoryPercent.toFixed(1),
         memoryFootprintAvailable,
+        ...(memoryFootprintEstimated ? { memoryFootprintEstimated: true } : {}),
         memoryHostUsedGB: memAfter.usedGB,
         memoryHostPercent: memAfter.percent,
         tpsStdDev: tpsValues.length >= 2 ? stddev(tpsValues) : undefined,

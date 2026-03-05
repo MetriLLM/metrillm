@@ -59,6 +59,7 @@ vi.mock("../src/core/lm-studio-client.js", () => ({
   getLMStudioVersion: vi.fn(async () => "unknown"),
   generate: vi.fn(),
   generateStream: vi.fn(),
+  estimateLoadedModelMemoryBytes: vi.fn(async () => null),
   setDefaultKeepAlive: vi.fn(),
   unloadModel: vi.fn(),
   abortOngoingRequests: vi.fn(),
@@ -321,6 +322,7 @@ describe("runPerformanceBench", () => {
 
     const lmStudioGenerateStreamMock = vi.mocked(lmStudioClient.generateStream);
     const lmStudioListRunningModelsMock = vi.mocked(lmStudioClient.listRunningModels);
+    const lmStudioEstimateMemoryMock = vi.mocked(lmStudioClient.estimateLoadedModelMemoryBytes);
 
     lmStudioGenerateStreamMock.mockImplementation(async (_model: string, _prompt: string, streamOpts?: { onFirstChunk?: () => void; onToken?: () => void }) => {
       streamOpts?.onFirstChunk?.();
@@ -336,6 +338,7 @@ describe("runPerformanceBench", () => {
     lmStudioListRunningModelsMock
       .mockResolvedValueOnce([{ name: "test-model", size: 8 * 1024 ** 3, vramUsed: 0 }])
       .mockResolvedValueOnce([{ name: "test-model", size: 8 * 1024 ** 3, vramUsed: 0 }]);
+    lmStudioEstimateMemoryMock.mockResolvedValueOnce(null);
 
     const result = await runPerformanceBench("test-model", {
       failOnPromptError: false,
@@ -345,6 +348,44 @@ describe("runPerformanceBench", () => {
     expect(result.metrics.memoryUsedGB).toBe(0);
     expect(result.metrics.memoryPercent).toBe(0);
     expect(result.metrics.memoryFootprintAvailable).toBe(false);
+  });
+
+  it("uses LM Studio CLI estimate when model was already loaded", async () => {
+    runtime.setRuntimeByName("lm-studio");
+    memoryPlan = [
+      { usedGB: 4, percent: 40, totalGB: 10 },
+      { usedGB: 4, percent: 40, totalGB: 10 },
+    ];
+
+    const lmStudioGenerateStreamMock = vi.mocked(lmStudioClient.generateStream);
+    const lmStudioListRunningModelsMock = vi.mocked(lmStudioClient.listRunningModels);
+    const lmStudioEstimateMemoryMock = vi.mocked(lmStudioClient.estimateLoadedModelMemoryBytes);
+
+    lmStudioGenerateStreamMock.mockImplementation(async (_model: string, _prompt: string, streamOpts?: { onFirstChunk?: () => void; onToken?: () => void }) => {
+      streamOpts?.onFirstChunk?.();
+      streamOpts?.onToken?.();
+      return {
+        response: "test response",
+        loadDuration: 0,
+        evalDuration: 1_000_000_000,
+        evalCount: 100,
+        promptEvalCount: 50,
+      };
+    });
+    lmStudioListRunningModelsMock
+      .mockResolvedValueOnce([{ name: "test-model", size: 8 * 1024 ** 3, vramUsed: 0 }])
+      .mockResolvedValueOnce([{ name: "test-model", size: 8 * 1024 ** 3, vramUsed: 0 }]);
+    lmStudioEstimateMemoryMock.mockResolvedValueOnce(6 * 1024 ** 3);
+
+    const result = await runPerformanceBench("test-model", {
+      failOnPromptError: false,
+      minSuccessfulPrompts: 3,
+    });
+
+    expect(result.metrics.memoryUsedGB).toBe(6);
+    expect(result.metrics.memoryPercent).toBe(60);
+    expect(result.metrics.memoryFootprintAvailable).toBe(true);
+    expect(result.metrics.memoryFootprintEstimated).toBe(true);
   });
 
   it("continues when optional environment probes fail", async () => {

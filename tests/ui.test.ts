@@ -143,6 +143,24 @@ describe("printPerformanceTable", () => {
     const joined = output.join("\n");
     expect(joined).toContain("model already loaded; runtime metric unavailable");
   });
+
+  it("prints estimated memory footprint when provided", async () => {
+    const { printPerformanceTable } = await import("../src/ui/results-table.js");
+    const perf: PerformanceMetrics = {
+      tokensPerSecond: 25,
+      ttft: 1200,
+      loadTime: 0,
+      totalTokens: 500,
+      promptTokens: 100,
+      completionTokens: 400,
+      memoryUsedGB: 6,
+      memoryPercent: 60,
+      memoryFootprintEstimated: true,
+    };
+    printPerformanceTable(perf);
+    const joined = output.join("\n");
+    expect(joined).toContain("(estimated)");
+  });
 });
 
 describe("printQualityTable", () => {
@@ -401,5 +419,78 @@ describe("printSummaryTable", () => {
     expect(joined).toContain("model-b");
     expect(joined).toContain("35%");
     expect(joined).toContain("~40.0");
+  });
+
+  it("prints N/A and estimated model memory in summary table", async () => {
+    const { printSummaryTable } = await import("../src/ui/results-table.js");
+    const base: BenchResult = {
+      model: "model-a",
+      hardware: {
+        cpu: "CPU",
+        cpuCores: 8,
+        cpuPCores: null,
+        cpuECores: null,
+        cpuFreqGHz: null,
+        totalMemoryGB: 32,
+        freeMemoryGB: 16,
+        memoryType: null,
+        swapTotalGB: 0,
+        swapUsedGB: 0,
+        gpu: "GPU",
+        gpuCores: null,
+        gpuVramMB: null,
+        os: "macOS",
+        arch: "arm64",
+      },
+      performance: {
+        tokensPerSecond: 40,
+        ttft: 900,
+        loadTime: 1000,
+        totalTokens: 400,
+        promptTokens: 100,
+        completionTokens: 300,
+        memoryUsedGB: 0,
+        memoryPercent: 0,
+        memoryFootprintAvailable: false,
+      },
+      quality: null,
+      fitness: {
+        verdict: "GOOD",
+        globalScore: 68,
+        hardwareFitScore: 74,
+        performanceScore: { total: 74, speed: 30, ttft: 24, memory: 20 },
+        qualityScore: null,
+        categoryLabels: null,
+        disqualifiers: [],
+        warnings: [],
+        interpretation: "ok",
+        tuning: {
+          profile: "BALANCED",
+          speed: { excellent: 30, good: 16, marginal: 7, hardMin: 5 },
+          ttft: { excellentMs: 1000, goodMs: 2200, marginalMs: 5000, hardMaxMs: 15000 },
+          loadTimeHardMaxMs: 180000,
+        },
+      },
+      timestamp: "2026-02-27T00:00:00.000Z",
+    };
+
+    printSummaryTable([
+      base,
+      {
+        ...base,
+        model: "model-b",
+        performance: {
+          ...base.performance,
+          memoryUsedGB: 6,
+          memoryPercent: 60,
+          memoryFootprintAvailable: true,
+          memoryFootprintEstimated: true,
+        },
+      },
+    ]);
+
+    const joined = output.join("\n");
+    expect(joined).toContain("N/A");
+    expect(joined).toContain("60%~");
   });
 });

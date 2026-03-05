@@ -62,7 +62,10 @@ export function computeFitness(
   const safeTokensPerSecond = sanitizeNonNegative(perf.tokensPerSecond, 0);
   const safeTtft = sanitizeNonNegative(perf.ttft, tuning.ttft.hardMaxMs * 10);
   const safeLoadTime = sanitizeNonNegative(perf.loadTime, tuning.loadTimeHardMaxMs * 10);
-  const modelMemoryDeltaPercent = sanitizeNonNegative(perf.memoryPercent, 100);
+  const modelMemoryFootprintAvailable = perf.memoryFootprintAvailable !== false;
+  const modelMemoryDeltaPercent = modelMemoryFootprintAvailable
+    ? sanitizeNonNegative(perf.memoryPercent, 100)
+    : undefined;
   const hostMemoryPercent =
     perf.memoryHostPercent !== undefined
     && Number.isFinite(perf.memoryHostPercent)
@@ -88,8 +91,8 @@ export function computeFitness(
     );
   }
   const hostCritical = hostMemoryPercent !== undefined && hostMemoryPercent > 95;
-  const modelDeltaCritical = modelMemoryDeltaPercent > 90;
-  const modelDeltaSignificant = modelMemoryDeltaPercent >= 10;
+  const modelDeltaCritical = modelMemoryDeltaPercent !== undefined && modelMemoryDeltaPercent > 90;
+  const modelDeltaSignificant = modelMemoryDeltaPercent !== undefined && modelMemoryDeltaPercent >= 10;
   if (modelDeltaCritical) {
     disqualifiers.push(
       `Memory usage critical: model delta +${modelMemoryDeltaPercent.toFixed(0)}%`
@@ -148,7 +151,23 @@ export function computeFitness(
     );
   }
 
-  if (hostCritical && !modelDeltaSignificant) {
+  if (perf.memoryFootprintEstimated) {
+    warnings.push(
+      "Model memory footprint is estimated via LM Studio CLI rather than measured from a fresh load."
+    );
+  }
+
+  if (!modelMemoryFootprintAvailable) {
+    warnings.push(
+      "Model memory footprint was unavailable for this run, so RAM fit scoring was normalized from speed and TTFT only."
+    );
+  }
+
+  if (hostCritical && !modelMemoryFootprintAvailable) {
+    warnings.push(
+      `Host memory is already high (${hostMemoryPercent.toFixed(0)}%) and model footprint was unavailable. Results may be influenced by other running workloads.`
+    );
+  } else if (hostCritical && modelMemoryDeltaPercent !== undefined && !modelDeltaSignificant) {
     warnings.push(
       `Host memory is already high (${hostMemoryPercent.toFixed(0)}%) but model delta is limited (+${modelMemoryDeltaPercent.toFixed(0)}%). Results may be influenced by other running workloads.`
     );

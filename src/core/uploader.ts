@@ -76,6 +76,12 @@ export interface UploadBenchOptions {
   submitterEmail?: string;
 }
 
+function resolveUploadedMemoryPercent(result: BenchResult): number | null {
+  return result.performance.memoryFootprintAvailable === false
+    ? null
+    : result.performance.memoryPercent;
+}
+
 function resolveUploadedModelFormat(result: BenchResult): string {
   if (result.metadata.modelFormat?.trim()) return result.metadata.modelFormat;
 
@@ -100,7 +106,7 @@ export async function uploadBenchResult(
     thinking_detected: result.modelInfo?.thinkingDetected ?? null,
     tokens_per_second: result.performance.tokensPerSecond,
     ttft_ms: result.performance.ttft,
-    memory_percent: result.performance.memoryPercent,
+    memory_percent: resolveUploadedMemoryPercent(result),
     thinking_tokens_estimate: result.performance.thinkingTokensEstimate ?? null,
     verdict: result.fitness.verdict,
     global_score: result.fitness.globalScore,

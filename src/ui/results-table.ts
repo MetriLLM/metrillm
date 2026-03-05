@@ -201,7 +201,7 @@ export function printPerformanceTable(perf: PerformanceMetrics, benchEnvironment
       perf.memoryFootprintAvailable === false
         ? chalk.dim("N/A (model already loaded; runtime metric unavailable)")
         : memColor(
-          `${perf.memoryUsedGB.toFixed(1)} GB (+${perf.memoryPercent.toFixed(0)}%)`
+          `${perf.memoryUsedGB.toFixed(1)} GB (+${perf.memoryPercent.toFixed(0)}%)${perf.memoryFootprintEstimated ? " (estimated)" : ""}`
         ),
     ],
     [
@@ -325,6 +325,12 @@ export function printSummaryTable(results: BenchResult[]): void {
     wordWrap: true,
   });
 
+  const formatSummaryModelMemory = (result: BenchResult): string => {
+    if (result.performance.memoryFootprintAvailable === false) return "N/A";
+    const value = `${result.performance.memoryPercent.toFixed(0)}%`;
+    return result.performance.memoryFootprintEstimated ? `${value}~` : value;
+  };
+
   for (const r of results) {
     const vColor =
       r.fitness.verdict === "EXCELLENT"
@@ -350,7 +356,7 @@ export function printSummaryTable(results: BenchResult[]): void {
       modelName,
       throughputLabel,
       formatDuration(r.performance.ttft),
-      `${r.performance.memoryPercent.toFixed(0)}%`,
+      formatSummaryModelMemory(r),
       r.fitness.tuning.profile,
       scoreColor(r.fitness.hardwareFitScore)(
         `${compactBar(r.fitness.hardwareFitScore)} ${r.fitness.hardwareFitScore}%`

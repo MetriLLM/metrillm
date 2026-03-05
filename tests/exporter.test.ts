@@ -97,6 +97,7 @@ describe("exportBenchResults", () => {
     const path = await exportBenchResults([sampleResult()], "csv", dir);
     const content = await readFile(path, "utf8");
     expect(content).toContain("model,parameter_size,quantization,family,thinking_detected,timestamp");
+    expect(content).toContain("model_memory_estimated");
     expect(content).toContain("hardware_fit_score");
     expect(content).toContain("global_score");
     expect(content).toContain("llama3.2:3b");
@@ -146,6 +147,7 @@ describe("exportBenchResults", () => {
         ...sampleResult().performance,
         tokensPerSecondEstimated: true,
         memoryPercent: 31.9,
+        memoryFootprintEstimated: true,
         memoryHostPercent: 88.2,
       },
     };
@@ -155,8 +157,51 @@ describe("exportBenchResults", () => {
 
     expect(content).toContain("~42.5");
     expect(content).toContain("31.9%");
+    expect(content).toContain("(est.)");
     expect(content).toContain("TPS~");
     expect(content).not.toContain("88.2%");
+  });
+
+  it("exports blank model memory percent when the footprint is unavailable", async () => {
+    const dir = await makeTmpDir("metrillm-export-csv-no-memory-");
+    const path = await exportBenchResults(
+      [
+        {
+          ...sampleResult(),
+          performance: {
+            ...sampleResult().performance,
+            memoryPercent: 0,
+            memoryFootprintAvailable: false,
+          },
+        },
+      ],
+      "csv",
+      dir
+    );
+    const content = await readFile(path, "utf8");
+    expect(content).toContain("model_memory_percent,model_memory_estimated,host_memory_percent");
+    expect(content).toContain("950,,,");
+  });
+
+  it("exports N/A model memory in Markdown when the footprint is unavailable", async () => {
+    const dir = await makeTmpDir("metrillm-export-md-no-memory-");
+    const path = await exportBenchResults(
+      [
+        {
+          ...sampleResult(),
+          performance: {
+            ...sampleResult().performance,
+            memoryPercent: 0,
+            memoryFootprintAvailable: false,
+          },
+        },
+      ],
+      "md",
+      dir
+    );
+    const content = await readFile(path, "utf8");
+    expect(content).toContain("| N/A |");
+    expect(content).not.toContain("| 0.0% |");
   });
 
   it("keeps markdown summary table valid with multiple models", async () => {

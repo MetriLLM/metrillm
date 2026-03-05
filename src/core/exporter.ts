@@ -27,6 +27,17 @@ function markdownEscape(value: string): string {
     .trim();
 }
 
+function formatExportedModelMemoryPercent(result: BenchResult): string {
+  if (result.performance.memoryFootprintAvailable === false) return "";
+  return result.performance.memoryPercent.toFixed(1);
+}
+
+function formatMarkdownModelMemory(result: BenchResult): string {
+  if (result.performance.memoryFootprintAvailable === false) return "N/A";
+  const value = `${result.performance.memoryPercent.toFixed(1)}%`;
+  return result.performance.memoryFootprintEstimated ? `${value} (est.)` : value;
+}
+
 function toCsv(results: BenchResult[]): string {
   const header = [
     "model",
@@ -40,6 +51,7 @@ function toCsv(results: BenchResult[]): string {
     "ttft_ms",
     "thinking_tokens_estimate",
     "model_memory_percent",
+    "model_memory_estimated",
     "host_memory_percent",
     "machine_model",
     "power_mode",
@@ -73,7 +85,8 @@ function toCsv(results: BenchResult[]): string {
       r.performance.thinkingTokensEstimate
         ? String(r.performance.thinkingTokensEstimate)
         : "",
-      r.performance.memoryPercent.toFixed(1),
+      formatExportedModelMemoryPercent(r),
+      r.performance.memoryFootprintEstimated ? "true" : "",
       r.performance.memoryHostPercent !== undefined
         ? r.performance.memoryHostPercent.toFixed(1)
         : "",
@@ -121,7 +134,7 @@ function toMarkdown(results: BenchResult[]): string {
     lines.push(
       `| ${markdownEscape(r.model)} | ${markdownEscape(r.modelInfo?.quantization ?? "—")} | ${markdownEscape(r.hardware.machineModel ?? "—")} | ${markdownEscape(r.fitness.tuning.profile)} | ${r.performance.tokensPerSecondEstimated ? "~" : ""}${r.performance.tokensPerSecond.toFixed(
         1
-      )} | ${r.performance.ttft.toFixed(0)}ms | ${r.performance.memoryPercent.toFixed(1)}% | ${
+      )} | ${r.performance.ttft.toFixed(0)}ms | ${formatMarkdownModelMemory(r)} | ${
         r.fitness.hardwareFitScore
       } | ${r.fitness.qualityScore?.total ?? "—"} | ${r.fitness.globalScore ?? "—"} | ${r.fitness.disqualifiers.length} | ${flags.length > 0 ? flags.join(" ") : "—"} | ${markdownEscape(r.fitness.verdict)} |`
     );

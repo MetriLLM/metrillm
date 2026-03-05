@@ -10,7 +10,9 @@ src/**/*.js
 src/**/*.d.ts
 coverage/
 exports/
-supabase/
+supabase/*
+!supabase/migrations/
+!supabase/migrations/*.sql
 .claude/
 docs_projet/
 docs/images/social-preview.html
