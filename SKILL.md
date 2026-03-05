@@ -89,6 +89,5 @@ Key metrics to highlight:
 ## Tips
 
 - Use `--perf-only` for quick tests
-- Smaller models (1-3B) benchmark in ~30s, larger (7B+) in 2-5 min
 - Close GPU-intensive apps before benchmarking
-- Thinking models (Qwen3, etc.) generate many tokens and take longer
+- Benchmark duration varies depending on model speed and response length
