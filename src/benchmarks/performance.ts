@@ -113,6 +113,7 @@ export async function runPerformanceBench(
     let thinkingDetected = false;
     let totalThinkingTokens = 0;
     const cpuLoadSamples: number[] = [];
+    let tokensPerSecondEstimated = false;
 
     for (let i = 0; i < BENCH_PROMPTS.length; i++) {
       spinner.start(`Running performance test ${i + 1}/${BENCH_PROMPTS.length}...`);
@@ -155,6 +156,9 @@ export async function runPerformanceBench(
         tpsValues.push(tps);
         totalEvalCount += result.evalCount;
         totalEvalDurationNs += result.evalDuration;
+        if (result.evalCountEstimated) {
+          tokensPerSecondEstimated = true;
+        }
 
         // First chunk latency / TTFT
         if (firstChunkTime !== null) {
@@ -216,8 +220,18 @@ export async function runPerformanceBench(
     // static on-disk model size.
     let memoryUsedGB: number;
     let memoryPercent: number;
-    const loadedModelSizeBytes = thisModel && thisModel.size > 0 ? thisModel.size : 0;
-    const memoryFootprintAvailable = loadedModelSizeBytes > 0 || !modelWasAlreadyLoaded;
+    // Only treat runtime-reported running size as a true loaded-memory footprint
+    // when the backend exposes a comparable in-memory value. LM Studio's size can
+    // reflect local file/directory metadata rather than resident RAM usage.
+    const runtimeReportsComparableLoadedSize = runtimeName !== "lm-studio";
+    const loadedModelSizeBytes =
+      runtimeReportsComparableLoadedSize && thisModel && thisModel.size > 0
+        ? thisModel.size
+        : 0;
+    const memoryFootprintAvailable =
+      runtimeReportsComparableLoadedSize
+        ? loadedModelSizeBytes > 0 || !modelWasAlreadyLoaded
+        : !modelWasAlreadyLoaded;
     if (loadedModelSizeBytes > 0) {
       memoryUsedGB = loadedModelSizeBytes / (1024 ** 3);
       memoryPercent = (memoryUsedGB / memAfter.totalGB) * 100;
@@ -259,6 +273,7 @@ export async function runPerformanceBench(
           totalEvalDurationNs > 0
             ? totalEvalCount / (totalEvalDurationNs / 1e9)
             : avg(tpsValues),
+        ...(tokensPerSecondEstimated ? { tokensPerSecondEstimated: true } : {}),
         ...(firstChunkMs !== undefined ? { firstChunkMs } : {}),
         ttft: ttft >= 0 ? ttft : 30_000, // Fallback: 30s if no TTFT measured
         loadTime,

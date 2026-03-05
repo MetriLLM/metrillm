@@ -8,6 +8,7 @@ import {
   getRuntimeDisplayName,
   getRuntimeModelInstallHint,
   getRuntimeSetupHints,
+  resolveRuntimeModel,
   setRuntimeKeepAlive,
   setRuntimeByName,
   unloadModel,
@@ -47,7 +48,7 @@ export interface BenchOptions {
   perfMinSuccessfulPrompts?: number;
   qualityTimeoutMs?: number;
   codingTimeoutMs?: number;
-  lmStudioStreamStallTimeoutMs?: number;
+  streamStallTimeoutMs?: number;
   perfStrict?: boolean;
   share?: boolean;       // true = --share, false = --no-share, undefined = prompt
   ciNoMenu?: boolean;    // running in CI mode
@@ -215,7 +216,7 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
           minSuccessfulPrompts: options.perfMinSuccessfulPrompts,
           failOnPromptError: options.perfStrict,
           think: thinkEnabled,
-          streamStallTimeoutMs: options.lmStudioStreamStallTimeoutMs,
+          streamStallTimeoutMs: options.streamStallTimeoutMs,
         });
         const perf = perfResult.metrics;
         const benchEnvironment: BenchEnvironment | undefined = perfResult.benchEnvironment;
@@ -266,15 +267,24 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
 
         // Build model info from discovered models
         const matchedModel = allModels.find((m) => m.name === modelName);
-        const modelInfo: ModelInfo = matchedModel
+        let resolvedModel = matchedModel;
+        if (matchedModel?.modelFormat === undefined) {
+          try {
+            resolvedModel = await resolveRuntimeModel(modelName) ?? matchedModel;
+          } catch {
+            resolvedModel = matchedModel;
+          }
+        }
+        const modelMetadataSource = resolvedModel ?? matchedModel;
+        const modelInfo: ModelInfo = modelMetadataSource
           ? {
-              parameterSize: matchedModel.parameterSize,
-              quantization: matchedModel.quantization,
-              family: matchedModel.family,
-              // Persist the configured benchmark mode (not model auto-detection).
-              thinkingDetected: thinkEnabled,
+              parameterSize: modelMetadataSource.parameterSize,
+              quantization: modelMetadataSource.quantization,
+              family: modelMetadataSource.family,
+              // Persist actual observed thinking behavior from the benchmark run.
+              thinkingDetected: perfResult.thinkingDetected,
             }
-          : { thinkingDetected: thinkEnabled };
+          : { thinkingDetected: perfResult.thinkingDetected };
 
         // Build result without hash first, then compute hash
         const partialResult: Omit<BenchResult, "metadata"> & { metadata: Omit<RunMetadata, "rawLogHash"> } = {
@@ -291,7 +301,9 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
             promptPackVersion: PROMPT_PACK_VERSION,
             runtimeVersion,
             runtimeBackend: getRuntimeName(),
-            modelFormat: matchedModel?.modelFormat ?? getRuntimeModelFormat(),
+            modelFormat:
+              resolvedModel?.modelFormat
+              ?? (getRuntimeName() === "ollama" ? getRuntimeModelFormat() : "unknown"),
             benchmarkProfile: buildBenchmarkProfileMetadata(thinkEnabled),
           },
         };

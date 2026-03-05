@@ -62,11 +62,13 @@ export function computeFitness(
   const safeTokensPerSecond = sanitizeNonNegative(perf.tokensPerSecond, 0);
   const safeTtft = sanitizeNonNegative(perf.ttft, tuning.ttft.hardMaxMs * 10);
   const safeLoadTime = sanitizeNonNegative(perf.loadTime, tuning.loadTimeHardMaxMs * 10);
-  const hostMemoryPercent = sanitizeNonNegative(
-    perf.memoryHostPercent ?? perf.memoryPercent,
-    100
-  );
   const modelMemoryDeltaPercent = sanitizeNonNegative(perf.memoryPercent, 100);
+  const hostMemoryPercent =
+    perf.memoryHostPercent !== undefined
+    && Number.isFinite(perf.memoryHostPercent)
+    && perf.memoryHostPercent >= 0
+      ? perf.memoryHostPercent
+      : undefined;
 
   // Disqualifiers
   const disqualifiers: string[] = [];
@@ -85,12 +87,12 @@ export function computeFitness(
       `Model load time too high: ${Math.round(safeLoadTime)}ms (maximum: ${tuning.loadTimeHardMaxMs}ms for ${tuning.profile} profile)`
     );
   }
-  const hostCritical = hostMemoryPercent > 95;
+  const hostCritical = hostMemoryPercent !== undefined && hostMemoryPercent > 95;
   const modelDeltaCritical = modelMemoryDeltaPercent > 90;
   const modelDeltaSignificant = modelMemoryDeltaPercent >= 10;
-  if (modelDeltaCritical || (hostCritical && modelDeltaSignificant)) {
+  if (modelDeltaCritical) {
     disqualifiers.push(
-      `Memory usage critical: host ${hostMemoryPercent.toFixed(0)}%, model delta +${modelMemoryDeltaPercent.toFixed(0)}%`
+      `Memory usage critical: model delta +${modelMemoryDeltaPercent.toFixed(0)}%`
     );
   }
 
@@ -140,9 +142,15 @@ export function computeFitness(
     );
   }
 
+  if (perf.tokensPerSecondEstimated) {
+    warnings.push(
+      "Token throughput is estimated from LM Studio output because native token stats were unavailable. Compare tok/s across backends cautiously."
+    );
+  }
+
   if (hostCritical && !modelDeltaSignificant) {
     warnings.push(
-      `Host memory is already high (${hostMemoryPercent.toFixed(0)}%) but model delta is limited (+${modelMemoryDeltaPercent.toFixed(0)}%). Verdict may be influenced by other running workloads.`
+      `Host memory is already high (${hostMemoryPercent.toFixed(0)}%) but model delta is limited (+${modelMemoryDeltaPercent.toFixed(0)}%). Results may be influenced by other running workloads.`
     );
   }
 

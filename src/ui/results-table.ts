@@ -174,7 +174,12 @@ export function printPerformanceTable(perf: PerformanceMetrics, benchEnvironment
         : chalk.red;
 
   table.push(
-    ["Tokens/sec", tpsColor(`${perf.tokensPerSecond.toFixed(1)} tok/s`)],
+    [
+      "Tokens/sec",
+      perf.tokensPerSecondEstimated
+        ? chalk.yellow(`${perf.tokensPerSecond.toFixed(1)} tok/s (estimated)`)
+        : tpsColor(`${perf.tokensPerSecond.toFixed(1)} tok/s`),
+    ],
     [
       "First Chunk Latency",
       perf.firstChunkMs !== undefined
@@ -305,7 +310,7 @@ export function printSummaryTable(results: BenchResult[]): void {
     chalk.bold("Model"),
     chalk.bold("tok/s"),
     chalk.bold("TTFT"),
-    chalk.bold("Host RAM%"),
+    chalk.bold("Model RAM%"),
     chalk.bold("Profile"),
     chalk.bold("HW Fit"),
     chalk.bold("Quality"),
@@ -337,14 +342,15 @@ export function printSummaryTable(results: BenchResult[]): void {
     const modelName = compact && r.model.length > 20
       ? r.model.slice(0, 18) + ".."
       : r.model;
+    const throughputLabel = r.performance.tokensPerSecondEstimated
+      ? `~${r.performance.tokensPerSecond.toFixed(1)}`
+      : `${r.performance.tokensPerSecond.toFixed(1)}`;
 
     const row = [
       modelName,
-      `${r.performance.tokensPerSecond.toFixed(1)}`,
+      throughputLabel,
       formatDuration(r.performance.ttft),
-      r.performance.memoryHostPercent !== undefined
-        ? `${r.performance.memoryHostPercent.toFixed(0)}%`
-        : "n/a",
+      `${r.performance.memoryPercent.toFixed(0)}%`,
       r.fitness.tuning.profile,
       scoreColor(r.fitness.hardwareFitScore)(
         `${compactBar(r.fitness.hardwareFitScore)} ${r.fitness.hardwareFitScore}%`

@@ -129,14 +129,21 @@ Alternatively, use `npx metrillm` which bypasses the issue entirely.
 | Backend | Flag | Default URL | Required env |
 |---|---|---|---|
 | Ollama | `--backend ollama` | `http://127.0.0.1:11434` | `OLLAMA_HOST` (optional) |
-| LM Studio | `--backend lm-studio` | `http://127.0.0.1:1234` | `LM_STUDIO_BASE_URL` (optional), `LM_STUDIO_API_KEY` (optional), `LM_STUDIO_STREAM_STALL_TIMEOUT_MS` (optional) |
+| LM Studio | `--backend lm-studio` | `http://127.0.0.1:1234` | `LM_STUDIO_BASE_URL` (optional), `LM_STUDIO_API_KEY` (optional) |
+
+Shared runtime env:
+- `METRILLM_STREAM_STALL_TIMEOUT_MS` (optional): stream watchdog for all backends, default `30000`, `0` disables it
+
+LM Studio benchmark runs now use the native REST inference endpoint (`/api/v1/chat`) for both streaming and non-streaming generation.
+The previous OpenAI-compatible inference path (`/v1/chat/completions`) has been retired from MetriLLM so tok/s and TTFT can rely on native LM Studio stats when available.
+If a LM Studio response omits native token stats, MetriLLM still computes a score and shows the throughput as `estimated`.
 
 For very large models, tune timeout flags:
 - `--perf-warmup-timeout-ms` (default `300000`)
 - `--perf-prompt-timeout-ms` (default `120000`)
 - `--quality-timeout-ms` (default `120000`)
 - `--coding-timeout-ms` (default `240000`)
-- `--lm-studio-stream-stall-timeout-ms` (default `180000`, `0` disables stall timeout)
+- `--stream-stall-timeout-ms` (default `30000`, `0` disables stall timeout for any backend)
 
 Benchmark Profile v1 (applied to all benchmark prompts):
 - `temperature=0`

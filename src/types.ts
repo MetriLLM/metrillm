@@ -28,7 +28,7 @@ export interface OllamaModel {
   quantization?: string;
   family?: string;
   runtimeStatus?: string;
-  modelFormat?: string;
+  modelFormat?: string; // exact runtime-reported weight format, for example: gguf, mlx, safetensors, ggml
 }
 
 export interface OllamaRunningModel {
@@ -40,6 +40,7 @@ export interface OllamaRunningModel {
 // ── Performance metrics ──────────────────────────────────
 export interface PerformanceMetrics {
   tokensPerSecond: number;
+  tokensPerSecondEstimated?: boolean; // true when throughput falls back to heuristic token estimation
   firstChunkMs?: number; // ms — network/runtime latency until first streamed chunk
   ttft: number; // ms — time to first token
   loadTime: number; // ms — model load time
@@ -181,7 +182,7 @@ export interface RunMetadata {
   promptPackVersion: string;
   runtimeVersion: string;    // Ollama version (e.g. "0.5.12")
   runtimeBackend?: string;   // "ollama" | "lm-studio" | "mlx" | "llamacpp" | "vllm"
-  modelFormat?: string;      // "gguf" | "mlx" | "safetensors" | "onnx"
+  modelFormat?: string;      // exact runtime-reported format, for example: gguf, mlx, safetensors, onnx, ggml
   benchmarkProfile?: BenchmarkProfileMetadata;
   rawLogHash: string;        // SHA-256 hex digest of the serialised result (excl. this field)
 }

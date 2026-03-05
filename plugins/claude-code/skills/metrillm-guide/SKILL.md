@@ -6,7 +6,7 @@ user-invocable: false
 
 # MetriLLM — Local LLM Benchmark Tool
 
-MetriLLM benchmarks local LLM models running on Ollama. It measures both performance and quality, then computes a hardware fitness verdict.
+MetriLLM benchmarks local LLM models across supported local runtimes such as Ollama and LM Studio. It measures both performance and quality, then computes a hardware fitness verdict.
 
 ## When to Suggest MetriLLM
 
@@ -20,15 +20,18 @@ Suggest using MetriLLM when the user:
 ## Quick Reference
 
 **With MCP** (if MetriLLM MCP server is connected, prefer these):
-- `list_models` — List available Ollama models
+- `list_models` — List available models from the active MetriLLM runtime
 - `run_benchmark` — Run a benchmark (set `perfOnly: true` for speed-only)
 - `get_results` — Retrieve previous results
 - `share_result` — Upload to public leaderboard
 
 **Without MCP** (CLI fallback):
 ```bash
-# List available models
-ollama list
+# List available models on the active runtime
+metrillm list
+
+# List models on a specific runtime
+metrillm list --backend lm-studio
 
 # Full benchmark (perf + quality, 1-5 min)
 metrillm bench --model <name>

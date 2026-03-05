@@ -457,7 +457,7 @@ describe("computeFitness", () => {
     expect(fitness.warnings.some((w) => w.includes("CPU appears throttled"))).toBe(false);
   });
 
-  it("uses memoryHostPercent for memory score when available", () => {
+  it("ignores memoryHostPercent when computing the memory score", () => {
     const perfWithHost = makePerf({
       memoryPercent: 10,
       memoryHostPercent: 75,
@@ -467,9 +467,20 @@ describe("computeFitness", () => {
     });
     const fitnessWithHost = computeFitness(perfWithHost, null);
     const fitnessWithoutHost = computeFitness(perfWithoutHost, null);
-    expect(fitnessWithHost.performanceScore.memory).toBeLessThan(
+    expect(fitnessWithHost.performanceScore.memory).toBe(
       fitnessWithoutHost.performanceScore.memory
     );
+  });
+
+  it("does not lower the memory score when host memory is high but model delta is small", () => {
+    const perf = makePerf({
+      memoryPercent: 4,
+      memoryHostPercent: 97,
+    });
+    const baseline = computeFitness(makePerf({ memoryPercent: 4 }), null);
+    const fitness = computeFitness(perf, null);
+    expect(fitness.performanceScore.memory).toBe(baseline.performanceScore.memory);
+    expect(fitness.warnings.some((w) => w.includes("Host memory is already high"))).toBe(true);
   });
 
   it("adds stability warning when tpsStdDev / mean > 0.3", () => {
@@ -479,6 +490,15 @@ describe("computeFitness", () => {
     });
     const fitness = computeFitness(perf, null);
     expect(fitness.warnings.some((w) => w.includes("Token speed is unstable"))).toBe(true);
+  });
+
+  it("warns when token throughput is estimated", () => {
+    const perf = makePerf({
+      tokensPerSecond: 20,
+      tokensPerSecondEstimated: true,
+    });
+    const fitness = computeFitness(perf, null);
+    expect(fitness.warnings.some((w) => w.includes("estimated from LM Studio output"))).toBe(true);
   });
 
   it("does not add stability warning when tpsStdDev / mean <= 0.3", () => {

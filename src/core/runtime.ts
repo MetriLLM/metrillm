@@ -238,5 +238,20 @@ export function getRuntimeModelFormat(): string {
   return activeRuntime.modelFormat ?? "gguf";
 }
 
+export async function resolveRuntimeModel(model: string): Promise<OllamaModel | null> {
+  if (activeRuntime.name === "lm-studio") {
+    return lmStudioClient.resolveModel(model);
+  }
+
+  const knownModels = await activeRuntime.listModels();
+  const matchedModel = knownModels.find((candidate) => candidate.name === model);
+  if (matchedModel) return matchedModel;
+  return {
+    name: model,
+    size: 0,
+    modelFormat: activeRuntime.modelFormat ?? "gguf",
+  };
+}
+
 // Re-export types from ollama-client for convenience
 export type { GenerateResult, KeepAliveValue, StreamCallbacks } from "./ollama-client.js";

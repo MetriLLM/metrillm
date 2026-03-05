@@ -322,7 +322,7 @@ describe("printVerdict", () => {
 });
 
 describe("printSummaryTable", () => {
-  it("prints Global column and new verdict labels", async () => {
+  it("prints Global column and model-memory summary labels", async () => {
     const { printSummaryTable } = await import("../src/ui/results-table.js");
 
     const base: BenchResult = {
@@ -346,6 +346,7 @@ describe("printSummaryTable", () => {
       },
       performance: {
         tokensPerSecond: 40,
+        tokensPerSecondEstimated: true,
         ttft: 900,
         loadTime: 2000,
         totalTokens: 500,
@@ -395,7 +396,10 @@ describe("printSummaryTable", () => {
     expect(joined).toContain("Global");
     expect(joined).toContain("HW Fit");
     expect(joined).toContain("Quality");
+    expect(joined).toContain("Model RAM%");
     expect(joined).toContain("model-a");
     expect(joined).toContain("model-b");
+    expect(joined).toContain("35%");
+    expect(joined).toContain("~40.0");
   });
 });

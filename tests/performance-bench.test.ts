@@ -76,6 +76,7 @@ vi.mock("../src/ui/progress.js", () => ({
 }));
 
 import { runPerformanceBench } from "../src/benchmarks/performance.js";
+import * as lmStudioClient from "../src/core/lm-studio-client.js";
 import * as ollamaClient from "../src/core/ollama-client.js";
 import * as runtime from "../src/core/runtime.js";
 import * as hardware from "../src/core/hardware.js";
@@ -249,6 +250,101 @@ describe("runPerformanceBench", () => {
     expect(result.metrics.loadTime).toBe(0);
     expect(result.metrics.loadTimeAvailable).toBe(false);
     expect(result.metrics.firstChunkMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it("surfaces estimated throughput when LM Studio falls back to heuristic token counting", async () => {
+    runtime.setRuntimeByName("lm-studio");
+    const lmStudioGenerateStreamMock = vi.mocked(lmStudioClient.generateStream);
+    lmStudioGenerateStreamMock.mockImplementation(async (_model: string, _prompt: string, streamOpts?: { onFirstChunk?: () => void; onToken?: () => void }) => {
+      streamOpts?.onFirstChunk?.();
+      streamOpts?.onToken?.();
+      return {
+        response: "test response",
+        loadDuration: 0,
+        evalDuration: 1_000_000_000,
+        evalCount: 100,
+        promptEvalCount: 50,
+        evalCountEstimated: true,
+      };
+    });
+
+    const result = await runPerformanceBench("test-model", {
+      failOnPromptError: false,
+      minSuccessfulPrompts: 3,
+    });
+
+    expect(result.metrics.tokensPerSecond).toBeGreaterThan(0);
+    expect(result.metrics.tokensPerSecondEstimated).toBe(true);
+  });
+
+  it("uses host memory delta for LM Studio even when runtime reports a running size", async () => {
+    runtime.setRuntimeByName("lm-studio");
+    memoryPlan = [
+      { usedGB: 1, percent: 10, totalGB: 10 },
+      { usedGB: 4, percent: 40, totalGB: 10 },
+    ];
+
+    const lmStudioGenerateStreamMock = vi.mocked(lmStudioClient.generateStream);
+    const lmStudioListRunningModelsMock = vi.mocked(lmStudioClient.listRunningModels);
+
+    lmStudioGenerateStreamMock.mockImplementation(async (_model: string, _prompt: string, streamOpts?: { onFirstChunk?: () => void; onToken?: () => void }) => {
+      streamOpts?.onFirstChunk?.();
+      streamOpts?.onToken?.();
+      return {
+        response: "test response",
+        loadDuration: 0,
+        evalDuration: 1_000_000_000,
+        evalCount: 100,
+        promptEvalCount: 50,
+      };
+    });
+    lmStudioListRunningModelsMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ name: "test-model", size: 8 * 1024 ** 3, vramUsed: 0 }]);
+
+    const result = await runPerformanceBench("test-model", {
+      failOnPromptError: false,
+      minSuccessfulPrompts: 3,
+    });
+
+    expect(result.metrics.memoryUsedGB).toBe(3);
+    expect(result.metrics.memoryPercent).toBe(30);
+    expect(result.metrics.memoryFootprintAvailable).toBe(true);
+  });
+
+  it("marks LM Studio memory footprint unavailable when model was already loaded", async () => {
+    runtime.setRuntimeByName("lm-studio");
+    memoryPlan = [
+      { usedGB: 4, percent: 40, totalGB: 10 },
+      { usedGB: 4, percent: 40, totalGB: 10 },
+    ];
+
+    const lmStudioGenerateStreamMock = vi.mocked(lmStudioClient.generateStream);
+    const lmStudioListRunningModelsMock = vi.mocked(lmStudioClient.listRunningModels);
+
+    lmStudioGenerateStreamMock.mockImplementation(async (_model: string, _prompt: string, streamOpts?: { onFirstChunk?: () => void; onToken?: () => void }) => {
+      streamOpts?.onFirstChunk?.();
+      streamOpts?.onToken?.();
+      return {
+        response: "test response",
+        loadDuration: 0,
+        evalDuration: 1_000_000_000,
+        evalCount: 100,
+        promptEvalCount: 50,
+      };
+    });
+    lmStudioListRunningModelsMock
+      .mockResolvedValueOnce([{ name: "test-model", size: 8 * 1024 ** 3, vramUsed: 0 }])
+      .mockResolvedValueOnce([{ name: "test-model", size: 8 * 1024 ** 3, vramUsed: 0 }]);
+
+    const result = await runPerformanceBench("test-model", {
+      failOnPromptError: false,
+      minSuccessfulPrompts: 3,
+    });
+
+    expect(result.metrics.memoryUsedGB).toBe(0);
+    expect(result.metrics.memoryPercent).toBe(0);
+    expect(result.metrics.memoryFootprintAvailable).toBe(false);
   });
 
   it("continues when optional environment probes fail", async () => {

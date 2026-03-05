@@ -132,9 +132,31 @@ describe("exportBenchResults", () => {
     expect(content).toContain("| Quant |");
     expect(content).toContain("| Machine |");
     expect(content).toContain("| Flags |");
+    expect(content).toContain("| Model RAM% |");
     expect(content).toContain("llama3.2:3b | Q4_0 |");
     expect(content).toContain("GOOD");
     expect(content).toContain("Global");
+  });
+
+  it("exports Markdown summary with model memory and estimated throughput marker", async () => {
+    const dir = await makeTmpDir("metrillm-export-md-estimated-");
+    const result: BenchResult = {
+      ...sampleResult(),
+      performance: {
+        ...sampleResult().performance,
+        tokensPerSecondEstimated: true,
+        memoryPercent: 31.9,
+        memoryHostPercent: 88.2,
+      },
+    };
+
+    const path = await exportBenchResults([result], "md", dir);
+    const content = await readFile(path, "utf8");
+
+    expect(content).toContain("~42.5");
+    expect(content).toContain("31.9%");
+    expect(content).toContain("TPS~");
+    expect(content).not.toContain("88.2%");
   });
 
   it("keeps markdown summary table valid with multiple models", async () => {

@@ -13,7 +13,7 @@ Run an MetriLLM benchmark on a locally available model. This skill handles setup
 
 Before running any benchmark, verify the environment:
 
-1. **Ollama running**: Run `ollama list` to check. If it fails, tell the user to start Ollama first.
+1. **Runtime reachable**: Run `metrillm list` to check the active backend. If needed, use `metrillm list --backend <name>` for a specific runtime and tell the user to start that runtime first.
 2. **MetriLLM available**: If the MetriLLM MCP server is connected, use the MCP tools directly. Otherwise, check if `metrillm` works.
 
 ## Workflow
@@ -23,7 +23,7 @@ Before running any benchmark, verify the environment:
 If `$ARGUMENTS` is provided, use it as the model name. Otherwise:
 
 - **With MCP**: Use the `list_models` tool to list available models.
-- **Without MCP**: Run `ollama list`.
+- **Without MCP**: Run `metrillm list` (or `metrillm list --backend <name>`).
 
 Help the user pick a model if they're unsure. Smaller models (1-3B) benchmark faster (~30s). Larger models (7B+) take 2-5 minutes.
 

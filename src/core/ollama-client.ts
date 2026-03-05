@@ -7,6 +7,7 @@ const client = new Ollama();
 const DEFAULT_OLLAMA_HOST = "http://127.0.0.1:11434";
 const OLLAMA_INIT_TIMEOUT_MS = 120_000;
 const DEFAULT_STREAM_STALL_TIMEOUT_MS = 30_000;
+const SHARED_STREAM_STALL_TIMEOUT_ENV = "METRILLM_STREAM_STALL_TIMEOUT_MS";
 
 function getOllamaBaseUrl(): string {
   const configured = process.env.OLLAMA_HOST?.trim();
@@ -66,6 +67,7 @@ export interface GenerateResult {
   promptEvalDuration: number; // ns
   evalCount: number;
   evalDuration: number; // ns
+  evalCountEstimated?: boolean;
 }
 
 export type KeepAliveValue = string | number;
@@ -111,7 +113,7 @@ function resolveStreamStallTimeoutMs(override?: number): number | undefined {
     return override === 0 ? undefined : Math.trunc(override);
   }
 
-  const configured = process.env.OLLAMA_STREAM_STALL_TIMEOUT_MS?.trim();
+  const configured = process.env[SHARED_STREAM_STALL_TIMEOUT_ENV]?.trim();
   if (!configured) return DEFAULT_STREAM_STALL_TIMEOUT_MS;
   const parsed = parseNonNegativeInt(configured);
   if (parsed === null) return DEFAULT_STREAM_STALL_TIMEOUT_MS;

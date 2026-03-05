@@ -160,8 +160,8 @@ program
   .option("--quality-timeout-ms <ms>", "Per-question timeout for quality benchmarks (default: 120000)")
   .option("--coding-timeout-ms <ms>", "Per-question timeout for coding benchmark (default: 240000)")
   .option(
-    "--lm-studio-stream-stall-timeout-ms <ms>",
-    "Abort LM Studio stream if no chunk is received for <ms> (default: 180000, 0 disables)"
+    "--stream-stall-timeout-ms <ms>",
+    "Abort any runtime stream if no chunk is received for <ms> (default: 30000, 0 disables)"
   )
   .option("--perf-strict", "Fail immediately if any performance prompt fails")
   .option("--share", "Share results on the public leaderboard (skip confirmation)")
@@ -243,16 +243,16 @@ program
       return;
     }
 
-    const lmStudioStreamStallTimeoutMs =
-      opts.lmStudioStreamStallTimeoutMs !== undefined
+    const streamStallTimeoutMs =
+      opts.streamStallTimeoutMs !== undefined
         ? parseNonNegativeIntegerOption(
-          opts.lmStudioStreamStallTimeoutMs,
-          "--lm-studio-stream-stall-timeout-ms"
+          opts.streamStallTimeoutMs,
+          "--stream-stall-timeout-ms"
         )
         : undefined;
     if (
-      opts.lmStudioStreamStallTimeoutMs !== undefined &&
-      lmStudioStreamStallTimeoutMs === null
+      opts.streamStallTimeoutMs !== undefined &&
+      streamStallTimeoutMs === null
     ) {
       process.exitCode = 1;
       return;
@@ -293,7 +293,7 @@ program
       perfMinSuccessfulPrompts: perfMinSuccessfulPrompts ?? undefined,
       qualityTimeoutMs: qualityTimeoutMs ?? undefined,
       codingTimeoutMs: codingTimeoutMs ?? undefined,
-      lmStudioStreamStallTimeoutMs: lmStudioStreamStallTimeoutMs ?? undefined,
+      streamStallTimeoutMs: streamStallTimeoutMs ?? undefined,
       perfStrict: Boolean(opts.perfStrict),
       share: shareOption,
       ciNoMenu: hasCiNoMenuFlag(process.argv.slice(2)),

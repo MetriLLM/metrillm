@@ -76,6 +76,14 @@ export interface UploadBenchOptions {
   submitterEmail?: string;
 }
 
+function resolveUploadedModelFormat(result: BenchResult): string {
+  if (result.metadata.modelFormat?.trim()) return result.metadata.modelFormat;
+
+  const runtimeBackend = result.metadata.runtimeBackend ?? "ollama";
+  if (runtimeBackend === "ollama") return "gguf";
+  return "unknown";
+}
+
 export async function uploadBenchResult(
   result: BenchResult,
   options: UploadBenchOptions = {}
@@ -92,7 +100,7 @@ export async function uploadBenchResult(
     thinking_detected: result.modelInfo?.thinkingDetected ?? null,
     tokens_per_second: result.performance.tokensPerSecond,
     ttft_ms: result.performance.ttft,
-    memory_percent: result.performance.memoryHostPercent ?? result.performance.memoryPercent,
+    memory_percent: result.performance.memoryPercent,
     thinking_tokens_estimate: result.performance.thinkingTokensEstimate ?? null,
     verdict: result.fitness.verdict,
     global_score: result.fitness.globalScore,
@@ -109,7 +117,7 @@ export async function uploadBenchResult(
     benchmark_spec_version: result.metadata.benchmarkSpecVersion,
     runtime_version: result.metadata.runtimeVersion,
     runtime_backend: result.metadata.runtimeBackend ?? "ollama",
-    model_format: result.metadata.modelFormat ?? "gguf",
+    model_format: resolveUploadedModelFormat(result),
     raw_log_hash: result.metadata.rawLogHash,
     result: result,
   };

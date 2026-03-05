@@ -36,6 +36,7 @@ describe("ollama-client sampling fallback", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    delete process.env.METRILLM_STREAM_STALL_TIMEOUT_MS;
   });
 
   it("retries without top_p/seed when backend rejects sampling options", async () => {
@@ -67,6 +68,23 @@ describe("ollama-client sampling fallback", () => {
 
       expect(
         setTimeoutSpy.mock.calls.some((call) => call[1] === 1234)
+      ).toBe(true);
+    } finally {
+      setTimeoutSpy.mockRestore();
+    }
+  });
+
+  it("reads the shared stream stall timeout environment override", async () => {
+    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+    process.env.METRILLM_STREAM_STALL_TIMEOUT_MS = "2345";
+    try {
+      generateMock.mockResolvedValueOnce(makeStreamChunks());
+
+      const client = await import("../src/core/ollama-client.js");
+      await client.generateStream("model-a", "prompt");
+
+      expect(
+        setTimeoutSpy.mock.calls.some((call) => call[1] === 2345)
       ).toBe(true);
     } finally {
       setTimeoutSpy.mockRestore();

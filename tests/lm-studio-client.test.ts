@@ -10,6 +10,49 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
+function nativeChatResponse(
+  response: string,
+  options?: {
+    reasoning?: string;
+    inputTokens?: number;
+    outputTokens?: number;
+    tokensPerSecond?: number;
+    ttftSeconds?: number;
+    loadSeconds?: number;
+  }
+): Response {
+  return jsonResponse({
+    output: [
+      ...(options?.reasoning ? [{ type: "reasoning", content: options.reasoning }] : []),
+      { type: "message", content: response },
+    ],
+    stats: {
+      input_tokens: options?.inputTokens ?? 3,
+      total_output_tokens: options?.outputTokens ?? 1,
+      tokens_per_second: options?.tokensPerSecond ?? 5,
+      time_to_first_token_seconds: options?.ttftSeconds ?? 0.1,
+      model_load_time_seconds: options?.loadSeconds ?? 0,
+    },
+  });
+}
+
+function nativeStreamResponse(events: unknown[]): Response {
+  const encoder = new TextEncoder();
+  const sse = events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join("");
+  return new Response(
+    new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(sse));
+        controller.close();
+      },
+    }),
+    {
+      status: 200,
+      headers: { "Content-Type": "text/event-stream" },
+    }
+  );
+}
+
 function requestPath(input: RequestInfo | URL): string {
   if (input instanceof URL) return input.pathname;
   if (typeof input === "string") return new URL(input).pathname;
@@ -24,6 +67,7 @@ describe("lm-studio-client metadata mapping", () => {
     vi.resetModules();
     delete process.env.LM_STUDIO_BASE_URL;
     delete process.env.LM_STUDIO_API_KEY;
+    delete process.env.METRILLM_STREAM_STALL_TIMEOUT_MS;
     const isolatedRoot = path.join(os.tmpdir(), `lmstudio-empty-${Date.now()}-${Math.random().toString(16).slice(2)}`);
     process.env.LM_STUDIO_HOME_DIR = isolatedRoot;
     process.env.LM_STUDIO_MODELS_DIR = path.join(isolatedRoot, "models");
@@ -41,7 +85,7 @@ describe("lm-studio-client metadata mapping", () => {
   it("enriches model metadata from /api/v0/models", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const path = requestPath(input);
-      if (path === "/v1/models") {
+      if (path === "/api/v1/models") {
         return jsonResponse({
           object: "list",
           data: [{ id: "openai/gpt-oss-20b" }, { id: "qwen/qwen3-coder-30b" }],
@@ -88,7 +132,7 @@ describe("lm-studio-client metadata mapping", () => {
   it("falls back gracefully when /api/v0/models is unavailable", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const path = requestPath(input);
-      if (path === "/v1/models") {
+      if (path === "/api/v1/models") {
         return jsonResponse({
           object: "list",
           data: [{ id: "qwen2.5:7b" }],
@@ -184,7 +228,7 @@ describe("lm-studio-client metadata mapping", () => {
 
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const reqPath = requestPath(input);
-      if (reqPath === "/v1/models") {
+      if (reqPath === "/api/v1/models") {
         return jsonResponse({
           object: "list",
           data: [{ id: "mistralai/magistral-small-2509" }],
@@ -224,6 +268,67 @@ describe("lm-studio-client metadata mapping", () => {
     ]);
   });
 
+  it("resolves exact model formats beyond gguf/mlx for a benchmarked LM Studio model", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const reqPath = requestPath(input);
+      if (reqPath === "/api/v0/models") {
+        return jsonResponse({
+          object: "list",
+          data: [
+            {
+              id: "some-publisher/custom-model",
+              compatibility_type: "gglm",
+              quantization: "4bit",
+              arch: "custom",
+            },
+          ],
+        });
+      }
+      throw new Error(`Unexpected path: ${reqPath}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("../src/core/lm-studio-client.js");
+    const model = await client.resolveModel("some-publisher/custom-model");
+
+    expect(model).toMatchObject({
+      name: "some-publisher/custom-model",
+      modelFormat: "gglm",
+      quantization: "4bit",
+      family: "custom",
+    });
+  });
+
+  it("does not invent a model format when LM Studio omits compatibility_type", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const reqPath = requestPath(input);
+      if (reqPath === "/api/v0/models") {
+        return jsonResponse({
+          object: "list",
+          data: [
+            {
+              id: "some-publisher/custom-model-gguf",
+              quantization: "4bit",
+              arch: "custom",
+            },
+          ],
+        });
+      }
+      throw new Error(`Unexpected path: ${reqPath}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("../src/core/lm-studio-client.js");
+    const model = await client.resolveModel("some-publisher/custom-model-gguf");
+
+    expect(model).toMatchObject({
+      name: "some-publisher/custom-model-gguf",
+      modelFormat: undefined,
+      quantization: "4bit",
+      family: "custom",
+    });
+  });
+
   it("falls back to bundled publisher directory size when hub metadata is missing", async () => {
     tempDir = await mkdtemp(path.join(os.tmpdir(), "lmstudio-bundled-"));
     const modelsDir = path.join(tempDir, "models");
@@ -242,7 +347,7 @@ describe("lm-studio-client metadata mapping", () => {
 
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const reqPath = requestPath(input);
-      if (reqPath === "/v1/models") {
+      if (reqPath === "/api/v1/models") {
         return jsonResponse({
           object: "list",
           data: [{ id: "text-embedding-nomic-embed-text-v1.5" }],
@@ -301,7 +406,7 @@ describe("lm-studio-client metadata mapping", () => {
 
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const reqPath = requestPath(input);
-      if (reqPath === "/v1/models") {
+      if (reqPath === "/api/v1/models") {
         return jsonResponse({ object: "list", data: [] });
       }
       throw new Error(`Unexpected path: ${reqPath}`);
@@ -328,13 +433,11 @@ describe("lm-studio-client thinking toggle passthrough", () => {
 
   it("sends thinking config when generate() receives think=true/false", async () => {
     const capturedBodies: unknown[] = [];
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const rawBody = typeof init?.body === "string" ? init.body : "{}";
       capturedBodies.push(JSON.parse(rawBody));
-      return jsonResponse({
-        choices: [{ message: { content: "OK" } }],
-        usage: { prompt_tokens: 3, completion_tokens: 1 },
-      });
+      expect(requestPath(input)).toBe("/api/v1/chat");
+      return nativeChatResponse("OK");
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -346,37 +449,23 @@ describe("lm-studio-client thinking toggle passthrough", () => {
 
     expect(capturedBodies).toHaveLength(3);
     expect(capturedBodies[0]).toMatchObject({
-      include_reasoning: true,
-      reasoning_effort: "high",
-      reasoning: { effort: "high" },
+      model: "model-a",
+      input: "prompt",
+      reasoning: "high",
     });
     expect(capturedBodies[1]).toMatchObject({
-      include_reasoning: false,
-      reasoning_effort: "low",
-      reasoning: { effort: "low" },
+      model: "model-a",
+      input: "prompt",
+      system_prompt: expect.any(String),
     });
-    expect(capturedBodies[1]).toMatchObject({
-      messages: [
-        {
-          role: "system",
-        },
-        {
-          role: "user",
-          content: "prompt",
-        },
-      ],
-    });
-    expect((capturedBodies[1] as { messages?: Array<{ content?: string }> }).messages?.[0]?.content).toMatch(
+    expect((capturedBodies[1] as { system_prompt?: string }).system_prompt).toMatch(
       /non-thinking mode/i
     );
-    expect(capturedBodies[2]).not.toHaveProperty("include_reasoning");
-    expect(capturedBodies[2]).not.toHaveProperty("reasoning_effort");
     expect(capturedBodies[2]).not.toHaveProperty("reasoning");
-    expect(capturedBodies[0]).toMatchObject({
-      messages: [{ role: "user", content: "prompt" }],
-    });
+    expect(capturedBodies[2]).not.toHaveProperty("system_prompt");
     expect(capturedBodies[2]).toMatchObject({
-      messages: [{ role: "user", content: "prompt" }],
+      model: "model-a",
+      input: "prompt",
     });
   });
 
@@ -385,10 +474,7 @@ describe("lm-studio-client thinking toggle passthrough", () => {
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const rawBody = typeof init?.body === "string" ? init.body : "{}";
       capturedBody = JSON.parse(rawBody) as Record<string, unknown>;
-      return jsonResponse({
-        choices: [{ message: { content: "OK" } }],
-        usage: { prompt_tokens: 3, completion_tokens: 1 },
-      });
+      return nativeChatResponse("OK");
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -410,10 +496,7 @@ describe("lm-studio-client thinking toggle passthrough", () => {
       if (capturedBodies.length === 1) {
         return jsonResponse({ error: "Unrecognized key(s) in object: 'seed'" }, 400);
       }
-      return jsonResponse({
-        choices: [{ message: { content: "OK" } }],
-        usage: { prompt_tokens: 3, completion_tokens: 1 },
-      });
+      return nativeChatResponse("OK");
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -429,29 +512,29 @@ describe("lm-studio-client thinking toggle passthrough", () => {
 
   it("retries stream request without top_p/seed when backend rejects sampling options", async () => {
     const capturedBodies: Record<string, unknown>[] = [];
-    const encoder = new TextEncoder();
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const rawBody = typeof init?.body === "string" ? init.body : "{}";
       const parsed = JSON.parse(rawBody) as Record<string, unknown>;
       capturedBodies.push(parsed);
+      expect(requestPath(input)).toBe("/api/v1/chat");
       if (capturedBodies.length === 1) {
         return jsonResponse({ error: "Unexpected key 'top_p'" }, 400);
       }
-      const sse =
-        "data: {\"choices\":[{\"delta\":{\"content\":\"OK\"}}]}\n\n" +
-        "data: [DONE]\n\n";
-      return new Response(
-        new ReadableStream({
-          start(controller) {
-            controller.enqueue(encoder.encode(sse));
-            controller.close();
-          },
-        }),
+      return nativeStreamResponse([
+        { type: "message.delta", delta: "OK" },
         {
-          status: 200,
-          headers: { "Content-Type": "text/event-stream" },
-        }
-      );
+          type: "chat.end",
+          result: {
+            output: [{ type: "message", content: "OK" }],
+            stats: {
+              input_tokens: 3,
+              total_output_tokens: 1,
+              tokens_per_second: 10,
+              time_to_first_token_seconds: 0.1,
+            },
+          },
+        },
+      ]);
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -516,27 +599,26 @@ describe("lm-studio-client thinking toggle passthrough", () => {
 
   it("sends thinking config when generateStream() receives think=false", async () => {
     let capturedBody: Record<string, unknown> | null = null;
-    const encoder = new TextEncoder();
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const rawBody = typeof init?.body === "string" ? init.body : "{}";
       capturedBody = JSON.parse(rawBody) as Record<string, unknown>;
+      expect(requestPath(input)).toBe("/api/v1/chat");
 
-      const sse =
-        "data: {\"choices\":[{\"delta\":{\"content\":\"OK\"}}]}\n\n" +
-        "data: [DONE]\n\n";
-
-      return new Response(
-        new ReadableStream({
-          start(controller) {
-            controller.enqueue(encoder.encode(sse));
-            controller.close();
-          },
-        }),
+      return nativeStreamResponse([
+        { type: "message.delta", delta: "OK" },
         {
-          status: 200,
-          headers: { "Content-Type": "text/event-stream" },
-        }
-      );
+          type: "chat.end",
+          result: {
+            output: [{ type: "message", content: "OK" }],
+            stats: {
+              input_tokens: 3,
+              total_output_tokens: 1,
+              tokens_per_second: 10,
+              time_to_first_token_seconds: 0.1,
+            },
+          },
+        },
+      ]);
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -546,43 +628,21 @@ describe("lm-studio-client thinking toggle passthrough", () => {
     expect(result.response).toBe("OK");
     expect(capturedBody).toMatchObject({
       stream: true,
-      include_reasoning: false,
-      reasoning_effort: "low",
-      reasoning: { effort: "low" },
-      messages: [
-        {
-          role: "system",
-        },
-        {
-          role: "user",
-          content: "prompt",
-        },
-      ],
+      model: "model-a",
+      input: "prompt",
+      system_prompt: expect.any(String),
     });
-    expect((capturedBody?.messages as Array<{ content?: string }>)?.[0]?.content).toMatch(
+    expect(capturedBody?.system_prompt).toMatch(
       /do not output internal reasoning/i
     );
   });
 
-  it("falls back to estimated completion token count when usage is missing in stream", async () => {
-    const encoder = new TextEncoder();
+  it("falls back to estimated completion token count when native stats are missing in stream", async () => {
     const fetchMock = vi.fn(async () => {
-      const sse =
-        "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"reasoning token\"}}]}\n\n" +
-        "data: {\"choices\":[{\"delta\":{\"content\":\"final answer\"}}]}\n\n" +
-        "data: [DONE]\n\n";
-      return new Response(
-        new ReadableStream({
-          start(controller) {
-            controller.enqueue(encoder.encode(sse));
-            controller.close();
-          },
-        }),
-        {
-          status: 200,
-          headers: { "Content-Type": "text/event-stream" },
-        }
-      );
+      return nativeStreamResponse([
+        { type: "reasoning.delta", delta: "reasoning token" },
+        { type: "message.delta", delta: "final answer" },
+      ]);
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -590,26 +650,81 @@ describe("lm-studio-client thinking toggle passthrough", () => {
     const result = await client.generateStream("model-a", "prompt");
 
     expect(result.evalCount).toBeGreaterThanOrEqual(4);
+    expect(result.evalCountEstimated).toBe(true);
   });
 
-  it("uses robust fallback token estimation for non-whitespace scripts when usage is missing", async () => {
-    const encoder = new TextEncoder();
-    const fetchMock = vi.fn(async () => {
-      const sse =
-        "data: {\"choices\":[{\"delta\":{\"content\":\"你好世界你好世界\"}}]}\n\n" +
-        "data: [DONE]\n\n";
-      return new Response(
-        new ReadableStream({
-          start(controller) {
-            controller.enqueue(encoder.encode(sse));
-            controller.close();
-          },
-        }),
+  it("uses the shared 30s stall timeout by default for streaming", async () => {
+    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+    const fetchMock = vi.fn(async () =>
+      nativeStreamResponse([
+        { type: "message.delta", delta: "OK" },
         {
-          status: 200,
-          headers: { "Content-Type": "text/event-stream" },
-        }
-      );
+          type: "chat.end",
+          result: {
+            output: [{ type: "message", content: "OK" }],
+            stats: {
+              input_tokens: 3,
+              total_output_tokens: 1,
+              tokens_per_second: 10,
+              time_to_first_token_seconds: 0.1,
+            },
+          },
+        },
+      ])
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const client = await import("../src/core/lm-studio-client.js");
+      await client.generateStream("model-a", "prompt");
+
+      expect(
+        setTimeoutSpy.mock.calls.some((call) => call[1] === 30_000)
+      ).toBe(true);
+    } finally {
+      setTimeoutSpy.mockRestore();
+    }
+  });
+
+  it("reads the shared stream stall timeout environment override", async () => {
+    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+    process.env.METRILLM_STREAM_STALL_TIMEOUT_MS = "2345";
+    const fetchMock = vi.fn(async () =>
+      nativeStreamResponse([
+        { type: "message.delta", delta: "OK" },
+        {
+          type: "chat.end",
+          result: {
+            output: [{ type: "message", content: "OK" }],
+            stats: {
+              input_tokens: 3,
+              total_output_tokens: 1,
+              tokens_per_second: 10,
+              time_to_first_token_seconds: 0.1,
+            },
+          },
+        },
+      ])
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const client = await import("../src/core/lm-studio-client.js");
+      await client.generateStream("model-a", "prompt");
+
+      expect(
+        setTimeoutSpy.mock.calls.some((call) => call[1] === 2345)
+      ).toBe(true);
+    } finally {
+      setTimeoutSpy.mockRestore();
+    }
+  });
+
+  it("uses robust fallback token estimation for non-whitespace scripts when native stats are missing", async () => {
+    const fetchMock = vi.fn(async () => {
+      return nativeStreamResponse([
+        { type: "message.delta", delta: "你好世界你好世界" },
+      ]);
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -620,7 +735,6 @@ describe("lm-studio-client thinking toggle passthrough", () => {
   });
 
   it("measures evalDuration across generated tokens (reasoning and content)", async () => {
-    const encoder = new TextEncoder();
     let now = 0;
     const dateNowSpy = vi.spyOn(Date, "now").mockImplementation(() => {
       now += 100;
@@ -628,22 +742,25 @@ describe("lm-studio-client thinking toggle passthrough", () => {
     });
 
     const fetchMock = vi.fn(async () => {
-      const sse =
-        "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"plan\"}}]}\n\n" +
-        "data: {\"choices\":[{\"delta\":{\"content\":\"ok\"}}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":5}}\n\n" +
-        "data: [DONE]\n\n";
-      return new Response(
-        new ReadableStream({
-          start(controller) {
-            controller.enqueue(encoder.encode(sse));
-            controller.close();
-          },
-        }),
+      return nativeStreamResponse([
+        { type: "reasoning.delta", delta: "plan" },
+        { type: "message.delta", delta: "ok" },
         {
-          status: 200,
-          headers: { "Content-Type": "text/event-stream" },
-        }
-      );
+          type: "chat.end",
+          result: {
+            output: [
+              { type: "reasoning", content: "plan" },
+              { type: "message", content: "ok" },
+            ],
+            stats: {
+              input_tokens: 3,
+              total_output_tokens: 5,
+              tokens_per_second: 50,
+              time_to_first_token_seconds: 0.1,
+            },
+          },
+        },
+      ]);
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -660,10 +777,9 @@ describe("lm-studio-client thinking toggle passthrough", () => {
   });
 
   it("fails fast when non-thinking mode still returns plain-text thinking traces", async () => {
-    const fetchMock = vi.fn(async () => jsonResponse({
-      choices: [{ message: { content: "Thinking Process:\n1. analyze\n2. answer" } }],
-      usage: { prompt_tokens: 10, completion_tokens: 20 },
-    }));
+    const fetchMock = vi.fn(async () =>
+      nativeChatResponse("Thinking Process:\n1. analyze\n2. answer")
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const client = await import("../src/core/lm-studio-client.js");
@@ -677,10 +793,9 @@ describe("lm-studio-client thinking toggle passthrough", () => {
   });
 
   it("fails fast when non-thinking mode still returns [THINK]...[/THINK] traces", async () => {
-    const fetchMock = vi.fn(async () => jsonResponse({
-      choices: [{ message: { content: "[THINK]I should reason first[/THINK]Final answer" } }],
-      usage: { prompt_tokens: 10, completion_tokens: 20 },
-    }));
+    const fetchMock = vi.fn(async () =>
+      nativeChatResponse("[THINK]I should reason first[/THINK]Final answer")
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const client = await import("../src/core/lm-studio-client.js");
@@ -691,10 +806,9 @@ describe("lm-studio-client thinking toggle passthrough", () => {
   });
 
   it("does not fail on generic 'Reasoning Process' phrasing when no thinking field is present", async () => {
-    const fetchMock = vi.fn(async () => jsonResponse({
-      choices: [{ message: { content: "Reasoning Process: pick option A because it is simpler." } }],
-      usage: { prompt_tokens: 10, completion_tokens: 20 },
-    }));
+    const fetchMock = vi.fn(async () =>
+      nativeChatResponse("Reasoning Process: pick option A because it is simpler.")
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const client = await import("../src/core/lm-studio-client.js");

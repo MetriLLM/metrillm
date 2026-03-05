@@ -39,7 +39,7 @@ Or install from the Cursor marketplace when available.
 ### Use MCP tools directly
 
 The MCP server exposes 4 tools:
-- `list_models` — List available Ollama models
+- `list_models` — List available models from the active MetriLLM runtime
 - `run_benchmark` — Run a benchmark (with optional `perfOnly` flag)
 - `get_results` — Retrieve previous results (with optional model filter)
 - `share_result` — Upload a result to the public leaderboard
@@ -50,8 +50,8 @@ The `metrillm-model-selection` rule will suggest benchmarking when you discuss l
 
 ## Requirements
 
-- [Ollama](https://ollama.ai) installed and running
-- At least one model pulled (`ollama pull llama3.2:3b`)
+- A supported local runtime installed and running, such as [Ollama](https://ollama.ai) or LM Studio
+- At least one local model available in that runtime
 - Node.js >= 20
 
 ## Links

@@ -3,7 +3,7 @@
 MetriLLM supports multiple LLM inference backends through the `LLMRuntime` interface. Two dimensions affect benchmark scores:
 
 - **Runtime backend** — the inference engine (Ollama, LM Studio, mlx-lm, llama.cpp, vLLM)
-- **Model format** — the weight format (GGUF, MLX, Safetensors, ONNX)
+- **Model format** — the weight format reported by the runtime (for example: GGUF, MLX, Safetensors, ONNX, GGML)
 
 These are independent: a single backend (e.g. LM Studio) can serve both GGUF and MLX models.
 
@@ -12,12 +12,24 @@ These are independent: a single backend (e.g. LM Studio) can serve both GGUF and
 | Backend    | Format(s)          | API             | Default Port | Detection       |
 |------------|--------------------|-----------------|--------------|-----------------|
 | Ollama     | GGUF               | REST `/api`     | 11434        | `ollama serve`  |
-| LM Studio  | GGUF, MLX          | OpenAI-compat   | 1234         | `/v1/models`    |
+| LM Studio  | Runtime-dependent  | Native REST     | 1234         | `/api/v1/models`|
 | mlx-lm     | MLX                | OpenAI-compat   | 8080         | `/v1/models`    |
 | llama.cpp  | GGUF               | REST `/v1`      | 8080         | `/health`       |
 | vLLM       | Safetensors, GGUF  | OpenAI-compat   | 8000         | `/v1/models`    |
 
+LM Studio notes:
+- MetriLLM now uses LM Studio's native REST API, including `/api/v1/chat` for inference and `/api/v1/models` for primary model discovery.
+- The previous OpenAI-compatible inference endpoint `/v1/chat/completions` has been removed from the LM Studio runtime adapter.
+- Model discovery still uses LM Studio model listing endpoints because they expose inventory/runtime metadata needed by the CLI.
+
+Shared stream stall timeout:
+- MetriLLM uses one cross-backend stream watchdog flag: `--stream-stall-timeout-ms`.
+- The matching environment variable is `METRILLM_STREAM_STALL_TIMEOUT_MS`.
+- Default is `30000` ms for both Ollama and LM Studio; `0` disables the watchdog.
+
 ## Model Formats
+
+Common examples MetriLLM may encounter:
 
 | Format      | Extension      | Quantization    | Typical Use                  |
 |-------------|----------------|-----------------|------------------------------|
@@ -25,6 +37,9 @@ These are independent: a single backend (e.g. LM Studio) can serve both GGUF and
 | MLX         | `.safetensors` | 4-bit, 8-bit   | Apple Silicon native (MLX)   |
 | Safetensors | `.safetensors` | FP16, BF16      | GPU inference (vLLM, TGI)    |
 | ONNX        | `.onnx`        | INT8, FP16      | Cross-platform optimized     |
+| GGML        | varies         | legacy / mixed  | Older llama-family runtimes  |
+
+MetriLLM stores the exact runtime-reported format when available. If the backend cannot provide a trustworthy format, the result is stored as `unknown` rather than guessed.
 
 ## Architecture
 
@@ -33,7 +48,7 @@ These are independent: a single backend (e.g. LM Studio) can serve both GGUF and
 ```typescript
 export interface LLMRuntime {
   name: string;              // "ollama" | "lm-studio" | "mlx" | "llamacpp" | "vllm"
-  modelFormat?: string;      // "gguf" | "mlx" | "safetensors" | "onnx" (default: "gguf")
+  modelFormat?: string;      // runtime default format hint (not the exact per-model saved format)
   generate(...): Promise<GenerateResult>;
   generateStream(...): Promise<GenerateResult>;
   listModels(): Promise<OllamaModel[]>;
@@ -56,7 +71,7 @@ setRuntime(new LMStudioRuntime());
 
 // Access backend info:
 getRuntimeName();        // "lm-studio"
-getRuntimeModelFormat(); // "gguf"
+getRuntimeModelFormat(); // runtime default hint, e.g. "gguf"
 ```
 
 ## Database Schema
@@ -83,7 +98,7 @@ These are populated from `RunMetadata.runtimeBackend` and `RunMetadata.modelForm
 
 4. **Add CLI option** — `--backend <name>` option in `src/commands/bench.ts`
 
-5. **Populate metadata** — `getRuntimeName()` and `getRuntimeModelFormat()` are auto-populated via the runtime proxy
+5. **Populate metadata** — `getRuntimeName()` is auto-populated via the runtime proxy; exact `modelFormat` should come from per-model runtime metadata when available
 
 6. **Add tests** — Unit tests for the new runtime, integration test with mocked API
 

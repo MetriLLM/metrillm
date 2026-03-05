@@ -12,6 +12,7 @@ const {
   lmStudioGenerateMock,
   lmStudioGenerateStreamMock,
   lmStudioListModelsMock,
+  lmStudioResolveModelMock,
   lmStudioListRunningModelsMock,
   getLMStudioVersionMock,
   lmStudioUnloadModelMock,
@@ -29,6 +30,7 @@ const {
   lmStudioGenerateMock: vi.fn(),
   lmStudioGenerateStreamMock: vi.fn(),
   lmStudioListModelsMock: vi.fn(),
+  lmStudioResolveModelMock: vi.fn(),
   lmStudioListRunningModelsMock: vi.fn(),
   getLMStudioVersionMock: vi.fn(),
   lmStudioUnloadModelMock: vi.fn(),
@@ -51,6 +53,7 @@ vi.mock("../src/core/lm-studio-client.js", () => ({
   generate: lmStudioGenerateMock,
   generateStream: lmStudioGenerateStreamMock,
   listModels: lmStudioListModelsMock,
+  resolveModel: lmStudioResolveModelMock,
   listRunningModels: lmStudioListRunningModelsMock,
   getLMStudioVersion: getLMStudioVersionMock,
   unloadModel: lmStudioUnloadModelMock,
@@ -67,7 +70,7 @@ describe("runtime proxy", () => {
   it("uses default Ollama runtime through proxy exports", async () => {
     generateMock.mockResolvedValueOnce({ response: "ok" });
     generateStreamMock.mockResolvedValueOnce({ response: "ok" });
-    listModelsMock.mockResolvedValueOnce([{ name: "qwen2.5:7b" }]);
+    listModelsMock.mockResolvedValue([{ name: "qwen2.5:7b" }]);
     listRunningModelsMock.mockResolvedValueOnce([{ name: "qwen2.5:7b" }]);
     getOllamaVersionMock.mockResolvedValueOnce("0.5.12");
 
@@ -79,6 +82,7 @@ describe("runtime proxy", () => {
     await runtime.generate("m", "p");
     await runtime.generateStream("m", "p");
     await runtime.listModels();
+    await runtime.resolveRuntimeModel("m");
     await runtime.listRunningModels();
     await runtime.getRuntimeVersion();
     await runtime.unloadModel("m");
@@ -87,7 +91,7 @@ describe("runtime proxy", () => {
 
     expect(generateMock).toHaveBeenCalled();
     expect(generateStreamMock).toHaveBeenCalled();
-    expect(listModelsMock).toHaveBeenCalled();
+    expect(listModelsMock).toHaveBeenCalledTimes(2);
     expect(listRunningModelsMock).toHaveBeenCalled();
     expect(getOllamaVersionMock).toHaveBeenCalled();
     expect(unloadModelMock).toHaveBeenCalledWith("m");
@@ -119,6 +123,7 @@ describe("runtime proxy", () => {
     await runtime.generate("m", "p");
     await runtime.generateStream("m", "p");
     await runtime.listModels();
+    await runtime.resolveRuntimeModel("m");
     await runtime.listRunningModels();
     await runtime.getRuntimeVersion();
     await runtime.unloadModel("m");
@@ -127,7 +132,7 @@ describe("runtime proxy", () => {
 
     expect(custom.generate).toHaveBeenCalled();
     expect(custom.generateStream).toHaveBeenCalled();
-    expect(custom.listModels).toHaveBeenCalled();
+    expect(custom.listModels).toHaveBeenCalledTimes(2);
     expect(custom.listRunningModels).toHaveBeenCalled();
     expect(custom.getVersion).toHaveBeenCalled();
     expect(custom.unloadModel).toHaveBeenCalledWith("m");
@@ -139,6 +144,7 @@ describe("runtime proxy", () => {
     lmStudioGenerateMock.mockResolvedValueOnce({ response: "lm-ok" });
     lmStudioGenerateStreamMock.mockResolvedValueOnce({ response: "lm-stream-ok" });
     lmStudioListModelsMock.mockResolvedValueOnce([{ name: "qwen3" }]);
+    lmStudioResolveModelMock.mockResolvedValueOnce({ name: "qwen3", size: 0, modelFormat: "gglm" });
     lmStudioListRunningModelsMock.mockResolvedValueOnce([{ name: "qwen3" }]);
     getLMStudioVersionMock.mockResolvedValueOnce("unknown");
 
@@ -151,6 +157,7 @@ describe("runtime proxy", () => {
     await runtime.generate("m", "p");
     await runtime.generateStream("m", "p");
     await runtime.listModels();
+    await runtime.resolveRuntimeModel("qwen3");
     await runtime.listRunningModels();
     await runtime.getRuntimeVersion();
     await runtime.unloadModel("m");
@@ -160,6 +167,7 @@ describe("runtime proxy", () => {
     expect(lmStudioGenerateMock).toHaveBeenCalled();
     expect(lmStudioGenerateStreamMock).toHaveBeenCalled();
     expect(lmStudioListModelsMock).toHaveBeenCalled();
+    expect(lmStudioResolveModelMock).toHaveBeenCalledWith("qwen3");
     expect(lmStudioListRunningModelsMock).toHaveBeenCalled();
     expect(getLMStudioVersionMock).toHaveBeenCalled();
     expect(lmStudioUnloadModelMock).toHaveBeenCalledWith("m");

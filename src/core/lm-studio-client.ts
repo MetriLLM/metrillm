@@ -9,7 +9,8 @@ import { estimateTokenCount } from "../utils.js";
 const DEFAULT_LM_STUDIO_BASE_URL = "http://127.0.0.1:1234";
 const LM_STUDIO_INIT_TIMEOUT_MS = 15_000;
 const LM_STUDIO_METADATA_TIMEOUT_MS = 2_000;
-const DEFAULT_STREAM_STALL_TIMEOUT_MS = 180_000;
+const DEFAULT_STREAM_STALL_TIMEOUT_MS = 30_000;
+const SHARED_STREAM_STALL_TIMEOUT_ENV = "METRILLM_STREAM_STALL_TIMEOUT_MS";
 const DEFAULT_LM_STUDIO_HOME_DIR = path.join(os.homedir(), ".lmstudio");
 const DEFAULT_LM_STUDIO_MODELS_DIR = path.join(DEFAULT_LM_STUDIO_HOME_DIR, "models");
 const LM_STUDIO_HOME_DIR_ENV = "LM_STUDIO_HOME_DIR";
@@ -59,40 +60,38 @@ interface LMStudioModelDefinition {
   sources: LMStudioModelSource[];
 }
 
-interface LMStudioUsage {
-  prompt_tokens?: number;
-  completion_tokens?: number;
+interface LMStudioResolvedModelMetadata {
+  size: number;
+  parameterSize?: string;
 }
 
-interface LMStudioChoice {
-  delta?: {
-    content?: string;
-    reasoning_content?: string;
-    reasoning?: string;
-  };
-  message?: {
-    content?: string;
-    reasoning_content?: string;
-    reasoning?: string;
-  };
+interface LMStudioNativeStats {
+  input_tokens?: number;
+  total_output_tokens?: number;
+  reasoning_output_tokens?: number;
+  tokens_per_second?: number;
+  time_to_first_token_seconds?: number;
+  model_load_time_seconds?: number;
 }
 
-interface LMStudioChatCompletionChunk {
-  usage?: LMStudioUsage;
-  choices?: LMStudioChoice[];
+interface LMStudioNativeOutputItem {
+  type?: string;
+  content?: unknown;
+  text?: unknown;
 }
 
-interface LMStudioChatMessage {
-  role: "system" | "user";
-  content: string;
+interface LMStudioNativeChatResponse {
+  output?: LMStudioNativeOutputItem[];
+  stats?: LMStudioNativeStats;
 }
 
-interface LMStudioThinkingConfig {
-  include_reasoning: boolean;
-  reasoning_effort: "low" | "high";
-  reasoning: {
-    effort: "low" | "high";
-  };
+interface LMStudioNativeStreamEvent {
+  type?: string;
+  delta?: unknown;
+  content?: unknown;
+  text?: unknown;
+  result?: LMStudioNativeChatResponse;
+  stats?: LMStudioNativeStats;
 }
 
 interface LMStudioRequestOptions {
@@ -139,14 +138,9 @@ function assertThinkingModeRespected(
   }
 }
 
-function buildThinkingConfig(think?: boolean): Partial<LMStudioThinkingConfig> {
-  if (think === undefined) return {};
-  const effort = think ? "high" : "low";
-  return {
-    include_reasoning: think,
-    reasoning_effort: effort,
-    reasoning: { effort },
-  };
+function buildNativeThinkingOption(think?: boolean): "high" | undefined {
+  if (think !== true) return undefined;
+  return "high";
 }
 
 function hasSamplingOverrides(options?: LMStudioRequestOptions): boolean {
@@ -211,32 +205,123 @@ function buildLMStudioRequestError(
   return new Error(`LM Studio ${kind} failed (${status} ${statusText})${suffix}`.trim());
 }
 
-function buildChatCompletionBody(
+function buildNativeChatBody(
   model: string,
   prompt: string,
   options: LMStudioRequestOptions | undefined,
   stream: boolean,
   includeSampling: boolean
 ): Record<string, unknown> {
-  const messages: LMStudioChatMessage[] =
-    options?.think === false
-      ? [
-        { role: "system", content: NON_THINKING_SYSTEM_PROMPT },
-        { role: "user", content: prompt },
-      ]
-      : [{ role: "user", content: prompt }];
-
+  const reasoning = buildNativeThinkingOption(options?.think);
   return {
     model,
-    messages,
+    input: prompt,
     temperature: options?.temperature ?? 0,
     ...(includeSampling && options?.top_p !== undefined ? { top_p: options.top_p } : {}),
     ...(includeSampling && options?.seed !== undefined ? { seed: options.seed } : {}),
     max_tokens: options?.num_predict ?? 512,
     stream,
-    ...(stream ? { stream_options: { include_usage: true } } : {}),
-    ...buildThinkingConfig(options?.think),
+    ...(reasoning !== undefined ? { reasoning } : {}),
+    ...(options?.think === false ? { system_prompt: NON_THINKING_SYSTEM_PROMPT } : {}),
   };
+}
+
+function getNativeStatNumber(value: unknown): number | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return undefined;
+  return value;
+}
+
+function flattenNativeText(value: unknown, depth = 0): string {
+  if (depth > 3 || value == null) return "";
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) {
+    return value.map((item) => flattenNativeText(item, depth + 1)).join("");
+  }
+  if (typeof value === "object") {
+    const candidate = value as {
+      text?: unknown;
+      content?: unknown;
+      delta?: unknown;
+      value?: unknown;
+    };
+    return (
+      flattenNativeText(candidate.text, depth + 1)
+      || flattenNativeText(candidate.content, depth + 1)
+      || flattenNativeText(candidate.delta, depth + 1)
+      || flattenNativeText(candidate.value, depth + 1)
+    );
+  }
+  return "";
+}
+
+function collectNativeOutput(
+  output: unknown
+): { response: string; reasoning: string } {
+  if (!Array.isArray(output)) {
+    return { response: "", reasoning: "" };
+  }
+
+  let response = "";
+  let reasoning = "";
+  for (const item of output) {
+    if (typeof item !== "object" || item === null) continue;
+    const nativeItem = item as LMStudioNativeOutputItem;
+    const text = flattenNativeText(nativeItem.text ?? nativeItem.content).trim();
+    if (!text) continue;
+    const type = asNonEmptyString(nativeItem.type)?.toLowerCase() ?? "";
+    if (type.includes("reason")) {
+      reasoning += text;
+    } else {
+      response += text;
+    }
+  }
+
+  return { response, reasoning };
+}
+
+function extractNativeStats(payload: unknown): LMStudioNativeStats | undefined {
+  if (typeof payload !== "object" || payload === null) return undefined;
+  const direct = (payload as { stats?: LMStudioNativeStats }).stats;
+  if (direct) return direct;
+  const result = (payload as { result?: { stats?: LMStudioNativeStats } }).result?.stats;
+  return result;
+}
+
+function extractNativeResponse(payload: unknown): { response: string; reasoning: string } {
+  if (typeof payload !== "object" || payload === null) {
+    return { response: "", reasoning: "" };
+  }
+
+  const resultOutput = (payload as { result?: LMStudioNativeChatResponse }).result?.output;
+  const directOutput = (payload as LMStudioNativeChatResponse).output;
+  const fromResult = collectNativeOutput(resultOutput);
+  if (fromResult.response || fromResult.reasoning) return fromResult;
+  return collectNativeOutput(directOutput);
+}
+
+function extractNativeDelta(payload: LMStudioNativeStreamEvent): { response: string; reasoning: string } {
+  if (typeof payload !== "object" || payload === null) {
+    return { response: "", reasoning: "" };
+  }
+
+  const type = asNonEmptyString(payload.type)?.toLowerCase() ?? "";
+  const directText = flattenNativeText(payload.delta);
+  const fallbackText =
+    directText
+    || flattenNativeText(payload.content)
+    || flattenNativeText(payload.text);
+  if (!fallbackText) {
+    return { response: "", reasoning: "" };
+  }
+
+  if (type.includes("reason")) {
+    return { response: "", reasoning: fallbackText };
+  }
+  if (type.includes("message") || type.includes("text") || type.includes("content")) {
+    return { response: fallbackText, reasoning: "" };
+  }
+
+  return { response: fallbackText, reasoning: "" };
 }
 
 function parseNonNegativeInt(value: string): number | null {
@@ -252,7 +337,7 @@ function resolveStreamStallTimeoutMs(override?: number): number | undefined {
     return override === 0 ? undefined : Math.trunc(override);
   }
 
-  const configured = process.env.LM_STUDIO_STREAM_STALL_TIMEOUT_MS?.trim();
+  const configured = process.env[SHARED_STREAM_STALL_TIMEOUT_ENV]?.trim();
   if (!configured) return DEFAULT_STREAM_STALL_TIMEOUT_MS;
   const parsed = parseNonNegativeInt(configured);
   if (parsed === null) return DEFAULT_STREAM_STALL_TIMEOUT_MS;
@@ -281,34 +366,6 @@ function getLMStudioHeaders(): Record<string, string> {
   return headers;
 }
 
-function extractUsage(payload: unknown): LMStudioUsage | undefined {
-  if (typeof payload !== "object" || payload === null) return undefined;
-  const usage = (payload as { usage?: LMStudioUsage }).usage;
-  if (!usage) return undefined;
-  return usage;
-}
-
-function extractChoice(payload: unknown): LMStudioChoice | undefined {
-  if (typeof payload !== "object" || payload === null) return undefined;
-  const choices = (payload as LMStudioChatCompletionChunk).choices;
-  if (!choices || choices.length === 0) return undefined;
-  return choices[0];
-}
-
-function extractContent(choice: LMStudioChoice | undefined): string {
-  const content = choice?.delta?.content ?? choice?.message?.content;
-  return typeof content === "string" ? content : "";
-}
-
-function extractReasoning(choice: LMStudioChoice | undefined): string {
-  const reasoning =
-    choice?.delta?.reasoning_content ??
-    choice?.delta?.reasoning ??
-    choice?.message?.reasoning_content ??
-    choice?.message?.reasoning;
-  return typeof reasoning === "string" ? reasoning : "";
-}
-
 function getUsageTokenCount(value: unknown): number {
   if (typeof value !== "number" || !Number.isFinite(value)) return 0;
   if (value <= 0) return 0;
@@ -335,11 +392,11 @@ function estimateCompletionTokensFallback(text: string): number {
 }
 
 function resolveCompletionTokenCount(
-  usage: LMStudioUsage | undefined,
+  reportedTokenCount: number | undefined,
   response: string,
   reasoning: string
 ): number {
-  const reported = getUsageTokenCount(usage?.completion_tokens);
+  const reported = getUsageTokenCount(reportedTokenCount);
   if (reported > 0) return reported;
   return estimateCompletionTokensFallback(`${reasoning} ${response}`);
 }
@@ -569,7 +626,7 @@ async function resolvePublisherModelMetadata(
   modelId: string,
   apiModel: LMStudioApiModel | undefined,
   modelsRootDir: string
-): Promise<{ size: number; parameterSize?: string }> {
+): Promise<LMStudioResolvedModelMetadata> {
   const explicitPublisher = asNonEmptyString(apiModel?.publisher);
   const [publisherFromId] = modelId.split("/", 1);
   const publisher = explicitPublisher ?? publisherFromId;
@@ -627,7 +684,7 @@ async function resolveLocalModelMetadata(
   modelId: string,
   apiModel: LMStudioApiModel | undefined,
   modelsRootDir: string
-): Promise<{ size: number; parameterSize?: string }> {
+): Promise<LMStudioResolvedModelMetadata> {
   const definition = await loadHubModelDefinition(modelId);
   if (!definition) {
     return resolvePublisherModelMetadata(modelId, apiModel, modelsRootDir);
@@ -665,12 +722,18 @@ async function resolveLocalModelMetadata(
     const size = await readDirectorySizeBytes(source.fullPath);
     if (size > bestSize) bestSize = size;
     if (size > 0) {
-      return { size, parameterSize: definition.parameterSize };
+      return {
+        size,
+        parameterSize: definition.parameterSize,
+      };
     }
   }
 
   if (bestSize > 0) {
-    return { size: bestSize, parameterSize: definition.parameterSize };
+    return {
+      size: bestSize,
+      parameterSize: definition.parameterSize,
+    };
   }
 
   const fallback = await resolvePublisherModelMetadata(modelId, apiModel, modelsRootDir);
@@ -681,7 +744,10 @@ async function resolveLocalModelMetadata(
     };
   }
 
-  return { size: 0, parameterSize: definition.parameterSize ?? fallback.parameterSize };
+  return {
+    size: 0,
+    parameterSize: definition.parameterSize ?? fallback.parameterSize,
+  };
 }
 
 function parseSizeBytes(model: LMStudioApiModel | undefined): number {
@@ -725,6 +791,36 @@ function inferParameterSizeFromModelId(modelId: string): string | undefined {
   }
 
   return undefined;
+}
+
+function resolveModelFormat(
+  apiModel: LMStudioApiModel | undefined,
+  _localMetadata: LMStudioResolvedModelMetadata | undefined,
+  _modelId: string
+): string | undefined {
+  return asNonEmptyString(apiModel?.compatibility_type);
+}
+
+function buildModelEntry(
+  id: string,
+  apiModel: LMStudioApiModel | undefined,
+  localMetadata: LMStudioResolvedModelMetadata | undefined
+): OllamaModel {
+  const apiSize = parseSizeBytes(apiModel);
+  return {
+    name: id,
+    size: apiSize > 0 ? apiSize : (localMetadata?.size ?? 0),
+    parameterSize:
+      localMetadata?.parameterSize
+      ?? inferParameterSizeFromModelId(id),
+    quantization: asNonEmptyString(apiModel?.quantization),
+    runtimeStatus: asNonEmptyString(apiModel?.state),
+    modelFormat: resolveModelFormat(apiModel, localMetadata, id),
+    family:
+      asNonEmptyString(apiModel?.arch)
+      ?? asNonEmptyString(apiModel?.type)
+      ?? asNonEmptyString(apiModel?.publisher),
+  };
 }
 
 function isLoadedState(state: string | undefined): boolean {
@@ -797,7 +893,7 @@ export async function getLMStudioVersion(): Promise<string> {
   const localVersion = await resolveLocalLMStudioVersion();
   try {
     const resp = await fetchWithTimeout(
-      "/v1/models",
+      "/api/v1/models",
       { method: "GET", headers: getLMStudioHeaders() },
       5_000,
       "LM Studio version check"
@@ -813,7 +909,7 @@ export async function getLMStudioVersion(): Promise<string> {
 
 export async function listModels(): Promise<OllamaModel[]> {
   const resp = await fetchWithTimeout(
-    "/v1/models",
+    "/api/v1/models",
     { method: "GET", headers: getLMStudioHeaders() },
     LM_STUDIO_INIT_TIMEOUT_MS,
     "LM Studio list models"
@@ -841,29 +937,22 @@ export async function listModels(): Promise<OllamaModel[]> {
       return [id, localMetadata] as const;
     })
   );
-  const localMetadataById = new Map<string, { size: number; parameterSize?: string }>(
+  const localMetadataById = new Map<string, LMStudioResolvedModelMetadata>(
     localMetadataEntries
   );
 
-  return ids.map((id) => {
-    const apiModel = apiById.get(id);
-    const localMetadata = localMetadataById.get(id);
-    const apiSize = parseSizeBytes(apiModel);
-    return {
-      name: id,
-      size: apiSize > 0 ? apiSize : (localMetadata?.size ?? 0),
-      parameterSize:
-        localMetadata?.parameterSize
-        ?? inferParameterSizeFromModelId(id),
-      quantization: asNonEmptyString(apiModel?.quantization),
-      runtimeStatus: asNonEmptyString(apiModel?.state),
-      modelFormat: asNonEmptyString(apiModel?.compatibility_type),
-      family:
-        asNonEmptyString(apiModel?.arch)
-        ?? asNonEmptyString(apiModel?.type)
-        ?? asNonEmptyString(apiModel?.publisher),
-    };
-  });
+  return ids.map((id) => buildModelEntry(id, apiById.get(id), localMetadataById.get(id)));
+}
+
+export async function resolveModel(modelId: string): Promise<OllamaModel | null> {
+  const id = modelId.trim();
+  if (!id) return null;
+
+  const apiModels = await fetchApiModels();
+  const apiModel = apiModels?.find((candidate) => asNonEmptyString(candidate.id) === id);
+  const modelsRootDir = await resolveModelsRootDir();
+  const localMetadata = await resolveLocalModelMetadata(id, apiModel, modelsRootDir);
+  return buildModelEntry(id, apiModel, localMetadata);
 }
 
 export async function listRunningModels(): Promise<OllamaRunningModel[]> {
@@ -896,12 +985,12 @@ export async function generate(
   activeAbortControllers.add(controller);
   try {
     const baseUrl = getLMStudioBaseUrl();
-    const url = new URL("/v1/chat/completions", baseUrl);
+    const url = new URL("/api/v1/chat", baseUrl);
     const doRequest = (includeSampling: boolean) =>
       fetch(url, {
         method: "POST",
         headers: getLMStudioHeaders(),
-        body: JSON.stringify(buildChatCompletionBody(model, prompt, options, false, includeSampling)),
+        body: JSON.stringify(buildNativeChatBody(model, prompt, options, false, includeSampling)),
         signal: controller.signal,
       });
 
@@ -919,27 +1008,43 @@ export async function generate(
       throw buildLMStudioRequestError("generate", model, resp.status, resp.statusText, body);
     }
 
-    const payload = (await resp.json()) as LMStudioChatCompletionChunk;
-    const choice = extractChoice(payload);
-    const response = extractContent(choice);
-    const reasoning = extractReasoning(choice);
+    const payload = (await resp.json()) as LMStudioNativeChatResponse;
+    const nativeResponse = extractNativeResponse(payload);
+    const response = nativeResponse.response;
+    const reasoning = nativeResponse.reasoning;
     assertThinkingModeRespected(model, options?.think, response, reasoning);
-    const usage = extractUsage(payload);
+    const stats = extractNativeStats(payload);
     const totalDuration = Math.max(0, Date.now() - start) * 1e6;
+    const outputTokens =
+      getUsageTokenCount(stats?.total_output_tokens)
+      || resolveCompletionTokenCount(undefined, response, reasoning);
+    const throughput = getNativeStatNumber(stats?.tokens_per_second);
+    const timeToFirstTokenSeconds = getNativeStatNumber(stats?.time_to_first_token_seconds);
+    const modelLoadTimeSeconds = getNativeStatNumber(stats?.model_load_time_seconds);
+    const evalCountEstimated = getUsageTokenCount(stats?.total_output_tokens) <= 0;
+    const evalDuration =
+      throughput !== undefined && throughput > 0 && outputTokens > 0
+        ? Math.max(1, Math.round((outputTokens / throughput) * 1e9))
+        : totalDuration;
+    const promptEvalDuration =
+      timeToFirstTokenSeconds !== undefined
+        ? Math.max(0, Math.round(timeToFirstTokenSeconds * 1e9))
+        : 0;
+    const loadDuration = Math.max(
+      0,
+      Math.round((modelLoadTimeSeconds ?? 0) * 1e9)
+    );
 
-    // Non-streaming: we cannot separate prompt processing from generation,
-    // so evalDuration falls back to totalDuration. This path is only used
-    // by quality benchmarks (not tok/s measurement). The streaming path
-    // (generateStream) uses first/last token timing for accurate evalDuration.
     return {
       response,
       ...(reasoning ? { thinking: reasoning } : {}),
       totalDuration,
-      loadDuration: 0,
-      promptEvalCount: getUsageTokenCount(usage?.prompt_tokens),
-      promptEvalDuration: 0,
-      evalCount: resolveCompletionTokenCount(usage, response, reasoning),
-      evalDuration: totalDuration,
+      loadDuration,
+      promptEvalCount: getUsageTokenCount(stats?.input_tokens),
+      promptEvalDuration,
+      evalCount: outputTokens,
+      evalDuration,
+      ...(evalCountEstimated ? { evalCountEstimated: true } : {}),
     };
   } catch (err) {
     if (err instanceof Error && err.name === "AbortError") {
@@ -964,7 +1069,7 @@ export async function generateStream(
   let abortedByStallTimeout = false;
 
   const baseUrl = getLMStudioBaseUrl();
-  const url = new URL("/v1/chat/completions", baseUrl);
+  const url = new URL("/api/v1/chat", baseUrl);
 
   let stallTimer: ReturnType<typeof setTimeout> | null = null;
   const resetStallTimer = () => {
@@ -983,7 +1088,7 @@ export async function generateStream(
       fetch(url, {
         method: "POST",
         headers: getLMStudioHeaders(),
-        body: JSON.stringify(buildChatCompletionBody(model, prompt, options, true, includeSampling)),
+        body: JSON.stringify(buildNativeChatBody(model, prompt, options, true, includeSampling)),
         signal: controller.signal,
       });
 
@@ -1011,7 +1116,7 @@ export async function generateStream(
     let doneReceived = false;
     let fullResponse = "";
     let fullThinking = "";
-    let usage: LMStudioUsage | undefined;
+    let stats: LMStudioNativeStats | undefined;
     let firstChunkSeen = false;
     let firstGeneratedTokenTime: number | null = null;
     let lastGeneratedTokenTime: number | null = null;
@@ -1026,18 +1131,25 @@ export async function generateStream(
         return;
       }
 
-      let payload: unknown;
+      let payload: LMStudioNativeStreamEvent;
       try {
-        payload = JSON.parse(dataStr);
+        payload = JSON.parse(dataStr) as LMStudioNativeStreamEvent;
       } catch {
         return;
       }
 
-      const choice = extractChoice(payload);
-      const content = extractContent(choice);
-      const reasoning = extractReasoning(choice);
-      const chunkUsage = extractUsage(payload);
-      if (chunkUsage) usage = chunkUsage;
+      const delta = extractNativeDelta(payload);
+      const content = delta.response;
+      const reasoning = delta.reasoning;
+      const chunkStats = extractNativeStats(payload);
+      if (chunkStats) stats = chunkStats;
+      const aggregate = extractNativeResponse(payload);
+      if (aggregate.response) {
+        fullResponse = aggregate.response;
+      }
+      if (aggregate.reasoning) {
+        fullThinking = aggregate.reasoning;
+      }
 
       if (reasoning || content) {
         const now = Date.now();
@@ -1090,23 +1202,41 @@ export async function generateStream(
     }
 
     const totalDuration = Math.max(0, Date.now() - start) * 1e6;
-    // evalDuration = time between first and last generated token (reasoning/content).
-    // Falls back to totalDuration when we couldn't track a token window.
+    const outputTokens =
+      getUsageTokenCount(stats?.total_output_tokens)
+      || resolveCompletionTokenCount(undefined, fullResponse, fullThinking);
+    const throughput = getNativeStatNumber(stats?.tokens_per_second);
+    const timeToFirstTokenSeconds = getNativeStatNumber(stats?.time_to_first_token_seconds);
+    const modelLoadTimeSeconds = getNativeStatNumber(stats?.model_load_time_seconds);
+    const evalCountEstimated = getUsageTokenCount(stats?.total_output_tokens) <= 0;
+    // Prefer native throughput stats when available; otherwise fall back to a
+    // token window measured from the streamed delta events.
     const evalDurationMs =
-      firstGeneratedTokenTime !== null
-      && lastGeneratedTokenTime !== null
-      && lastGeneratedTokenTime > firstGeneratedTokenTime
-        ? lastGeneratedTokenTime - firstGeneratedTokenTime
-        : Date.now() - start;
+      throughput !== undefined && throughput > 0 && outputTokens > 0
+        ? (outputTokens / throughput) * 1000
+        : firstGeneratedTokenTime !== null
+          && lastGeneratedTokenTime !== null
+          && lastGeneratedTokenTime > firstGeneratedTokenTime
+          ? lastGeneratedTokenTime - firstGeneratedTokenTime
+          : Date.now() - start;
     const result: GenerateResult = {
       response: fullResponse,
       ...(fullThinking ? { thinking: fullThinking } : {}),
       totalDuration,
-      loadDuration: 0,
-      promptEvalCount: getUsageTokenCount(usage?.prompt_tokens),
-      promptEvalDuration: firstGeneratedTokenTime !== null ? (firstGeneratedTokenTime - start) * 1e6 : 0,
-      evalCount: resolveCompletionTokenCount(usage, fullResponse, fullThinking),
-      evalDuration: Math.max(1, evalDurationMs) * 1e6,
+      loadDuration: Math.max(
+        0,
+        Math.round((modelLoadTimeSeconds ?? 0) * 1e9)
+      ),
+      promptEvalCount: getUsageTokenCount(stats?.input_tokens),
+      promptEvalDuration:
+        timeToFirstTokenSeconds !== undefined
+          ? Math.max(0, Math.round(timeToFirstTokenSeconds * 1e9))
+          : firstGeneratedTokenTime !== null
+            ? (firstGeneratedTokenTime - start) * 1e6
+            : 0,
+      evalCount: outputTokens,
+      evalDuration: Math.max(1, Math.round(evalDurationMs * 1e6)),
+      ...(evalCountEstimated ? { evalCountEstimated: true } : {}),
     };
     assertThinkingModeRespected(model, options?.think, fullResponse, fullThinking);
 

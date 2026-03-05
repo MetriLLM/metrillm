@@ -120,7 +120,7 @@ describe("uploadBenchResult", () => {
     const inserted = insertMock.mock.calls[0][0] as Record<string, unknown>;
     expect(inserted.model).toBe("qwen2.5:7b");
     expect(inserted.parameter_size).toBe("7B");
-    expect(inserted.memory_percent).toBe(72.4);
+    expect(inserted.memory_percent).toBe(31.9);
     expect(inserted.machine_model).toBeNull();
     expect(inserted.power_mode).toBeNull();
     expect(inserted.thinking_detected).toBeNull();
@@ -313,6 +313,20 @@ describe("uploadBenchResult", () => {
     const inserted = insertMock.mock.calls[0][0] as Record<string, unknown>;
     expect(inserted.runtime_backend).toBe("ollama");
     expect(inserted.model_format).toBe("gguf");
+  });
+
+  it("uploads unknown model_format instead of inventing gguf for LM Studio", async () => {
+    singleMock.mockResolvedValueOnce({ data: { id: "row-lm-unknown" }, error: null });
+    const { uploadBenchResult } = await import("../src/core/uploader.js");
+
+    const result = sampleResult();
+    result.metadata.runtimeBackend = "lm-studio";
+    delete result.metadata.modelFormat;
+    await uploadBenchResult(result);
+
+    const inserted = insertMock.mock.calls[0][0] as Record<string, unknown>;
+    expect(inserted.runtime_backend).toBe("lm-studio");
+    expect(inserted.model_format).toBe("unknown");
   });
 
   it("surfaces generic upload errors", async () => {

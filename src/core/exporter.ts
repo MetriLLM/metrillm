@@ -109,7 +109,7 @@ function toMarkdown(results: BenchResult[]): string {
     : "_Method: Hardware Fit is based on Speed + TTFT + Memory. Global is shown only when quality is available._");
   lines.push("");
   lines.push(
-    "| Model | Quant | Machine | Profile | tok/s | TTFT | Host RAM% | HW Fit | Quality | Global | DQ | Flags | Verdict |"
+    "| Model | Quant | Machine | Profile | tok/s | TTFT | Model RAM% | HW Fit | Quality | Global | DQ | Flags | Verdict |"
   );
   lines.push("|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|---|");
 
@@ -117,10 +117,11 @@ function toMarkdown(results: BenchResult[]): string {
     const flags: string[] = [];
     if (r.hardware.powerMode === "low-power") flags.push("ECO");
     if (r.modelInfo?.thinkingDetected) flags.push("THINK");
+    if (r.performance.tokensPerSecondEstimated) flags.push("TPS~");
     lines.push(
-      `| ${markdownEscape(r.model)} | ${markdownEscape(r.modelInfo?.quantization ?? "—")} | ${markdownEscape(r.hardware.machineModel ?? "—")} | ${markdownEscape(r.fitness.tuning.profile)} | ${r.performance.tokensPerSecond.toFixed(
+      `| ${markdownEscape(r.model)} | ${markdownEscape(r.modelInfo?.quantization ?? "—")} | ${markdownEscape(r.hardware.machineModel ?? "—")} | ${markdownEscape(r.fitness.tuning.profile)} | ${r.performance.tokensPerSecondEstimated ? "~" : ""}${r.performance.tokensPerSecond.toFixed(
         1
-      )} | ${r.performance.ttft.toFixed(0)}ms | ${r.performance.memoryHostPercent !== undefined ? `${r.performance.memoryHostPercent.toFixed(1)}%` : "n/a"} | ${
+      )} | ${r.performance.ttft.toFixed(0)}ms | ${r.performance.memoryPercent.toFixed(1)}% | ${
         r.fitness.hardwareFitScore
       } | ${r.fitness.qualityScore?.total ?? "—"} | ${r.fitness.globalScore ?? "—"} | ${r.fitness.disqualifiers.length} | ${flags.length > 0 ? flags.join(" ") : "—"} | ${markdownEscape(r.fitness.verdict)} |`
     );

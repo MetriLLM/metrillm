@@ -9,7 +9,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   listModelsMock,
+  resolveRuntimeModelMock,
   getRuntimeVersionMock,
+  getRuntimeNameMock,
   setRuntimeKeepAliveMock,
   setRuntimeByNameMock,
   unloadModelMock,
@@ -29,7 +31,9 @@ const {
   warnMsgMock,
 } = vi.hoisted(() => ({
   listModelsMock: vi.fn(),
+  resolveRuntimeModelMock: vi.fn(),
   getRuntimeVersionMock: vi.fn(),
+  getRuntimeNameMock: vi.fn(() => "ollama"),
   setRuntimeKeepAliveMock: vi.fn(),
   setRuntimeByNameMock: vi.fn(),
   unloadModelMock: vi.fn(),
@@ -51,9 +55,10 @@ const {
 
 vi.mock("../src/core/runtime.js", () => ({
   listModels: listModelsMock,
+  resolveRuntimeModel: resolveRuntimeModelMock,
   getRuntimeVersion: getRuntimeVersionMock,
   setRuntimeByName: setRuntimeByNameMock,
-  getRuntimeName: () => "ollama",
+  getRuntimeName: getRuntimeNameMock,
   getRuntimeDisplayName: () => "Ollama",
   getRuntimeModelInstallHint: () => "Pull one with: ollama pull <model>",
   getRuntimeSetupHints: () => [
@@ -160,8 +165,10 @@ import { benchCommand } from "../src/commands/bench.js";
 describe("bench share policy", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getRuntimeNameMock.mockReturnValue("ollama");
     setRuntimeByNameMock.mockReturnValue("ollama");
     listModelsMock.mockResolvedValue([{ name: "test-model", size: 123, modelFormat: "gguf" }]);
+    resolveRuntimeModelMock.mockResolvedValue({ name: "test-model", size: 123, modelFormat: "gguf" });
     getRuntimeVersionMock.mockResolvedValue("0.5.12");
     getHardwareInfoMock.mockResolvedValue({
       cpu: "CPU",
@@ -290,7 +297,7 @@ describe("bench share policy", () => {
       perfPromptTimeoutMs: 180_000,
       qualityTimeoutMs: 240_000,
       codingTimeoutMs: 360_000,
-      lmStudioStreamStallTimeoutMs: 210_000,
+      streamStallTimeoutMs: 210_000,
     });
 
     expect(runPerformanceBenchMock).toHaveBeenCalledWith(
@@ -328,7 +335,7 @@ describe("bench share policy", () => {
     );
   });
 
-  it("persists thinking mode as true when explicitly enabled", async () => {
+  it("persists observed thinking detection when explicitly enabled", async () => {
     await benchCommand({
       model: "test-model",
       perfOnly: false,
@@ -347,7 +354,38 @@ describe("bench share policy", () => {
       expect.objectContaining({ think: true })
     );
     const savedResult = saveResultMock.mock.calls[0]?.[0];
+    expect(savedResult?.modelInfo?.thinkingDetected).toBe(false);
+    expect(savedResult?.metadata?.benchmarkProfile?.thinkingMode).toBe("enabled");
+  });
+
+  it("persists observed thinking detection even when benchmark mode is disabled", async () => {
+    runPerformanceBenchMock.mockResolvedValueOnce({
+      metrics: {
+        tokensPerSecond: 40,
+        ttft: 900,
+        loadTime: 1500,
+        totalTokens: 500,
+        promptTokens: 100,
+        completionTokens: 400,
+        memoryUsedGB: 10,
+        memoryPercent: 31,
+        memoryHostPercent: 60,
+      },
+      thinkingDetected: true,
+    });
+
+    await benchCommand({
+      model: "test-model",
+      perfOnly: false,
+      share: false,
+      setExitCode: false,
+      ciNoMenu: true,
+      thinking: false,
+    });
+
+    const savedResult = saveResultMock.mock.calls[0]?.[0];
     expect(savedResult?.modelInfo?.thinkingDetected).toBe(true);
+    expect(savedResult?.metadata?.benchmarkProfile?.thinkingMode).toBe("disabled");
   });
 
   it("uses per-model modelFormat metadata when available", async () => {
@@ -364,5 +402,34 @@ describe("bench share policy", () => {
     expect(saveResultMock).toHaveBeenCalledTimes(1);
     const savedResult = saveResultMock.mock.calls[0]?.[0];
     expect(savedResult?.metadata?.modelFormat).toBe("mlx");
+  });
+
+  it("resolves exact LM Studio model format when initial discovery lacks it", async () => {
+    getRuntimeNameMock.mockReturnValue("lm-studio");
+    listModelsMock.mockResolvedValueOnce([{ name: "test-model", size: 123 }]);
+    resolveRuntimeModelMock.mockResolvedValueOnce({
+      name: "test-model",
+      size: 123,
+      parameterSize: "12B",
+      quantization: "4bit",
+      family: "custom",
+      modelFormat: "gglm",
+    });
+
+    await benchCommand({
+      model: "test-model",
+      perfOnly: false,
+      share: false,
+      setExitCode: false,
+      ciNoMenu: true,
+    });
+
+    const savedResult = saveResultMock.mock.calls[0]?.[0];
+    expect(savedResult?.metadata?.modelFormat).toBe("gglm");
+    expect(savedResult?.modelInfo).toMatchObject({
+      parameterSize: "12B",
+      quantization: "4bit",
+      family: "custom",
+    });
   });
 });
