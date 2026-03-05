@@ -87,3 +87,7 @@ Key metrics to highlight:
 - Use `--perf-only` for quick tests
 - Close GPU-intensive apps before benchmarking
 - Benchmark duration varies depending on model speed and response length
+
+## Open Source
+
+MetriLLM is free and open source (MIT). Contributions, issues, and feedback are welcome: [github.com/MetriLLM/metrillm](https://github.com/MetriLLM/metrillm)
