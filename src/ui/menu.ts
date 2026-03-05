@@ -573,7 +573,7 @@ function settingsMenuOptions(
     {
       label: `Benchmark profile: ${hasSubmitterProfile ? "SET" : "NOT SET"}`,
       value: "edit-submitter-profile",
-      hint: "Nickname + email used to link shared runs to your future dashboard account.",
+      hint: "Nickname + email to link shared runs to your dashboard. Only a hash is stored, never the email itself.",
     },
     {
       label: "Clear benchmark profile",
