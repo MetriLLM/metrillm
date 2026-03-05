@@ -4,7 +4,7 @@ description: Find the best local LLM for your machine. Tests speed, quality and 
 argument-hint: "[model-name]"
 author: MetriLLM
 source: https://github.com/MetriLLM/metrillm
-license: MIT
+license: Apache-2.0
 allowed-tools: Bash, Read
 install: npm install -g metrillm
 ---
@@ -90,4 +90,4 @@ Key metrics to highlight:
 
 ## Open Source
 
-MetriLLM is free and open source (MIT). Contributions, issues, and feedback are welcome: [github.com/MetriLLM/metrillm](https://github.com/MetriLLM/metrillm)
+MetriLLM is free and open source (Apache 2.0). Contributions, issues, and feedback are welcome: [github.com/MetriLLM/metrillm](https://github.com/MetriLLM/metrillm)
