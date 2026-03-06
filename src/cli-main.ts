@@ -49,7 +49,7 @@ function checkWindowsExecutionPolicy(): void {
 
 checkWindowsExecutionPolicy();
 
-const CLI_VERSION = "0.2.1";
+const CLI_VERSION = "0.2.2";
 
 // Fire-and-forget update check (skipped for non-interactive / output-sensitive flags).
 const skipUpdateCheckFlags = ["--json", "--ci-no-menu", "--help", "--version", "-h", "-V"];

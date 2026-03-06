@@ -7,6 +7,23 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-03-06
+
+### Added
+
+- Auto-update check at CLI startup — non-intrusive npm registry check (cached 24h, 3s timeout) with "Update" option in the interactive menu.
+- Windows PowerShell execution policy detection and user-friendly warning.
+- Reassuring message after Guru Meditation easter egg.
+- Email privacy clarification at every prompt point.
+
+### Fixed
+
+- Preserve backend selection and harden perf/runtime metrics.
+- UI code review — shared stripAnsi, email prompt loop, export error message.
+- LM Studio memory estimates and measurement parity.
+- Normalize hardware parsing and core display (threads vs cores).
+- tok/s parity and stream timeout handling for LM Studio.
+
 ## [0.2.1] - 2026-03-04
 
 ### Fixed
