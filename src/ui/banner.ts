@@ -1,4 +1,5 @@
 import chalk from "chalk";
+import { getCliVersion } from "../core/app-meta.js";
 import { supportsUnicode } from "./terminal.js";
 
 const LOGO_UNICODE = [
@@ -67,6 +68,7 @@ const LEADERBOARD_URL =
 
 export function printBanner(): void {
   const logo = supportsUnicode ? LOGO_UNICODE : LOGO_ASCII;
+  const version = getCliVersion();
   console.log("");
   for (const line of logo) {
     console.log(`  ${gradientLine(line)}`);
@@ -75,7 +77,7 @@ export function printBanner(): void {
   console.log(
     chalk.dim("  Benchmark local LLMs — hardware fit, task quality, and global verdict")
   );
-  console.log(chalk.dim(`  ${COPYRIGHT}`));
+  console.log(chalk.dim(`  ${COPYRIGHT}  v${version}`));
   console.log(chalk.dim(`  Source: ${PROJECT_URL}`));
   console.log(chalk.dim(`  Leaderboard: ${LEADERBOARD_URL}\n`));
 }

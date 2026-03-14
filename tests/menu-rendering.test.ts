@@ -135,6 +135,7 @@ describe("interactive menu renderer", () => {
       await pendingMenu;
     } finally {
       writeSpy.mockRestore();
+      process.stdin.removeAllListeners("keypress");
       if (originalSetRawMode) {
         stdinStream.setRawMode = originalSetRawMode;
       } else {

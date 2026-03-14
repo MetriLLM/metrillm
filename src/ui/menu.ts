@@ -15,8 +15,12 @@ import { errorMsg, successMsg, warnMsg } from "./progress.js";
 import { printGuruMeditation } from "./guru-meditation.js";
 import { promptAndSaveSubmitterProfile } from "./submitter-prompt.js";
 import { getRuntimeDisplayName, type RuntimeBackend } from "../core/runtime.js";
-import { stripAnsi } from "./terminal.js";
-import { runUpdate, type UpdateInfo } from "../core/update-checker.js";
+import {
+  getInstallChannelLabel,
+  getUpdateCommand,
+  runUpdate,
+  type UpdateInfo,
+} from "../core/update-checker.js";
 
 const MAX_SINGLE_DIGIT_OPTIONS = 9;
 
@@ -100,7 +104,9 @@ function renderMenu<T>(
   }
 
   const wrapLine = (line: RenderLine): string[] => {
-    const visibleLength = Math.max(0, stripAnsi(line.text).length);
+    // RenderLine.text is always plain text (style is applied after wrapping),
+    // so no need for stripAnsi here.
+    const visibleLength = line.text.length;
     if (visibleLength <= wrapWidth) {
       return [line.style ? line.style(line.text) : line.text];
     }
@@ -501,10 +507,12 @@ function mainMenuOptions(
   >[] = [];
 
   if (updateInfo?.updateAvailable) {
+    const installChannelLabel = getInstallChannelLabel();
+    const updateCommand = getUpdateCommand();
     options.push({
       label: `Update metrillm to v${updateInfo.latest}`,
       value: "update",
-      hint: `Current: v${updateInfo.current}. Installs the latest version globally.`,
+      hint: `Installed via ${installChannelLabel}. Current: v${updateInfo.current}. Runs: ${updateCommand}`,
     });
   }
 
@@ -828,6 +836,8 @@ export async function runInteractiveMenu(opts: InteractiveMenuOptions = {}): Pro
   let lastResults: BenchResult[] = [];
   let firstRun = true;
   let updateInfo = (await opts.updateCheckPromise?.catch(() => null)) ?? null;
+  const installChannelLabel = getInstallChannelLabel();
+  const updateCommand = getUpdateCommand();
 
   while (true) {
     const config = await loadConfig();
@@ -839,7 +849,7 @@ export async function runInteractiveMenu(opts: InteractiveMenuOptions = {}): Pro
       if (updateInfo?.updateAvailable) {
         console.log(
           chalk.dim(
-            `  ⬆ metrillm v${updateInfo.latest} available (current: v${updateInfo.current}). Select "Update" below or run: npm install -g metrillm@latest`
+            `  ⬆ metrillm v${updateInfo.latest} available (installed: v${updateInfo.current} via ${installChannelLabel}). Select "Update" below or run: ${updateCommand}`
           )
         );
       }
@@ -849,7 +859,7 @@ export async function runInteractiveMenu(opts: InteractiveMenuOptions = {}): Pro
       if (updateInfo?.updateAvailable) {
         console.log(
           chalk.dim(
-            `  ⬆ metrillm v${updateInfo.latest} available (current: v${updateInfo.current}). Select "Update" below or run: npm install -g metrillm@latest`
+            `  ⬆ metrillm v${updateInfo.latest} available (installed: v${updateInfo.current} via ${installChannelLabel}). Select "Update" below or run: ${updateCommand}`
           )
         );
       }
@@ -871,13 +881,13 @@ export async function runInteractiveMenu(opts: InteractiveMenuOptions = {}): Pro
     }
 
     if (mainChoice === "update") {
-      infoMsg(`Updating metrillm to v${updateInfo?.latest}...`);
+      infoMsg(`Updating metrillm to v${updateInfo?.latest} via ${installChannelLabel}...`);
       const ok = runUpdate();
       if (ok) {
         successMsg("Update successful! Please restart metrillm to use the new version.");
         updateInfo = null; // Hide the update option on next menu loop.
       } else {
-        errorMsg("Update failed. Try manually: npm install -g metrillm@latest");
+        errorMsg(`Update failed. Try manually: ${updateCommand}`);
       }
       await waitForContinue("Press Enter to continue...");
       continue;

@@ -2,6 +2,7 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { execSync } from "node:child_process";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { getInstallChannel, type InstallChannel } from "./app-meta.js";
 
 const BASE_DIR = join(homedir(), ".metrillm");
 const CACHE_PATH = join(BASE_DIR, "update-check.json");
@@ -17,6 +18,18 @@ export interface UpdateInfo {
 interface UpdateCache {
   latest: string;
   checkedAt: number;
+  channel?: InstallChannel;
+}
+
+export function getInstallChannelLabel(channel: InstallChannel = getInstallChannel()): string {
+  if (channel === "homebrew") return "Homebrew";
+  if (channel === "npm") return "npm";
+  return "local checkout";
+}
+
+export function getUpdateCommand(channel: InstallChannel = getInstallChannel()): string {
+  if (channel === "homebrew") return "brew upgrade metrillm";
+  return "npm install -g metrillm@latest";
 }
 
 function compareSemver(a: string, b: string): number {
@@ -36,7 +49,20 @@ async function readCache(): Promise<UpdateCache | null> {
     if (typeof parsed.latest !== "string" || typeof parsed.checkedAt !== "number") {
       return null;
     }
-    return { latest: parsed.latest, checkedAt: parsed.checkedAt };
+    const channel = parsed.channel;
+    if (
+      channel !== undefined &&
+      channel !== "homebrew" &&
+      channel !== "npm" &&
+      channel !== "local"
+    ) {
+      return null;
+    }
+    return {
+      latest: parsed.latest,
+      checkedAt: parsed.checkedAt,
+      channel: channel as InstallChannel | undefined,
+    };
   } catch {
     return null;
   }
@@ -51,10 +77,53 @@ async function writeCache(cache: UpdateCache): Promise<void> {
   }
 }
 
+async function fetchLatestFromNpm(): Promise<string | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+  try {
+    const response = await fetch("https://registry.npmjs.org/metrillm/latest", {
+      signal: controller.signal,
+    });
+    if (!response.ok) return null;
+    const data = (await response.json()) as Record<string, unknown>;
+    if (typeof data.version !== "string") return null;
+    return data.version;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function fetchLatestFromHomebrew(): string | null {
+  try {
+    const raw = execSync("brew info --json=v2 metrillm", {
+      encoding: "utf8",
+      timeout: FETCH_TIMEOUT_MS,
+    }) as string;
+    const parsed = JSON.parse(raw) as {
+      formulae?: Array<{ versions?: { stable?: unknown } }>;
+    };
+    const stable = parsed.formulae?.[0]?.versions?.stable;
+    if (typeof stable !== "string" || stable.length === 0) {
+      return null;
+    }
+    return stable;
+  } catch {
+    return null;
+  }
+}
+
 export async function checkForUpdate(currentVersion: string): Promise<UpdateInfo | null> {
   try {
+    const channel = getInstallChannel();
     const cache = await readCache();
-    if (cache && Date.now() - cache.checkedAt < CACHE_TTL_MS) {
+    if (
+      cache &&
+      Date.now() - cache.checkedAt < CACHE_TTL_MS &&
+      cache.channel === channel
+    ) {
       return {
         current: currentVersion,
         latest: cache.latest,
@@ -62,23 +131,12 @@ export async function checkForUpdate(currentVersion: string): Promise<UpdateInfo
       };
     }
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    const latest = channel === "homebrew"
+      ? fetchLatestFromHomebrew()
+      : await fetchLatestFromNpm();
+    if (!latest) return null;
 
-    let latest: string;
-    try {
-      const response = await fetch("https://registry.npmjs.org/metrillm/latest", {
-        signal: controller.signal,
-      });
-      if (!response.ok) return null;
-      const data = (await response.json()) as Record<string, unknown>;
-      if (typeof data.version !== "string") return null;
-      latest = data.version;
-    } finally {
-      clearTimeout(timeout);
-    }
-
-    await writeCache({ latest, checkedAt: Date.now() });
+    await writeCache({ latest, checkedAt: Date.now(), channel });
 
     return {
       current: currentVersion,
@@ -92,7 +150,7 @@ export async function checkForUpdate(currentVersion: string): Promise<UpdateInfo
 
 export function runUpdate(): boolean {
   try {
-    execSync("npm install -g metrillm@latest", { stdio: "inherit", timeout: 60_000 });
+    execSync(getUpdateCommand(), { stdio: "inherit", timeout: 60_000 });
     return true;
   } catch {
     return false;
