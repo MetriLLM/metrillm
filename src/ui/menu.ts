@@ -31,6 +31,11 @@ interface SelectOptions {
   allowEscape?: boolean;
 }
 
+interface RenderLine {
+  text: string;
+  style?: (value: string) => string;
+}
+
 function isEnterKey(str: string, keyName?: string): boolean {
   return (
     keyName === "return"
@@ -65,60 +70,79 @@ function renderMenu<T>(
   lastRenderedRows = 0
 ): number {
   const terminalWidth = Math.max(20, output.columns ?? 80);
-  const lineRowCount = (line: string): number => {
-    const visibleLength = Math.max(0, stripAnsi(line).length);
-    if (visibleLength === 0) return 1;
-
-    const wrappedRows = Math.ceil(visibleLength / terminalWidth);
-    // At exact width boundaries, many TTYs autowrap before '\n',
-    // so this printed line consumes one extra terminal row.
-    return visibleLength % terminalWidth === 0 ? wrappedRows + 1 : wrappedRows;
-  };
-
-  const lines: string[] = [];
-  lines.push(chalk.bold.cyan(title));
+  const wrapWidth = Math.max(1, terminalWidth - 1);
+  const lines: RenderLine[] = [];
+  lines.push({ text: title, style: chalk.bold.cyan });
   if (config.subtitle) {
-    lines.push(chalk.dim(config.subtitle));
+    lines.push({ text: config.subtitle, style: chalk.dim });
   }
   const navHelp = options.length <= MAX_SINGLE_DIGIT_OPTIONS
     ? "Use Up/Down arrows then Enter, or press a number key."
     : "Use Up/Down arrows then Enter, or type a number then Enter.";
   const backHelp = config.allowEscape !== false ? " Esc to go back." : "";
-  lines.push(chalk.dim(`${navHelp}${backHelp}`));
+  lines.push({ text: `${navHelp}${backHelp}`, style: chalk.dim });
   if (typedChoice.length > 0) {
-    lines.push(chalk.dim(`Typed shortcut: ${typedChoice}`));
+    lines.push({ text: `Typed shortcut: ${typedChoice}`, style: chalk.dim });
   }
-  lines.push("");
+  lines.push({ text: "" });
 
   for (let i = 0; i < options.length; i++) {
     const option = options[i];
-    const marker = i === selectedIndex ? chalk.cyan(">") : " ";
-    const label = i === selectedIndex ? chalk.bold(option.label) : option.label;
+    const marker = i === selectedIndex ? ">" : " ";
     const ordinal = `${i + 1}.`.padStart(3);
-    lines.push(` ${marker} ${chalk.dim(ordinal)} ${label}`);
+    lines.push({
+      text: ` ${marker} ${ordinal} ${option.label}`,
+      style: i === selectedIndex ? chalk.bold : undefined,
+    });
     if (option.hint) {
-      lines.push(chalk.dim(`    ${option.hint}`));
+      lines.push({ text: `    ${option.hint}`, style: chalk.dim });
     }
   }
 
-  // Move cursor up to overwrite previous frame (except first render)
+  const wrapLine = (line: RenderLine): string[] => {
+    const visibleLength = Math.max(0, stripAnsi(line.text).length);
+    if (visibleLength <= wrapWidth) {
+      return [line.style ? line.style(line.text) : line.text];
+    }
+
+    const wrapped: string[] = [];
+    const indent = line.text.match(/^\s*/)?.[0] ?? "";
+    const availableWidth = Math.max(1, wrapWidth - indent.length);
+    let remaining = line.text.slice(indent.length);
+
+    while (remaining.length > availableWidth) {
+      let cut = remaining.lastIndexOf(" ", availableWidth);
+      if (cut <= 0) {
+        cut = availableWidth;
+      }
+
+      const segment = `${indent}${remaining.slice(0, cut)}`.replace(/\s+$/, "");
+      wrapped.push(line.style ? line.style(segment) : segment);
+      remaining = remaining.slice(cut).replace(/^\s+/, "");
+    }
+
+    const finalSegment = `${indent}${remaining}`;
+    wrapped.push(line.style ? line.style(finalSegment) : finalSegment);
+    return wrapped;
+  };
+
   if (lastRenderedRows > 0) {
-    output.write(`\x1b[${lastRenderedRows}A`);
+    output.write(`\r\x1b[${lastRenderedRows}A`);
   }
 
   let renderedRows = 0;
   for (const line of lines) {
-    output.write(line + "\x1b[K\n");
-    renderedRows += lineRowCount(line);
+    for (const wrappedLine of wrapLine(line)) {
+      output.write(`\r${wrappedLine}\x1b[K\n`);
+      renderedRows += 1;
+    }
   }
 
-  // Clear leftover rows from previous render (e.g. typedChoice disappears).
   for (let i = renderedRows; i < lastRenderedRows; i++) {
-    output.write("\x1b[K\n");
+    output.write("\r\x1b[K\n");
   }
-  // Move cursor back up to the end of current content after cleanup rows.
   if (lastRenderedRows > renderedRows) {
-    output.write(`\x1b[${lastRenderedRows - renderedRows}A`);
+    output.write(`\r\x1b[${lastRenderedRows - renderedRows}A`);
   }
 
   return renderedRows;
