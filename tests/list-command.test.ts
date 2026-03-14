@@ -106,7 +106,14 @@ describe("listCommand", () => {
     expect(out.running).toEqual([]);
     expect(out.reachable).toBe(false);
     expect(spinner.fail).toHaveBeenCalledWith("Cannot connect to Ollama");
-    expect(errorMsgMock).toHaveBeenCalled();
+    expect(errorMsgMock).toHaveBeenCalledWith("MetriLLM is currently set to use Ollama.");
+    expect(errorMsgMock).toHaveBeenCalledWith(
+      "Either start Ollama, or switch to another backend in Settings."
+    );
+    expect(errorMsgMock).toHaveBeenCalledWith(
+      "  • To change backend: Main Menu -> Settings -> Runtime backend"
+    );
+    expect(errorMsgMock).toHaveBeenCalledWith("daemon down");
     expect(process.exitCode).toBe(1);
 
     process.exitCode = prevExitCode;

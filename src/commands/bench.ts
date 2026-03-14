@@ -35,6 +35,7 @@ import { supportsUnicode } from "../ui/terminal.js";
 import { promptThinkingMode } from "../ui/thinking-prompt.js";
 import type { BenchResult, BenchEnvironment, HardwareInfo, ModelInfo, OllamaModel, QualityMetrics, RunMetadata } from "../types.js";
 import { buildBenchmarkProfileMetadata, BENCHMARK_PROFILE_VERSION } from "../benchmarks/profile.js";
+import { getRuntimeUnavailableHelp } from "../core/runtime-unavailable.js";
 
 const BENCHMARK_SPEC_VERSION = "0.2.1";
 const PROMPT_PACK_VERSION = "0.1.0";
@@ -141,9 +142,8 @@ export async function benchCommand(options: BenchOptions): Promise<BenchOutcome>
     } catch (err) {
       if (!silent) {
         spinnerModels.fail(`Cannot connect to ${runtimeDisplayName}`);
-        errorMsg(`Make sure ${runtimeDisplayName} is installed and running.`);
-        for (const hint of runtimeSetupHints) {
-          errorMsg(`  • ${hint}`);
+        for (const line of getRuntimeUnavailableHelp(runtimeName, runtimeSetupHints)) {
+          errorMsg(line);
         }
         if (err instanceof Error) errorMsg(err.message);
       }

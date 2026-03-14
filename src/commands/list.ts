@@ -9,6 +9,7 @@ import {
   getRuntimeName,
   setRuntimeByName,
 } from "../core/runtime.js";
+import { getRuntimeUnavailableHelp } from "../core/runtime-unavailable.js";
 import { formatBytes } from "../utils.js";
 import { createSpinner, errorMsg, warnMsg } from "../ui/progress.js";
 import type { OllamaModel, OllamaRunningModel } from "../types.js";
@@ -98,9 +99,8 @@ export async function listCommand(options: ListOptions = {}): Promise<ListOutcom
     return { models, running, reachable: true };
   } catch (err) {
     spinner.fail(`Cannot connect to ${runtimeDisplayName}`);
-    errorMsg(`Make sure ${runtimeDisplayName} is installed and running.`);
-    for (const hint of runtimeSetupHints) {
-      errorMsg(`  • ${hint}`);
+    for (const line of getRuntimeUnavailableHelp(runtimeName, runtimeSetupHints)) {
+      errorMsg(line);
     }
     if (err instanceof Error) {
       errorMsg(err.message);
