@@ -571,11 +571,13 @@ describe("lm-studio-client thinking toggle passthrough", () => {
       model: "model-a",
       input: "prompt",
       reasoning: "high",
+      max_output_tokens: 512,
     });
     expect(capturedBodies[1]).toMatchObject({
       model: "model-a",
       input: "prompt",
       system_prompt: expect.any(String),
+      max_output_tokens: 512,
     });
     expect((capturedBodies[1] as { system_prompt?: string }).system_prompt).toMatch(
       /non-thinking mode/i
@@ -585,6 +587,7 @@ describe("lm-studio-client thinking toggle passthrough", () => {
     expect(capturedBodies[2]).toMatchObject({
       model: "model-a",
       input: "prompt",
+      max_output_tokens: 512,
     });
   });
 
@@ -604,6 +607,118 @@ describe("lm-studio-client thinking toggle passthrough", () => {
       top_p: 1,
       seed: 42,
     });
+  });
+
+  it("uses max_output_tokens for native chat requests", async () => {
+    let capturedBody: Record<string, unknown> | null = null;
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const rawBody = typeof init?.body === "string" ? init.body : "{}";
+      capturedBody = JSON.parse(rawBody) as Record<string, unknown>;
+      return nativeChatResponse("OK");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("../src/core/lm-studio-client.js");
+    await client.generate("model-a", "prompt", { num_predict: 256 });
+
+    expect(capturedBody).toMatchObject({
+      model: "model-a",
+      input: "prompt",
+      max_output_tokens: 256,
+    });
+    expect(capturedBody).not.toHaveProperty("max_tokens");
+  });
+
+  it("retries with legacy max_tokens when backend rejects max_output_tokens", async () => {
+    const capturedBodies: Record<string, unknown>[] = [];
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const rawBody = typeof init?.body === "string" ? init.body : "{}";
+      const parsed = JSON.parse(rawBody) as Record<string, unknown>;
+      capturedBodies.push(parsed);
+      if (capturedBodies.length === 1) {
+        return jsonResponse({ error: "Unrecognized key(s) in object: 'max_output_tokens'" }, 400);
+      }
+      return nativeChatResponse("OK");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("../src/core/lm-studio-client.js");
+    const result = await client.generate("model-a", "prompt", { num_predict: 256 });
+
+    expect(result.response).toBe("OK");
+    expect(capturedBodies).toHaveLength(2);
+    expect(capturedBodies[0]).toMatchObject({ max_output_tokens: 256 });
+    expect(capturedBodies[0]).not.toHaveProperty("max_tokens");
+    expect(capturedBodies[1]).toMatchObject({ max_tokens: 256 });
+    expect(capturedBodies[1]).not.toHaveProperty("max_output_tokens");
+  });
+
+  it("retries with legacy max_tokens when backend reports invalid field max_output_tokens", async () => {
+    const capturedBodies: Record<string, unknown>[] = [];
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const rawBody = typeof init?.body === "string" ? init.body : "{}";
+      const parsed = JSON.parse(rawBody) as Record<string, unknown>;
+      capturedBodies.push(parsed);
+      if (capturedBodies.length === 1) {
+        return jsonResponse({ error: { message: "invalid field 'max_output_tokens'" } }, 400);
+      }
+      return nativeChatResponse("OK");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("../src/core/lm-studio-client.js");
+    const result = await client.generate("model-a", "prompt", { num_predict: 256 });
+
+    expect(result.response).toBe("OK");
+    expect(capturedBodies).toHaveLength(2);
+    expect(capturedBodies[0]).toMatchObject({ max_output_tokens: 256 });
+    expect(capturedBodies[1]).toMatchObject({ max_tokens: 256 });
+  });
+
+  it("retries with legacy max_tokens when backend says max_tokens is required", async () => {
+    const capturedBodies: Record<string, unknown>[] = [];
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const rawBody = typeof init?.body === "string" ? init.body : "{}";
+      const parsed = JSON.parse(rawBody) as Record<string, unknown>;
+      capturedBodies.push(parsed);
+      if (capturedBodies.length === 1) {
+        return jsonResponse({ error: { message: "max_tokens is required" } }, 400);
+      }
+      return nativeChatResponse("OK");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("../src/core/lm-studio-client.js");
+    const result = await client.generate("model-a", "prompt", { num_predict: 256 });
+
+    expect(result.response).toBe("OK");
+    expect(capturedBodies).toHaveLength(2);
+    expect(capturedBodies[0]).toMatchObject({ max_output_tokens: 256 });
+    expect(capturedBodies[1]).toMatchObject({ max_tokens: 256 });
+  });
+
+  it("reuses the negotiated legacy output-limit mode on later requests", async () => {
+    const capturedBodies: Record<string, unknown>[] = [];
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const rawBody = typeof init?.body === "string" ? init.body : "{}";
+      const parsed = JSON.parse(rawBody) as Record<string, unknown>;
+      capturedBodies.push(parsed);
+      if (capturedBodies.length === 1) {
+        return jsonResponse({ error: "Unrecognized key(s) in object: 'max_output_tokens'" }, 400);
+      }
+      return nativeChatResponse("OK");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("../src/core/lm-studio-client.js");
+    await client.generate("model-a", "prompt-1", { num_predict: 256 });
+    await client.generate("model-a", "prompt-2", { num_predict: 128 });
+
+    expect(capturedBodies).toHaveLength(3);
+    expect(capturedBodies[0]).toMatchObject({ input: "prompt-1", max_output_tokens: 256 });
+    expect(capturedBodies[1]).toMatchObject({ input: "prompt-1", max_tokens: 256 });
+    expect(capturedBodies[2]).toMatchObject({ input: "prompt-2", max_tokens: 128 });
+    expect(capturedBodies[2]).not.toHaveProperty("max_output_tokens");
   });
 
   it("retries without top_p/seed when backend rejects sampling options (non-stream)", async () => {
@@ -627,6 +742,80 @@ describe("lm-studio-client thinking toggle passthrough", () => {
     expect(capturedBodies[0]).toMatchObject({ top_p: 1, seed: 42 });
     expect(capturedBodies[1]).not.toHaveProperty("top_p");
     expect(capturedBodies[1]).not.toHaveProperty("seed");
+  });
+
+  it("still retries sampling fallback when backend reports invalid top_p/seed fields", async () => {
+    const capturedBodies: Record<string, unknown>[] = [];
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const rawBody = typeof init?.body === "string" ? init.body : "{}";
+      const parsed = JSON.parse(rawBody) as Record<string, unknown>;
+      capturedBodies.push(parsed);
+      if (capturedBodies.length === 1) {
+        return jsonResponse({ error: { message: "invalid field 'top_p'" } }, 400);
+      }
+      return nativeChatResponse("OK");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("../src/core/lm-studio-client.js");
+    const result = await client.generate("model-a", "prompt", { top_p: 1, seed: 42 });
+
+    expect(result.response).toBe("OK");
+    expect(capturedBodies).toHaveLength(2);
+    expect(capturedBodies[0]).toMatchObject({ top_p: 1, seed: 42 });
+    expect(capturedBodies[1]).not.toHaveProperty("top_p");
+    expect(capturedBodies[1]).not.toHaveProperty("seed");
+  });
+
+  it("fails explicitly when backend rejects both max_output_tokens and max_tokens", async () => {
+    const capturedBodies: Record<string, unknown>[] = [];
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const rawBody = typeof init?.body === "string" ? init.body : "{}";
+      const parsed = JSON.parse(rawBody) as Record<string, unknown>;
+      capturedBodies.push(parsed);
+      if (capturedBodies.length === 1) {
+        return jsonResponse({ error: "Unrecognized key(s) in object: 'max_output_tokens'" }, 400);
+      }
+      if (capturedBodies.length === 2) {
+        return jsonResponse({ error: "Unrecognized key(s) in object: 'max_tokens'" }, 400);
+      }
+      return nativeChatResponse("OK");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("../src/core/lm-studio-client.js");
+    await expect(client.generate("model-a", "prompt", { num_predict: 64 })).rejects.toThrow(
+      /rejected both max_output_tokens and max_tokens/i
+    );
+
+    expect(capturedBodies).toHaveLength(2);
+    expect(capturedBodies[0]).toMatchObject({ max_output_tokens: 64 });
+    expect(capturedBodies[0]).not.toHaveProperty("max_tokens");
+    expect(capturedBodies[1]).toMatchObject({ max_tokens: 64 });
+    expect(capturedBodies[1]).not.toHaveProperty("max_output_tokens");
+  });
+
+  it("does not treat an invalid max_output_tokens value as an unsupported field", async () => {
+    const capturedBodies: Record<string, unknown>[] = [];
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const rawBody = typeof init?.body === "string" ? init.body : "{}";
+      const parsed = JSON.parse(rawBody) as Record<string, unknown>;
+      capturedBodies.push(parsed);
+      return jsonResponse(
+        { error: { message: "Invalid max_output_tokens value: must be <= 512" } },
+        400
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("../src/core/lm-studio-client.js");
+    await expect(client.generate("model-a", "prompt", { num_predict: 1024 })).rejects.toThrow(
+      /invalid max_output_tokens value/i
+    );
+
+    expect(capturedBodies).toHaveLength(1);
+    expect(capturedBodies[0]).toMatchObject({ max_output_tokens: 1024 });
+    expect(capturedBodies[0]).not.toHaveProperty("max_tokens");
   });
 
   it("retries stream request without top_p/seed when backend rejects sampling options", async () => {
@@ -666,6 +855,223 @@ describe("lm-studio-client thinking toggle passthrough", () => {
     expect(capturedBodies[1]).toMatchObject({ stream: true });
     expect(capturedBodies[1]).not.toHaveProperty("top_p");
     expect(capturedBodies[1]).not.toHaveProperty("seed");
+  });
+
+  it("fails explicitly in stream mode when backend rejects both max_output_tokens and max_tokens", async () => {
+    const capturedBodies: Record<string, unknown>[] = [];
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const rawBody = typeof init?.body === "string" ? init.body : "{}";
+      const parsed = JSON.parse(rawBody) as Record<string, unknown>;
+      capturedBodies.push(parsed);
+      if (capturedBodies.length === 1) {
+        return jsonResponse({ error: "Unrecognized key(s) in object: 'max_output_tokens'" }, 400);
+      }
+      if (capturedBodies.length === 2) {
+        return jsonResponse({ error: "Unrecognized key(s) in object: 'max_tokens'" }, 400);
+      }
+      return nativeStreamResponse([
+        { type: "message.delta", delta: "OK" },
+        {
+          type: "chat.end",
+          result: {
+            output: [{ type: "message", content: "OK" }],
+            stats: {
+              input_tokens: 3,
+              total_output_tokens: 1,
+              tokens_per_second: 10,
+              time_to_first_token_seconds: 0.1,
+            },
+          },
+        },
+      ]);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("../src/core/lm-studio-client.js");
+    await expect(client.generateStream("model-a", "prompt", undefined, { num_predict: 64 })).rejects.toThrow(
+      /rejected both max_output_tokens and max_tokens/i
+    );
+
+    expect(capturedBodies).toHaveLength(2);
+    expect(capturedBodies[0]).toMatchObject({ max_output_tokens: 64, stream: true });
+    expect(capturedBodies[0]).not.toHaveProperty("max_tokens");
+    expect(capturedBodies[1]).toMatchObject({ max_tokens: 64, stream: true });
+    expect(capturedBodies[1]).not.toHaveProperty("max_output_tokens");
+  });
+
+  it("does not retry stream requests when max_output_tokens fails validation", async () => {
+    const capturedBodies: Record<string, unknown>[] = [];
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const rawBody = typeof init?.body === "string" ? init.body : "{}";
+      const parsed = JSON.parse(rawBody) as Record<string, unknown>;
+      capturedBodies.push(parsed);
+      return jsonResponse(
+        { error: { message: "Invalid max_output_tokens value: must be <= 512" } },
+        400
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("../src/core/lm-studio-client.js");
+    await expect(client.generateStream("model-a", "prompt", undefined, { num_predict: 1024 })).rejects.toThrow(
+      /invalid max_output_tokens value/i
+    );
+
+    expect(capturedBodies).toHaveLength(1);
+    expect(capturedBodies[0]).toMatchObject({ max_output_tokens: 1024, stream: true });
+    expect(capturedBodies[0]).not.toHaveProperty("max_tokens");
+  });
+
+  it("retries stream request with legacy max_tokens when backend rejects max_output_tokens", async () => {
+    const capturedBodies: Record<string, unknown>[] = [];
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const rawBody = typeof init?.body === "string" ? init.body : "{}";
+      const parsed = JSON.parse(rawBody) as Record<string, unknown>;
+      capturedBodies.push(parsed);
+      expect(requestPath(input)).toBe("/api/v1/chat");
+      if (capturedBodies.length === 1) {
+        return jsonResponse({ error: "Unexpected key 'max_output_tokens'" }, 400);
+      }
+      return nativeStreamResponse([
+        { type: "message.delta", delta: "OK" },
+        {
+          type: "chat.end",
+          result: {
+            output: [{ type: "message", content: "OK" }],
+            stats: {
+              input_tokens: 3,
+              total_output_tokens: 1,
+              tokens_per_second: 10,
+              time_to_first_token_seconds: 0.1,
+            },
+          },
+        },
+      ]);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("../src/core/lm-studio-client.js");
+    const result = await client.generateStream("model-a", "prompt", undefined, { num_predict: 256 });
+
+    expect(result.response).toBe("OK");
+    expect(capturedBodies).toHaveLength(2);
+    expect(capturedBodies[0]).toMatchObject({ max_output_tokens: 256, stream: true });
+    expect(capturedBodies[0]).not.toHaveProperty("max_tokens");
+    expect(capturedBodies[1]).toMatchObject({ max_tokens: 256, stream: true });
+    expect(capturedBodies[1]).not.toHaveProperty("max_output_tokens");
+  });
+
+  it("retries stream request with legacy max_tokens when backend reports invalid field max_output_tokens", async () => {
+    const capturedBodies: Record<string, unknown>[] = [];
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const rawBody = typeof init?.body === "string" ? init.body : "{}";
+      const parsed = JSON.parse(rawBody) as Record<string, unknown>;
+      capturedBodies.push(parsed);
+      if (capturedBodies.length === 1) {
+        return jsonResponse({ error: { message: "invalid field 'max_output_tokens'" } }, 400);
+      }
+      return nativeStreamResponse([
+        { type: "message.delta", delta: "OK" },
+        {
+          type: "chat.end",
+          result: {
+            output: [{ type: "message", content: "OK" }],
+            stats: {
+              input_tokens: 3,
+              total_output_tokens: 1,
+              tokens_per_second: 10,
+              time_to_first_token_seconds: 0.1,
+            },
+          },
+        },
+      ]);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("../src/core/lm-studio-client.js");
+    const result = await client.generateStream("model-a", "prompt", undefined, { num_predict: 256 });
+
+    expect(result.response).toBe("OK");
+    expect(capturedBodies).toHaveLength(2);
+    expect(capturedBodies[0]).toMatchObject({ max_output_tokens: 256, stream: true });
+    expect(capturedBodies[1]).toMatchObject({ max_tokens: 256, stream: true });
+  });
+
+  it("retries stream request with legacy max_tokens when backend says max_tokens is required", async () => {
+    const capturedBodies: Record<string, unknown>[] = [];
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const rawBody = typeof init?.body === "string" ? init.body : "{}";
+      const parsed = JSON.parse(rawBody) as Record<string, unknown>;
+      capturedBodies.push(parsed);
+      if (capturedBodies.length === 1) {
+        return jsonResponse({ error: { message: "max_tokens is required" } }, 400);
+      }
+      return nativeStreamResponse([
+        { type: "message.delta", delta: "OK" },
+        {
+          type: "chat.end",
+          result: {
+            output: [{ type: "message", content: "OK" }],
+            stats: {
+              input_tokens: 3,
+              total_output_tokens: 1,
+              tokens_per_second: 10,
+              time_to_first_token_seconds: 0.1,
+            },
+          },
+        },
+      ]);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("../src/core/lm-studio-client.js");
+    const result = await client.generateStream("model-a", "prompt", undefined, { num_predict: 256 });
+
+    expect(result.response).toBe("OK");
+    expect(capturedBodies).toHaveLength(2);
+    expect(capturedBodies[0]).toMatchObject({ max_output_tokens: 256, stream: true });
+    expect(capturedBodies[1]).toMatchObject({ max_tokens: 256, stream: true });
+  });
+
+  it("shares the cached legacy output-limit mode between generate and stream requests", async () => {
+    const capturedBodies: Record<string, unknown>[] = [];
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const rawBody = typeof init?.body === "string" ? init.body : "{}";
+      const parsed = JSON.parse(rawBody) as Record<string, unknown>;
+      capturedBodies.push(parsed);
+      if (capturedBodies.length === 1) {
+        return jsonResponse({ error: "Unexpected key 'max_output_tokens'" }, 400);
+      }
+      if (parsed.stream === true) {
+        return nativeStreamResponse([
+          { type: "message.delta", delta: "OK" },
+          {
+            type: "chat.end",
+            result: {
+              output: [{ type: "message", content: "OK" }],
+              stats: {
+                input_tokens: 3,
+                total_output_tokens: 1,
+                tokens_per_second: 10,
+                time_to_first_token_seconds: 0.1,
+              },
+            },
+          },
+        ]);
+      }
+      return nativeChatResponse("OK");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("../src/core/lm-studio-client.js");
+    await client.generate("model-a", "prompt-1", { num_predict: 256 });
+    await client.generateStream("model-a", "prompt-2", undefined, { num_predict: 128 });
+
+    expect(capturedBodies).toHaveLength(3);
+    expect(capturedBodies[0]).toMatchObject({ input: "prompt-1", max_output_tokens: 256 });
+    expect(capturedBodies[1]).toMatchObject({ input: "prompt-1", max_tokens: 256 });
+    expect(capturedBodies[2]).toMatchObject({ input: "prompt-2", max_tokens: 128, stream: true });
+    expect(capturedBodies[2]).not.toHaveProperty("max_output_tokens");
   });
 
   it("shows actionable guidance when LM Studio blocks model load in non-stream mode", async () => {
@@ -750,6 +1156,7 @@ describe("lm-studio-client thinking toggle passthrough", () => {
       model: "model-a",
       input: "prompt",
       system_prompt: expect.any(String),
+      max_output_tokens: 512,
     });
     expect(capturedBody?.system_prompt).toMatch(
       /do not output internal reasoning/i

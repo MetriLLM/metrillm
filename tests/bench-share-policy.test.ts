@@ -29,6 +29,7 @@ const {
   promptShareMock,
   openUrlMock,
   warnMsgMock,
+  setTimeoutUnrefMock,
 } = vi.hoisted(() => ({
   listModelsMock: vi.fn(),
   resolveRuntimeModelMock: vi.fn(),
@@ -51,6 +52,7 @@ const {
   promptShareMock: vi.fn(),
   openUrlMock: vi.fn(),
   warnMsgMock: vi.fn(),
+  setTimeoutUnrefMock: vi.fn(),
 }));
 
 vi.mock("../src/core/runtime.js", () => ({
@@ -262,6 +264,32 @@ describe("bench share policy", () => {
     expect(warnMsgMock).toHaveBeenCalledWith(
       "Sharing is not available in performance-only mode. Run a full benchmark to upload results."
     );
+  });
+
+  it("unrefs the telemetry grace timer so standalone bench commands do not idle for 2 seconds", async () => {
+    const setTimeoutSpy = vi
+      .spyOn(globalThis, "setTimeout")
+      .mockImplementation(((handler: TimerHandler) => {
+        queueMicrotask(() => {
+          if (typeof handler === "function") {
+            handler();
+          }
+        });
+        return { unref: setTimeoutUnrefMock } as unknown as ReturnType<typeof setTimeout>;
+      }) as typeof setTimeout);
+
+    try {
+      await benchCommand({
+        model: "test-model",
+        perfOnly: true,
+        setExitCode: false,
+        ciNoMenu: false,
+      });
+    } finally {
+      setTimeoutSpy.mockRestore();
+    }
+
+    expect(setTimeoutUnrefMock).toHaveBeenCalledTimes(1);
   });
 
   it("allows upload on full benchmark", async () => {

@@ -23,6 +23,7 @@ let defaultKeepAlive: KeepAliveValue | undefined;
 const activeAbortControllers = new Set<AbortController>();
 const directorySizeCache = new Map<string, number>();
 const modelDefinitionCache = new Map<string, LMStudioModelDefinition | null>();
+const outputLimitModeCache = new Map<string, LMStudioOutputLimitMode>();
 
 interface LMStudioModelListResponse {
   data?: Array<{ id?: string }>;
@@ -158,12 +159,28 @@ function hasSamplingOverrides(options?: LMStudioRequestOptions): boolean {
   return options?.top_p !== undefined || options?.seed !== undefined;
 }
 
+type LMStudioOutputLimitMode = "preferred" | "legacy";
+
+const UNSUPPORTED_SAMPLING_FIELD_PATTERN = /unrecognized|unknown|not support|unsupported|invalid|unexpected|additional|extra/;
+const UNSUPPORTED_OUTPUT_LIMIT_FIELD_PATTERN = /unrecognized|unknown|not support|unsupported|unexpected|additional|extra|invalid field/;
+
 function isUnsupportedSamplingMessage(status: number, text: string): boolean {
   if (status !== 400 && status !== 422) return false;
   const lower = text.toLowerCase();
-  const mentionsSampling = /\b(seed|top_p|topp)\b/.test(lower);
-  if (!mentionsSampling) return false;
-  return /unrecognized|unknown|not support|unsupported|invalid|unexpected|additional|extra/.test(lower);
+  if (!/\b(seed|top_p|topp)\b/.test(lower)) return false;
+  return UNSUPPORTED_SAMPLING_FIELD_PATTERN.test(lower);
+}
+
+function isUnsupportedOutputLimitMessage(status: number, text: string, mode: LMStudioOutputLimitMode): boolean {
+  if (status !== 400 && status !== 422) return false;
+  const lower = text.toLowerCase();
+  const fieldName = mode === "legacy" ? "max_tokens" : "max_output_tokens";
+  const alternateFieldName = mode === "legacy" ? "max_output_tokens" : "max_tokens";
+  const mentionsUnsupportedCurrentField =
+    lower.includes(fieldName) && UNSUPPORTED_OUTPUT_LIMIT_FIELD_PATTERN.test(lower);
+  const mentionsRequiredAlternateField =
+    lower.includes(alternateFieldName) && /\b(required|missing)\b/.test(lower);
+  return mentionsUnsupportedCurrentField || mentionsRequiredAlternateField;
 }
 
 function extractLMStudioErrorMessage(body: string): string {
@@ -216,25 +233,89 @@ function buildLMStudioRequestError(
   return new Error(`LM Studio ${kind} failed (${status} ${statusText})${suffix}`.trim());
 }
 
+function buildUnsupportedOutputLimitNegotiationError(
+  kind: "generate" | "stream",
+  model: string,
+  body: string
+): Error {
+  const backendMessage = extractLMStudioErrorMessage(body);
+  return new Error(
+    [
+      `LM Studio ${kind} failed for "${model}" because this backend rejected both max_output_tokens and max_tokens.`,
+      "MetriLLM cannot safely continue without an explicit output limit because benchmarks rely on bounded generation.",
+      backendMessage ? `Backend error: ${backendMessage}` : undefined,
+    ].filter(Boolean).join(" ")
+  );
+}
+
 function buildNativeChatBody(
   model: string,
   prompt: string,
   options: LMStudioRequestOptions | undefined,
   stream: boolean,
-  includeSampling: boolean
+  includeSampling: boolean,
+  outputLimitMode: LMStudioOutputLimitMode
 ): Record<string, unknown> {
   const reasoning = buildNativeThinkingOption(options?.think);
+  const outputLimit =
+    options?.num_predict !== undefined ? options.num_predict : 512;
   return {
     model,
     input: prompt,
     temperature: options?.temperature ?? 0,
     ...(includeSampling && options?.top_p !== undefined ? { top_p: options.top_p } : {}),
     ...(includeSampling && options?.seed !== undefined ? { seed: options.seed } : {}),
-    max_tokens: options?.num_predict ?? 512,
+    ...(outputLimitMode === "preferred" ? { max_output_tokens: outputLimit } : {}),
+    ...(outputLimitMode === "legacy" ? { max_tokens: outputLimit } : {}),
     stream,
     ...(reasoning !== undefined ? { reasoning } : {}),
     ...(options?.think === false ? { system_prompt: NON_THINKING_SYSTEM_PROMPT } : {}),
   };
+}
+
+const MAX_NEGOTIATE_RETRIES = 5;
+
+async function negotiateRequest(
+  kind: "generate" | "stream",
+  model: string,
+  cacheKey: string,
+  options: LMStudioRequestOptions | undefined,
+  makeRequest: (includeSampling: boolean, outputLimitMode: LMStudioOutputLimitMode) => Promise<Response>,
+): Promise<Response> {
+  let includeSampling = true;
+  let outputLimitMode = outputLimitModeCache.get(cacheKey) ?? "preferred";
+  const triedOutputLimitModes = new Set<LMStudioOutputLimitMode>([outputLimitMode]);
+  let resp = await makeRequest(includeSampling, outputLimitMode);
+  let retries = 0;
+  while (!resp.ok && retries < MAX_NEGOTIATE_RETRIES) {
+    retries++;
+    const body = await resp.text().catch(() => "");
+    if (includeSampling && hasSamplingOverrides(options) && isUnsupportedSamplingMessage(resp.status, body)) {
+      includeSampling = false;
+      resp = await makeRequest(includeSampling, outputLimitMode);
+      continue;
+    }
+    if (isUnsupportedOutputLimitMessage(resp.status, body, outputLimitMode)) {
+      const nextMode: LMStudioOutputLimitMode | null =
+        outputLimitMode === "preferred"
+          ? "legacy"
+          : (!triedOutputLimitModes.has("preferred") ? "preferred" : null);
+      if (!nextMode) {
+        throw buildUnsupportedOutputLimitNegotiationError(kind, model, body);
+      }
+      outputLimitMode = nextMode;
+      triedOutputLimitModes.add(outputLimitMode);
+      resp = await makeRequest(includeSampling, outputLimitMode);
+      continue;
+    }
+    throw buildLMStudioRequestError(kind, model, resp.status, resp.statusText, body);
+  }
+  if (!resp.ok) {
+    const body = await resp.text().catch(() => "");
+    throw buildLMStudioRequestError(kind, model, resp.status, resp.statusText, body);
+  }
+  outputLimitModeCache.set(cacheKey, outputLimitMode);
+  return resp;
 }
 
 function getNativeStatNumber(value: unknown): number | undefined {
@@ -1156,27 +1237,15 @@ export async function generate(
   try {
     const baseUrl = getLMStudioBaseUrl();
     const url = new URL("/api/v1/chat", baseUrl);
-    const doRequest = (includeSampling: boolean) =>
+
+    const resp = await negotiateRequest("generate", model, baseUrl, options, (sampling, limitMode) =>
       fetch(url, {
         method: "POST",
         headers: getLMStudioHeaders(),
-        body: JSON.stringify(buildNativeChatBody(model, prompt, options, false, includeSampling)),
+        body: JSON.stringify(buildNativeChatBody(model, prompt, options, false, sampling, limitMode)),
         signal: controller.signal,
-      });
-
-    let resp = await doRequest(true);
-    if (!resp.ok) {
-      const body = await resp.text().catch(() => "");
-      if (hasSamplingOverrides(options) && isUnsupportedSamplingMessage(resp.status, body)) {
-        resp = await doRequest(false);
-      } else {
-        throw buildLMStudioRequestError("generate", model, resp.status, resp.statusText, body);
-      }
-    }
-    if (!resp.ok) {
-      const body = await resp.text().catch(() => "");
-      throw buildLMStudioRequestError("generate", model, resp.status, resp.statusText, body);
-    }
+      })
+    );
 
     const payload = (await resp.json()) as LMStudioNativeChatResponse;
     const nativeResponse = extractNativeResponse(payload);
@@ -1254,27 +1323,14 @@ export async function generateStream(
   try {
     resetStallTimer();
 
-    const doRequest = (includeSampling: boolean) =>
+    const resp = await negotiateRequest("stream", model, baseUrl, options, (sampling, limitMode) =>
       fetch(url, {
         method: "POST",
         headers: getLMStudioHeaders(),
-        body: JSON.stringify(buildNativeChatBody(model, prompt, options, true, includeSampling)),
+        body: JSON.stringify(buildNativeChatBody(model, prompt, options, true, sampling, limitMode)),
         signal: controller.signal,
-      });
-
-    let resp = await doRequest(true);
-    if (!resp.ok) {
-      const body = await resp.text().catch(() => "");
-      if (hasSamplingOverrides(options) && isUnsupportedSamplingMessage(resp.status, body)) {
-        resp = await doRequest(false);
-      } else {
-        throw buildLMStudioRequestError("stream", model, resp.status, resp.statusText, body);
-      }
-    }
-    if (!resp.ok) {
-      const body = await resp.text().catch(() => "");
-      throw buildLMStudioRequestError("stream", model, resp.status, resp.statusText, body);
-    }
+      })
+    );
 
     if (!resp.body) {
       throw new Error("LM Studio stream response body is empty");

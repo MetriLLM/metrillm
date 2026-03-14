@@ -306,6 +306,7 @@ async function selectWithArrows<T>(
 
     readline.emitKeypressEvents(input);
     input.resume();
+    input.ref?.();
     if (input.isTTY) {
       input.setRawMode(true);
     }
@@ -409,6 +410,7 @@ async function waitForContinue(message = "Press Enter to continue..."): Promise<
 
     readline.emitKeypressEvents(input);
     input.resume();
+    input.ref?.();
     if (input.isTTY) input.setRawMode(true);
     output.write("\x1b[?25l");
     input.on("keypress", onKeypress);
