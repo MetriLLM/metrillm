@@ -7,6 +7,12 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-03-14
+
+### Fixed
+
+- Harden LM Studio request negotiation: extract shared retry loop, cache output limit mode per endpoint, and add explicit error when both `max_output_tokens` and `max_tokens` are rejected.
+
 ## [0.2.4] - 2026-03-14
 
 ### Fixed
