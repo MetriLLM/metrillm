@@ -7,6 +7,20 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-03-14
+
+### Added
+
+- Runtime-unavailable guidance: clearer error messages when Ollama or LM Studio is not reachable, with install/start instructions.
+- All install commands now use `@latest` to ensure users always get the latest version.
+- PRD for TTY rendering migration to standard libraries (@clack/prompts, wrap-ansi, gradient-string, boxen).
+- Supabase migrations tracked in git (11 previously untracked migration files).
+
+### Fixed
+
+- Version and update checks are now install-channel-aware (npm, Homebrew, npx) with correct update commands.
+- Interactive menu repaint stabilized: replaced save/restore cursor with relative cursor movement to prevent ghost lines on terminal resize or long menus.
+
 ## [0.2.2] - 2026-03-06
 
 ### Added

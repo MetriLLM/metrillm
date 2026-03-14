@@ -1,6 +1,6 @@
 {
   "name": "metrillm",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Benchmark local LLM models — performance, quality & hardware fitness verdict",
   "author": {
     "name": "Cyril Guilleminot",
