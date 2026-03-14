@@ -6,6 +6,7 @@ import { listCommand } from "./commands/list.js";
 import { runInteractiveMenu } from "./ui/menu.js";
 import { exportBenchResults, type ExportFormat } from "./core/exporter.js";
 import { errorMsg, successMsg, warnMsg } from "./ui/progress.js";
+import { getCliVersion } from "./core/app-meta.js";
 import { normalizeRuntimeBackend } from "./core/runtime.js";
 import { canUseInteractiveMenu } from "./cli-interactive.js";
 import { printGuruMeditationSync } from "./ui/guru-meditation.js";
@@ -33,13 +34,13 @@ function checkWindowsExecutionPolicy(): void {
     }).trim();
     if (policy === "Restricted" || policy === "AllSigned") {
       warnMsg(
-        `PowerShell execution policy is "${policy}" — "npm install -g metrillm" won't work in PowerShell.`
+        `PowerShell execution policy is "${policy}" — "npm install -g metrillm@latest" won't work in PowerShell.`
       );
       warnMsg(
         "Fix: Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned"
       );
       warnMsg(
-        "Or keep using: npx metrillm (works without changing the policy)"
+        "Or keep using: npx metrillm@latest (works without changing the policy)"
       );
     }
   } catch {
@@ -49,7 +50,7 @@ function checkWindowsExecutionPolicy(): void {
 
 checkWindowsExecutionPolicy();
 
-const CLI_VERSION = "0.2.2";
+const CLI_VERSION = getCliVersion();
 
 // Fire-and-forget update check (skipped for non-interactive / output-sensitive flags).
 const skipUpdateCheckFlags = ["--json", "--ci-no-menu", "--help", "--version", "-h", "-V"];

@@ -13,7 +13,7 @@
 > Think Geekbench, but for local LLMs on your actual hardware.
 
 ```bash
-npm install -g metrillm
+npm install -g metrillm@latest
 metrillm bench
 ```
 
@@ -58,12 +58,12 @@ metrillm bench
 
 ```bash
 # Install globally
-npm install -g metrillm
+npm install -g metrillm@latest
 metrillm bench
 
 # Alternative package managers
-pnpm add -g metrillm
-bun add -g metrillm
+pnpm add -g metrillm@latest
+bun add -g metrillm@latest
 
 # Homebrew
 brew install MetriLLM/metrillm/metrillm
@@ -122,7 +122,7 @@ PowerShell's default execution policy blocks npm global scripts. If you see `PSS
 Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 ```
 
-Alternatively, use `npx metrillm` which bypasses the issue entirely.
+Alternatively, use `npx metrillm@latest` which bypasses the issue entirely.
 
 ## Runtime Backends
 

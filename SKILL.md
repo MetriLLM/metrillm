@@ -6,7 +6,7 @@ author: MetriLLM
 source: https://github.com/MetriLLM/metrillm
 license: Apache-2.0
 allowed-tools: Bash, Read
-install: npm install -g metrillm
+install: npm install -g metrillm@latest
 ---
 
 # MetriLLM — Find the Best LLM for Your Hardware
@@ -22,7 +22,7 @@ Test any local model and get a clear verdict: is it worth running on your machin
 3. **MetriLLM CLI** — install globally:
 
 ```bash
-npm install -g metrillm
+npm install -g metrillm@latest
 ```
 
 ## Usage
