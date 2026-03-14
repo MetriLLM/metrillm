@@ -7,6 +7,12 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-03-14
+
+### Fixed
+
+- Include LM Studio models from v0 listing API fallback.
+
 ## [0.2.3] - 2026-03-14
 
 ### Added
