@@ -1081,17 +1081,24 @@ export async function listModels(): Promise<OllamaModel[]> {
     throw new Error(`LM Studio list models failed (${resp.status} ${resp.statusText})`);
   }
   const data = (await resp.json()) as LMStudioModelListResponse;
-  const ids = (data.data ?? [])
+  const primaryIds = (data.data ?? [])
     .map((m) => m.id?.trim())
     .filter((id): id is string => Boolean(id));
 
   const apiModels = await fetchApiModels();
   const apiById = new Map<string, LMStudioApiModel>();
+  const secondaryIds: string[] = [];
   for (const model of apiModels ?? []) {
     const id = asNonEmptyString(model.id);
     if (!id) continue;
     apiById.set(id, model);
+    secondaryIds.push(id);
   }
+
+  // /api/v1/models can be limited to currently loaded models on some LM Studio
+  // versions. Merge in /api/v0/models ids so downloaded-but-not-loaded models
+  // still appear in MetriLLM's model list.
+  const ids = Array.from(new Set([...primaryIds, ...secondaryIds]));
 
   const modelsRootDir = await resolveModelsRootDir();
   const localMetadataEntries = await Promise.all(

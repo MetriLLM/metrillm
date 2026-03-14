@@ -170,6 +170,53 @@ describe("lm-studio-client metadata mapping", () => {
     ]);
   });
 
+  it("includes downloaded models from /api/v0/models when /api/v1/models is empty", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const reqPath = requestPath(input);
+      if (reqPath === "/api/v1/models") {
+        return jsonResponse({
+          object: "list",
+          data: [],
+        });
+      }
+      if (reqPath === "/api/v0/models") {
+        return jsonResponse({
+          object: "list",
+          data: [
+            { id: "openai/gpt-oss-20b", quantization: "MXFP4", arch: "gpt_oss", state: "not-loaded" },
+            { id: "qwen/qwen3-coder-30b", quantization: "4bit", arch: "qwen3_moe", state: "not-loaded" },
+          ],
+        });
+      }
+      throw new Error(`Unexpected path: ${reqPath}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("../src/core/lm-studio-client.js");
+    const models = await client.listModels();
+
+    expect(models).toEqual([
+      {
+        name: "openai/gpt-oss-20b",
+        size: 0,
+        parameterSize: "20B",
+        quantization: "MXFP4",
+        runtimeStatus: "not-loaded",
+        modelFormat: undefined,
+        family: "gpt_oss",
+      },
+      {
+        name: "qwen/qwen3-coder-30b",
+        size: 0,
+        parameterSize: "30B",
+        quantization: "4bit",
+        runtimeStatus: "not-loaded",
+        modelFormat: undefined,
+        family: "qwen3_moe",
+      },
+    ]);
+  });
+
   it("detects loaded models from /api/v0/models state", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const path = requestPath(input);
