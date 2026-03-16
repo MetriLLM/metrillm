@@ -7,6 +7,12 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-03-16
+
+### Fixed
+
+- Preserve legacy auto-share opt-out preference when migrating user settings to new format.
+
 ## [0.2.5] - 2026-03-14
 
 ### Fixed

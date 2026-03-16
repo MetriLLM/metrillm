@@ -1,7 +1,7 @@
 {
   "name": "metrillm",
   "displayName": "MetriLLM",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Benchmark local LLM models — performance, quality & hardware fitness verdict",
   "category": "developer-tools",
   "author": {
