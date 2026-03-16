@@ -119,17 +119,18 @@ describe("store", () => {
   it("returns default config then persists config updates", async () => {
     const store = await import("../src/core/store.js");
     const defaultConfig = await store.loadConfig();
-    expect(defaultConfig.autoShare).toBe("ask");
+    expect(defaultConfig.autoShare).toBe(true);
 
-    await store.saveConfig({ autoShare: true });
+    await store.saveConfig({ autoShare: "ask", autoSharePreferenceSet: true });
     const updated = await store.loadConfig();
-    expect(updated.autoShare).toBe(true);
+    expect(updated.autoShare).toBe("ask");
+    expect(updated.autoSharePreferenceSet).toBe(true);
   });
 
   it("normalizes and keeps submitter profile when valid", async () => {
     const store = await import("../src/core/store.js");
     await store.saveConfig({
-      autoShare: "ask",
+      autoShare: true,
       submitterNickname: "  Cyril   Bench  ",
       submitterEmail: "  CYRIL@Example.COM ",
     });
@@ -144,7 +145,7 @@ describe("store", () => {
     const configPath = join(fakeHome, ".metrillm", "config.json");
     await mkdir(join(fakeHome, ".metrillm"), { recursive: true });
     await writeFile(configPath, JSON.stringify({
-      autoShare: "ask",
+      autoShare: true,
       submitterNickname: "x",
       submitterEmail: "invalid-email",
     }), "utf8");
@@ -162,6 +163,41 @@ describe("store", () => {
 
     const config = await store.loadConfig();
     expect(config.autoShare).toBe("ask");
+  });
+
+  it("preserves legacy autoShare=ask preference", async () => {
+    const store = await import("../src/core/store.js");
+    const configPath = join(fakeHome, ".metrillm", "config.json");
+    await mkdir(join(fakeHome, ".metrillm"), { recursive: true });
+    await writeFile(configPath, JSON.stringify({ autoShare: "ask" }), "utf8");
+
+    const config = await store.loadConfig();
+    expect(config.autoShare).toBe("ask");
+  });
+
+  it("applies new default autoShare=true when key is missing", async () => {
+    const store = await import("../src/core/store.js");
+    const configPath = join(fakeHome, ".metrillm", "config.json");
+    await mkdir(join(fakeHome, ".metrillm"), { recursive: true });
+    await writeFile(configPath, JSON.stringify({ telemetry: false }), "utf8");
+
+    const config = await store.loadConfig();
+    expect(config.autoShare).toBe(true);
+    expect(config.telemetry).toBe(false);
+  });
+
+  it("preserves explicit ask preference after the new default is introduced", async () => {
+    const store = await import("../src/core/store.js");
+    const configPath = join(fakeHome, ".metrillm", "config.json");
+    await mkdir(join(fakeHome, ".metrillm"), { recursive: true });
+    await writeFile(configPath, JSON.stringify({
+      autoShare: "ask",
+      autoSharePreferenceSet: true,
+    }), "utf8");
+
+    const config = await store.loadConfig();
+    expect(config.autoShare).toBe("ask");
+    expect(config.autoSharePreferenceSet).toBe(true);
   });
 
   it("ignores malformed result files", async () => {

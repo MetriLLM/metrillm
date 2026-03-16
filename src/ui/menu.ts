@@ -751,7 +751,11 @@ export async function runSettingsMenu(deps: SettingsMenuDeps = {}): Promise<void
     if (action === "toggle-auto-share") {
       const nextAutoShare: MetriLLMConfig["autoShare"] = autoShareEnabled ? "ask" : true;
       try {
-        await saveUserConfig({ ...config, autoShare: nextAutoShare });
+        await saveUserConfig({
+          ...config,
+          autoShare: nextAutoShare,
+          autoSharePreferenceSet: true,
+        });
         successMsg(`Auto-share ${nextAutoShare === true ? "enabled" : "disabled"}.`);
       } catch (err) {
         errorMsg("Could not update auto-share setting.");

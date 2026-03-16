@@ -10,6 +10,7 @@ const CONFIG_PATH = join(BASE_DIR, "config.json");
 
 export interface MetriLLMConfig {
   autoShare: true | "ask"; // true = always share, "ask" = prompt every run
+  autoSharePreferenceSet?: boolean; // true once the user explicitly chose their share preference
   telemetry?: boolean;        // true = opt-in, false = opt-out, undefined = not yet decided
   submitterNickname?: string;
   submitterEmail?: string;
@@ -17,7 +18,7 @@ export interface MetriLLMConfig {
 }
 
 const DEFAULT_CONFIG: MetriLLMConfig = {
-  autoShare: "ask",
+  autoShare: true,
 };
 
 async function ensureDirs(): Promise<void> {
@@ -29,6 +30,39 @@ function parseRuntimeBackend(value: unknown): MetriLLMConfig["runtimeBackend"] |
     return value;
   }
   return undefined;
+}
+
+function parseAutoShareConfig(
+  parsed: Record<string, unknown>
+): Pick<MetriLLMConfig, "autoShare" | "autoSharePreferenceSet"> {
+  const autoSharePreferenceSet = parsed.autoSharePreferenceSet === true;
+
+  if (parsed.autoShare === true) {
+    return {
+      autoShare: true,
+      autoSharePreferenceSet: autoSharePreferenceSet || undefined,
+    };
+  }
+
+  if (parsed.autoShare === "ask") {
+    return {
+      autoShare: "ask",
+      autoSharePreferenceSet: autoSharePreferenceSet || undefined,
+    };
+  }
+
+  if (parsed.autoShare === false) {
+    return {
+      autoShare: "ask",
+      autoSharePreferenceSet: autoSharePreferenceSet || undefined,
+    };
+  }
+
+  // Missing autoShare means no prior persisted preference:
+  // apply the new default for fresh installs.
+  return {
+    autoShare: true,
+  };
 }
 
 function resultFilename(result: BenchResult): string {
@@ -75,7 +109,7 @@ export async function loadConfig(): Promise<MetriLLMConfig> {
   try {
     const content = await readFile(CONFIG_PATH, "utf8");
     const parsed = JSON.parse(content) as Record<string, unknown>;
-    const autoShare = parsed.autoShare === true ? true : "ask";
+    const autoShareConfig = parseAutoShareConfig(parsed);
     const telemetry = typeof parsed.telemetry === "boolean" ? parsed.telemetry : undefined;
     const submitterNickname = typeof parsed.submitterNickname === "string"
       && isValidNickname(parsed.submitterNickname)
@@ -88,7 +122,7 @@ export async function loadConfig(): Promise<MetriLLMConfig> {
     const runtimeBackend = parseRuntimeBackend(parsed.runtimeBackend);
     return {
       ...DEFAULT_CONFIG,
-      autoShare,
+      ...autoShareConfig,
       telemetry,
       submitterNickname,
       submitterEmail,

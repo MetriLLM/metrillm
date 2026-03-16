@@ -131,7 +131,7 @@ describe("promptShare", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    loadConfigMock.mockResolvedValue({ autoShare: "ask" });
+    loadConfigMock.mockResolvedValue({ autoShare: "ask", autoSharePreferenceSet: true });
     saveConfigMock.mockResolvedValue(undefined);
     setTTY(false);
   });
@@ -164,6 +164,7 @@ describe("promptShare", () => {
   });
 
   it("returns skip in non-interactive mode when autoShare is ask", async () => {
+    loadConfigMock.mockResolvedValueOnce({ autoShare: "ask", autoSharePreferenceSet: true });
     const decision = await promptShare(sampleResult());
     expect(decision).toBe("skip");
     expect(saveConfigMock).not.toHaveBeenCalled();
@@ -185,7 +186,7 @@ describe("promptShare", () => {
       selectChoice: vi.fn(async () => "always"),
     });
     expect(decision).toBe("share");
-    expect(saveConfigMock).toHaveBeenCalledWith({ autoShare: true });
+    expect(saveConfigMock).toHaveBeenCalledWith({ autoShare: true, autoSharePreferenceSet: true });
   });
 
   it("returns share when user chooses one-time share", async () => {
@@ -221,7 +222,7 @@ describe("promptShare", () => {
       { str: "\r", key: { name: "return" } },
     ]);
     expect(decision).toBe("share");
-    expect(saveConfigMock).toHaveBeenCalledWith({ autoShare: true });
+    expect(saveConfigMock).toHaveBeenCalledWith({ autoShare: true, autoSharePreferenceSet: true });
   });
 
   it("accepts enter alias for validation key", async () => {

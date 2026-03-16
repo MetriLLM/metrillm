@@ -176,7 +176,7 @@ export async function promptShare(
   const choice = await (deps.selectChoice ?? selectShareChoice)(result);
 
   if (choice === "always") {
-    await saveConfig({ ...config, autoShare: true });
+    await saveConfig({ ...config, autoShare: true, autoSharePreferenceSet: true });
     return "share";
   }
   if (choice === "skip") {

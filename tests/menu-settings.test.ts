@@ -11,7 +11,7 @@ import type { MetriLLMConfig } from "../src/core/store.js";
 
 describe("runSettingsMenu", () => {
   it("toggles auto-share and persists to config", async () => {
-    let config: MetriLLMConfig = { autoShare: "ask", telemetry: false };
+    let config: MetriLLMConfig = { autoShare: "ask", autoSharePreferenceSet: true, telemetry: false };
     const sequence = ["toggle-auto-share", "back"] as const;
     let idx = 0;
 
@@ -31,7 +31,11 @@ describe("runSettingsMenu", () => {
       waitForAcknowledge,
     });
 
-    expect(saveUserConfig).toHaveBeenCalledWith({ autoShare: true, telemetry: false });
+    expect(saveUserConfig).toHaveBeenCalledWith({
+      autoShare: true,
+      autoSharePreferenceSet: true,
+      telemetry: false,
+    });
     expect(saveTelemetryPref).not.toHaveBeenCalled();
     expect(waitForAcknowledge).toHaveBeenCalledTimes(1);
   });
@@ -61,7 +65,10 @@ describe("runSettingsMenu", () => {
   });
 
   it("returns immediately when user exits settings", async () => {
-    const loadUserConfig = vi.fn(async () => ({ autoShare: "ask" as const }));
+    const loadUserConfig = vi.fn(async () => ({
+      autoShare: "ask" as const,
+      autoSharePreferenceSet: true,
+    }));
     const saveUserConfig = vi.fn(async (_next: MetriLLMConfig) => {});
     const saveTelemetryPref = vi.fn(async (_value: boolean) => {});
     const selectSettingsAction = vi.fn(async () => null);
@@ -84,7 +91,7 @@ describe("runSettingsMenu", () => {
   });
 
   it("edits benchmark profile from settings", async () => {
-    const config: MetriLLMConfig = { autoShare: "ask", telemetry: false };
+    const config: MetriLLMConfig = { autoShare: true, telemetry: false };
     const sequence = ["edit-submitter-profile", "back"] as const;
     let idx = 0;
 
@@ -116,6 +123,7 @@ describe("runSettingsMenu", () => {
   it("clears benchmark profile from settings", async () => {
     let config: MetriLLMConfig = {
       autoShare: "ask",
+      autoSharePreferenceSet: true,
       telemetry: false,
       submitterNickname: "Cyril",
       submitterEmail: "cyril@example.com",
@@ -143,6 +151,7 @@ describe("runSettingsMenu", () => {
 
     expect(saveUserConfig).toHaveBeenCalledWith({
       autoShare: "ask",
+      autoSharePreferenceSet: true,
       telemetry: false,
       submitterNickname: undefined,
       submitterEmail: undefined,
@@ -153,7 +162,12 @@ describe("runSettingsMenu", () => {
   });
 
   it("updates runtime backend from settings", async () => {
-    let config: MetriLLMConfig = { autoShare: "ask", telemetry: false, runtimeBackend: "ollama" };
+    let config: MetriLLMConfig = {
+      autoShare: "ask",
+      autoSharePreferenceSet: true,
+      telemetry: false,
+      runtimeBackend: "ollama",
+    };
     const sequence = ["set-runtime-backend", "back"] as const;
     let idx = 0;
 
@@ -178,6 +192,7 @@ describe("runSettingsMenu", () => {
     expect(selectRuntimeBackend).toHaveBeenCalledWith("ollama");
     expect(saveUserConfig).toHaveBeenCalledWith({
       autoShare: "ask",
+      autoSharePreferenceSet: true,
       telemetry: false,
       runtimeBackend: "lm-studio",
     });
