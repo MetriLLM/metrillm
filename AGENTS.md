@@ -49,7 +49,6 @@ Run a single test: `npx vitest run tests/scoring.test.ts`
 ## Coding Conventions
 
 - **Indentation**: 2 spaces
-- **Naming**: `camelCase` for variables/functions, `PascalCase` for types/interfaces, kebab-case filenames
 - **Modules**: Small pure helpers in `src/utils.ts`, domain logic in module-specific files
 - **Imports**: ESM only (`import`/`export`), no CommonJS
 
@@ -62,16 +61,14 @@ Run a single test: `npx vitest run tests/scoring.test.ts`
 
 ## Commit Guidelines
 
-- Imperative, concise subject (e.g., `fix: handle timeout in performance benchmark`)
 - One logical change per commit
 - PRs should include: what changed, why, risk/impact notes, test evidence
 
 ## Security
 
 - **Node >= 20** required (`.nvmrc`)
-- Never commit secrets — use environment variables (`METRILLM_SUPABASE_URL`, `METRILLM_SUPABASE_ANON_KEY`)
+- Env vars used: `METRILLM_SUPABASE_URL`, `METRILLM_SUPABASE_ANON_KEY`, `OLLAMA_HOST` (targets non-default Ollama endpoints)
 - `src/benchmarks/coding.ts` runs LLM-generated code in a Node VM sandbox — changes require extra care
-- `OLLAMA_HOST` env var targets non-default Ollama endpoints
 
 ## Database
 
