@@ -2,10 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Language
-
-Always respond in French. Code, comments, commit messages, and technical identifiers remain in English.
-
 ## Project
 
 MetriLLM — CLI benchmark tool for local LLM models (Ollama and LM Studio). Measures performance (tok/s, TTFT, memory, CPU load), quality (reasoning, math, coding, instruction following, structured output, multilingual), and computes a hardware fitness verdict.
